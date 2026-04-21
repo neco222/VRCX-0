@@ -48,6 +48,7 @@ import { Location } from '@/components/Location.jsx';
 import { formatDateFilter } from '@/lib/dateTime.js';
 import { timeToText } from '@/lib/dateTime.js';
 import { copyTextToClipboard, openExternalLink } from '@/lib/entityMedia.js';
+import { userFacingErrorMessage } from '@/lib/errorDisplay.js';
 import { cn } from '@/lib/utils.js';
 import {
     configRepository,
@@ -1017,6 +1018,7 @@ export function GameLogPage({ embedded = false } = {}) {
     const [sessions, setSessions] = useState([]);
     const [loadStatus, setLoadStatus] = useState('idle');
     const [detail, setDetail] = useState('');
+    const [preferencesReady, setPreferencesReady] = useState(false);
     const [refreshToken, setRefreshToken] = useState(0);
     const [deletingGameLogKey, setDeletingGameLogKey] = useState('');
     const [previousInstancesOpen, setPreviousInstancesOpen] = useState(false);
@@ -1250,6 +1252,7 @@ export function GameLogPage({ embedded = false } = {}) {
                             : 'table'
                     );
                     preferencesReadyRef.current = true;
+                    setPreferencesReady(true);
                 }
             )
             .catch(() => {
@@ -1257,6 +1260,7 @@ export function GameLogPage({ embedded = false } = {}) {
                     return;
                 }
                 preferencesReadyRef.current = true;
+                setPreferencesReady(true);
             });
 
         return () => {
@@ -1422,7 +1426,7 @@ export function GameLogPage({ embedded = false } = {}) {
         const requestId = requestIdRef.current + 1;
         requestIdRef.current = requestId;
 
-        if (!preferencesReadyRef.current || !currentUserId) {
+        if (!preferencesReady || !currentUserId) {
             if (!currentUserId) {
                 setRows([]);
                 setSessions([]);
@@ -1494,9 +1498,10 @@ export function GameLogPage({ embedded = false } = {}) {
                 setSessions([]);
                 setLoadStatus('error');
                 setDetail(
-                    error instanceof Error
-                        ? error.message
-                        : 'Failed to load the game log snapshot.'
+                    userFacingErrorMessage(
+                        error,
+                        'Failed to load the game log snapshot.'
+                    )
                 );
             });
     }, [
@@ -1508,6 +1513,7 @@ export function GameLogPage({ embedded = false } = {}) {
         gameLogDisabled,
         isFavoritesLoaded,
         pagination.pageSize,
+        preferencesReady,
         queryFilterTypes,
         refreshToken,
         savedViewMode,
@@ -2364,7 +2370,10 @@ export function GameLogPage({ embedded = false } = {}) {
                     )}
                     {detail ? (
                         <div className="text-muted-foreground text-sm">
-                            {detail}
+                            {userFacingErrorMessage(
+                                detail,
+                                'Failed to load the game log snapshot.'
+                            )}
                         </div>
                     ) : null}
                 </PageToolbar>

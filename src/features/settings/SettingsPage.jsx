@@ -151,8 +151,7 @@ import {
     Field,
     FieldGroup,
     JsonTreeView,
-    SegmentedPreference,
-    SettingsSectionHeading
+    SegmentedPreference
 } from './components/SettingsField.jsx';
 import {
     buildOpenAiModelsEndpoint,
@@ -304,7 +303,7 @@ function SettingsTabContent({ value, children }) {
     return (
         <TabsContent
             value={value}
-            className="m-0 min-h-0 gap-4 overflow-auto pt-3 data-[state=active]:flex data-[state=active]:flex-1 data-[state=active]:flex-col"
+            className="m-0 min-h-0 w-full min-w-0 gap-4 overflow-x-hidden overflow-y-auto pt-3 pb-4 data-[state=active]:flex data-[state=active]:flex-1 data-[state=active]:flex-col [&>[data-slot=card]]:shrink-0"
         >
             {children}
         </TabsContent>
@@ -1909,9 +1908,9 @@ export function SettingsPage() {
             <Tabs
                 value={activeSettingsTab}
                 onValueChange={setActiveSettingsTab}
-                className="min-h-0 flex-1"
+                className="flex min-h-0 flex-1 flex-col"
             >
-                <div className="max-w-full overflow-x-auto">
+                <div className="max-w-full shrink-0 overflow-x-auto">
                     <TabsList>
                         {settingsTabs.map(([value, labelKey]) => (
                             <TabsTrigger key={value} value={value}>
@@ -1975,11 +1974,17 @@ export function SettingsPage() {
                                             )}
                                         </Button>
                                     </div>
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.general.application.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.general.application.startup'
@@ -2059,11 +2064,17 @@ export function SettingsPage() {
                                             )}
                                         </Button>
                                     </Field>
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.general.legal_notice.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <div className="text-muted-foreground rounded-lg border p-4 text-sm">
                                         <p>
                                             {t(
@@ -2403,11 +2414,17 @@ export function SettingsPage() {
                                         />
                                     </Field>
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.appearance.display.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.appearance.appearance.show_instance_id'
@@ -2491,11 +2508,17 @@ export function SettingsPage() {
                                         />
                                     </Field>
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.interface.navigation.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.interface.navigation.show_new_dashboard_button'
@@ -2531,11 +2554,17 @@ export function SettingsPage() {
                                         />
                                     </Field>
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.interface.lists_tables.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.appearance.appearance.sort_favorite_by'
@@ -2608,11 +2637,17 @@ export function SettingsPage() {
                                         </Button>
                                     </Field>
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.appearance.timedate.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.appearance.timedate.time_format'
@@ -2720,11 +2755,17 @@ export function SettingsPage() {
                                         </Select>
                                     </Field>
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.appearance.user_dialog.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.appearance.user_dialog.vrchat_notes'
@@ -2765,11 +2806,17 @@ export function SettingsPage() {
                                         />
                                     </Field>
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.appearance.friend_log.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.appearance.friend_log.hide_unfriends'
@@ -2787,11 +2834,17 @@ export function SettingsPage() {
                                         />
                                     </Field>
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.appearance.user_colors.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.appearance.user_colors.random_colors_from_user_id'
@@ -3103,99 +3156,82 @@ export function SettingsPage() {
                                         </Button>
                                     </Field>
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.advanced.advanced.user_generated_content.header'
                                         )}
-                                        description={t(
+                                    </CardTitle>
+                                    <CardDescription>
+                                        {t(
                                             'view.settings.advanced.advanced.user_generated_content.description'
                                         )}
-                                    />
-                                    <Field
-                                        label={t(
-                                            'view.settings.advanced.advanced.user_generated_content.folder'
-                                        )}
-                                    >
-                                        <div className="flex w-full max-w-xl flex-col gap-2 sm:flex-row">
-                                            <Input
-                                                value={
-                                                    prefs.userGeneratedContentPath
-                                                }
-                                                onChange={(event) =>
-                                                    setPrefs((current) => ({
-                                                        ...current,
-                                                        userGeneratedContentPath:
-                                                            event.target.value
-                                                    }))
-                                                }
-                                                onBlur={(event) =>
-                                                    void commit(async () => {
-                                                        const nextPath =
-                                                            await setUserGeneratedContentPathPreference(
-                                                                event.target
-                                                                    .value
-                                                            );
-                                                        setPrefs((current) => ({
-                                                            ...current,
-                                                            userGeneratedContentPath:
-                                                                nextPath
-                                                        }));
-                                                    })
-                                                }
-                                                placeholder={t(
-                                                    'view.settings.advanced.advanced.user_generated_content.folder'
-                                                )}
-                                                className="min-w-0 flex-1"
-                                            />
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                void backend.app.OpenUGCPhotosFolder(
+                                                    prefs.userGeneratedContentPath ||
+                                                        ''
+                                                )
+                                            }
+                                        >
+                                            {t(
+                                                'view.settings.advanced.advanced.user_generated_content.folder'
+                                            )}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                void openUgcFolderSelector()
+                                            }
+                                        >
+                                            {t(
+                                                'view.settings.advanced.advanced.user_generated_content.set_folder'
+                                            )}
+                                        </Button>
+                                        {prefs.userGeneratedContentPath ? (
                                             <Button
                                                 type="button"
                                                 variant="outline"
+                                                size="sm"
                                                 onClick={() =>
-                                                    void backend.app.OpenUGCPhotosFolder(
-                                                        prefs.userGeneratedContentPath ||
-                                                            ''
-                                                    )
+                                                    void resetUgcFolder()
                                                 }
                                             >
                                                 {t(
-                                                    'view.settings.advanced.advanced.user_generated_content.folder'
+                                                    'view.settings.advanced.advanced.user_generated_content.reset_override'
                                                 )}
                                             </Button>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() =>
-                                                    void openUgcFolderSelector()
-                                                }
-                                            >
-                                                {t(
-                                                    'view.settings.advanced.advanced.user_generated_content.set_folder'
-                                                )}
-                                            </Button>
-                                            {prefs.userGeneratedContentPath ? (
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        void resetUgcFolder()
-                                                    }
-                                                >
-                                                    {t(
-                                                        'view.settings.advanced.advanced.user_generated_content.reset_override'
-                                                    )}
-                                                </Button>
-                                            ) : null}
-                                        </div>
-                                    </Field>
+                                        ) : null}
+                                    </div>
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.advanced.advanced.save_instance_prints_to_file.header'
                                         )}
-                                        description={t(
+                                    </CardTitle>
+                                    <CardDescription>
+                                        {t(
                                             'view.settings.advanced.advanced.save_instance_prints_to_file.header_tooltip'
                                         )}
-                                    />
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.advanced.advanced.save_instance_prints_to_file.description'
@@ -3245,11 +3281,17 @@ export function SettingsPage() {
                                         />
                                     </Field>
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.advanced.advanced.save_instance_stickers_to_file.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.advanced.advanced.save_instance_stickers_to_file.description'
@@ -3283,14 +3325,22 @@ export function SettingsPage() {
                                         />
                                     </Field>
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.advanced.advanced.save_instance_emoji_to_file.header'
                                         )}
-                                        description={t(
+                                    </CardTitle>
+                                    <CardDescription>
+                                        {t(
                                             'view.settings.advanced.advanced.save_instance_prints_to_file.header_tooltip'
                                         )}
-                                    />
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.advanced.advanced.save_instance_emoji_to_file.description'
@@ -3830,11 +3880,17 @@ export function SettingsPage() {
                                         </div>
                                     </Field>
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.social.favorites.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.general.favorites.header'
@@ -4062,11 +4118,17 @@ export function SettingsPage() {
                                         </Button>
                                     </Field>
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.notifications.notifications.desktop_notifications.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.notifications.notifications.desktop_notifications.when_to_display'
@@ -4123,11 +4185,17 @@ export function SettingsPage() {
                                         />
                                     </Field>
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.notifications.notifications.text_to_speech.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.notifications.notifications.text_to_speech.when_to_play'
@@ -4364,11 +4432,17 @@ export function SettingsPage() {
                                             }
                                         />
                                     </Field>
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.general.logging.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.advanced.advanced.cache_debug.udon_exception_logging'
@@ -4464,11 +4538,17 @@ export function SettingsPage() {
                                         </Field>
                                     ) : null}
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.advanced.advanced.app_launcher.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.advanced.advanced.app_launcher.folder'
@@ -4542,11 +4622,17 @@ export function SettingsPage() {
                                         />
                                     </Field>
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.advanced.advanced.launch_commands.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.advanced.advanced.launch_commands.show_confirmation_on_switch_avatar_enable'
@@ -4569,11 +4655,17 @@ export function SettingsPage() {
                                         />
                                     </Field>
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.advanced.advanced.cache_debug.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.advanced.advanced.cache_debug.header'
@@ -4726,11 +4818,17 @@ export function SettingsPage() {
                                         />
                                     </Field>
 
-                                    <SettingsSectionHeading
-                                        title={t(
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        {t(
                                             'view.settings.advanced.advanced.database_cleanup.header'
                                         )}
-                                    />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col">
                                     <Field
                                         label={t(
                                             'view.settings.advanced.advanced.database_cleanup.auto_cleanup'

@@ -38,6 +38,7 @@ import {
     openExternalLink,
     userImage
 } from '@/lib/entityMedia.js';
+import { userFacingErrorMessage } from '@/lib/errorDisplay.js';
 import { getFileAnalysisForUnityPackages } from '@/lib/fileAnalysis.js';
 import { cn } from '@/lib/utils.js';
 import {
@@ -601,9 +602,10 @@ export function PlayerListPage({ embedded = false } = {}) {
                 setLoadStatus('error');
                 setPlayerRows([]);
                 setDetail(
-                    error instanceof Error
-                        ? error.message
-                        : 'Failed to reconstruct the current instance player list.'
+                    userFacingErrorMessage(
+                        error,
+                        'Failed to reconstruct the current instance player list.'
+                    )
                 );
             });
 
@@ -801,8 +803,16 @@ export function PlayerListPage({ embedded = false } = {}) {
     useEffect(() => {
         let active = true;
 
+        if (!currentUserId) {
+            setModerationByUserId({});
+            return () => {
+                active = false;
+            };
+        }
+
         database
-            .getAllModerations()
+            .initUserTables(currentUserId)
+            .then(() => database.getAllModerations())
             .then((rows) => {
                 if (!active) {
                     return;
@@ -1398,10 +1408,10 @@ export function PlayerListPage({ embedded = false } = {}) {
                 ) : isError ? (
                     <PlayerListEmptyState
                         title="Player list failed to load"
-                        description={
-                            detail ||
+                        description={userFacingErrorMessage(
+                            detail,
                             'The player-list adapter could not rebuild the current instance.'
-                        }
+                        )}
                     />
                 ) : (
                     <PlayerListTableShell
