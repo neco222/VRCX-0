@@ -4,11 +4,54 @@ import {
 } from '@/shared/vrchatEndpoint.js';
 
 import { safeJsonParse } from './baseRepository.js';
-import webRepository from './webRepository.js';
+import webRepository, { type WebExecuteOptions } from './webRepository.js';
 
 const JSON_CONTENT_TYPE = 'application/json;charset=utf-8';
 
-function shouldSkipQueryValue(value, { skipEmptyString = false } = {}) {
+export type QueryValue = string | number | boolean | Date | null | undefined;
+export type QueryParams = Record<string, QueryValue | QueryValue[]>;
+
+export interface VrchatRequestOptions {
+    endpoint?: string;
+    method?: string;
+    params?: QueryParams | null;
+    headers?: Record<string, string>;
+    allowDebugEndpoint?: boolean;
+    normalizeEndpoint?: boolean;
+    fallbackMessage?: string;
+    decorateError?: boolean;
+    includeParams?: boolean;
+    returnEndpointDomain?: boolean;
+    skipEmptyQueryString?: boolean;
+    jsonBody?: boolean;
+    body?: unknown;
+    queryParams?: QueryParams | null;
+    extra?: Record<string, unknown>;
+}
+
+export interface VrchatRequestResponse<TJson = unknown> {
+    json: TJson;
+    params?: QueryParams;
+    status: number;
+    endpointDomain?: string;
+    raw: unknown;
+    [key: string]: unknown;
+}
+
+export interface VrchatRequestError extends Error {
+    status: number;
+    endpoint: string;
+    payload: unknown;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return Boolean(value && typeof value === 'object');
+}
+
+function shouldSkipQueryValue(
+    value: unknown,
+    { skipEmptyString = false }: { skipEmptyString?: boolean } = {}
+): boolean {
     return (
         value === null ||
         value === undefined ||
@@ -16,11 +59,15 @@ function shouldSkipQueryValue(value, { skipEmptyString = false } = {}) {
     );
 }
 
-function serializeQueryValue(value) {
+function serializeQueryValue(value: QueryValue): string {
     return value instanceof Date ? value.toISOString() : String(value);
 }
 
-export function appendParams(url, params = {}, options = {}) {
+export function appendParams(
+    url: URL,
+    params: QueryParams = {},
+    options: { skipEmptyString?: boolean } = {}
+): URL {
     if (!params || typeof params !== 'object') {
         return url;
     }
@@ -46,7 +93,12 @@ export function appendParams(url, params = {}, options = {}) {
     return url;
 }
 
-export function buildUrl(path, params = {}, endpoint = '', options = {}) {
+export function buildUrl(
+    path: string,
+    params: QueryParams = {},
+    endpoint = '',
+    options: { allowDebugEndpoint?: boolean; skipEmptyString?: boolean } = {}
+): string {
     const url = new URL(
         path,
         getVrchatEndpointBase(endpoint, {
@@ -56,7 +108,7 @@ export function buildUrl(path, params = {}, endpoint = '', options = {}) {
     return appendParams(url, params, options).toString();
 }
 
-export function parseJsonResponse(data) {
+export function parseJsonResponse(data: unknown): unknown {
     if (data === null || data === undefined || data === '') {
         return data ?? null;
     }
@@ -69,15 +121,17 @@ export function parseJsonResponse(data) {
 }
 
 export function unwrapErrorMessage(
-    json,
-    status,
+    json: unknown,
+    status: number,
     { fallbackMessage = 'VRChat request failed' } = {}
-) {
+): string {
     if (typeof json === 'string' && json.trim()) {
         return json.replace(/^"+|"+$/g, '');
     }
 
-    const message = json?.error?.message ?? json?.message;
+    const jsonRecord = isRecord(json) ? json : null;
+    const error = isRecord(jsonRecord?.error) ? jsonRecord.error : null;
+    const message = error?.message ?? jsonRecord?.message;
     if (typeof message === 'string' && message.trim()) {
         return message.replace(/^"+|"+$/g, '');
     }
@@ -85,20 +139,25 @@ export function unwrapErrorMessage(
     return `${fallbackMessage} (${status})`;
 }
 
-export function createRequestError(message, status, endpoint, payload = null) {
-    const error = new Error(message);
+export function createRequestError(
+    message: string,
+    status: number,
+    endpoint: string,
+    payload: unknown = null
+): VrchatRequestError {
+    const error = new Error(message) as VrchatRequestError;
     error.status = status;
     error.endpoint = endpoint;
     error.payload = payload;
     return error;
 }
 
-function normalizeJsonBody(value) {
-    return value && typeof value === 'object' ? value : {};
+function normalizeJsonBody(value: unknown): Record<string, unknown> {
+    return isRecord(value) ? value : {};
 }
 
-export async function executeVrchatRequest(
-    path,
+export async function executeVrchatRequest<TJson = unknown>(
+    path: string,
     {
         endpoint = '',
         method = 'GET',
@@ -115,15 +174,15 @@ export async function executeVrchatRequest(
         body = params,
         queryParams = null,
         extra = {}
-    } = {}
-) {
+    }: VrchatRequestOptions = {}
+): Promise<VrchatRequestResponse<TJson>> {
     const requestMethod = String(method || 'GET').toUpperCase();
     const endpointDomain = normalizeEndpoint
         ? normalizeVrchatEndpoint(endpoint)
         : endpoint;
     const resolvedQueryParams =
         queryParams ?? (requestMethod === 'GET' ? (params ?? {}) : {});
-    const requestOptions = {
+    const requestOptions: WebExecuteOptions = {
         url: buildUrl(path, resolvedQueryParams, endpointDomain, {
             allowDebugEndpoint,
             skipEmptyString: skipEmptyQueryString
@@ -146,10 +205,7 @@ export async function executeVrchatRequest(
     const response = await webRepository.execute(requestOptions);
     const json = parseJsonResponse(response.data);
 
-    if (
-        response.status >= 400 ||
-        (json && typeof json === 'object' && 'error' in json)
-    ) {
+    if (response.status >= 400 || (isRecord(json) && 'error' in json)) {
         const message = unwrapErrorMessage(json, response.status, {
             fallbackMessage
         });
@@ -160,7 +216,7 @@ export async function executeVrchatRequest(
     }
 
     return {
-        json,
+        json: json as TJson,
         ...(includeParams ? { params: params ?? {} } : {}),
         ...extra,
         status: response.status,

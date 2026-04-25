@@ -1,5 +1,22 @@
 import { removeEmojis, replaceBioSymbols } from './base/string';
 
+export type UserRecord = Record<string, unknown>;
+
+export interface TrustLevelInfo {
+    trustLevel: string;
+    trustClass: string;
+    trustSortNum: number;
+    isModerator: boolean;
+    isTroll: boolean;
+    isProbableTroll: boolean;
+    trustColorKey: string;
+}
+
+export interface ObjectDiffResult {
+    hasPropChanged: boolean;
+    changedProps: Record<string, true | [unknown, unknown]>;
+}
+
 /**
  * Sanitize user JSON fields before applying to cache.
  * Applies replaceBioSymbols to statusDescription, bio, note;
@@ -9,20 +26,24 @@ import { removeEmojis, replaceBioSymbols } from './base/string';
  * @param {string} robotUrl - The robot/default avatar URL to strip
  * @returns {object} The mutated json (same reference)
  */
-export function sanitizeUserJson(json, robotUrl) {
-    if (json.statusDescription) {
-        json.statusDescription = replaceBioSymbols(json.statusDescription);
-        json.statusDescription = removeEmojis(json.statusDescription);
+export function sanitizeUserJson(
+    json: UserRecord,
+    robotUrl: string
+): UserRecord {
+    if (json['statusDescription']) {
+        json['statusDescription'] = removeEmojis(
+            replaceBioSymbols(String(json['statusDescription']))
+        );
     }
-    if (json.bio) {
-        json.bio = replaceBioSymbols(json.bio);
+    if (json['bio']) {
+        json['bio'] = replaceBioSymbols(String(json['bio']));
     }
-    if (json.note) {
-        json.note = replaceBioSymbols(json.note);
+    if (json['note']) {
+        json['note'] = replaceBioSymbols(String(json['note']));
     }
-    if (robotUrl && json.currentAvatarImageUrl === robotUrl) {
-        delete json.currentAvatarImageUrl;
-        delete json.currentAvatarThumbnailImageUrl;
+    if (robotUrl && json['currentAvatarImageUrl'] === robotUrl) {
+        delete json['currentAvatarImageUrl'];
+        delete json['currentAvatarThumbnailImageUrl'];
     }
     return json;
 }
@@ -42,7 +63,10 @@ export function sanitizeUserJson(json, robotUrl) {
  *   trustColorKey: string
  * }}
  */
-export function computeTrustLevel(tags, developerType) {
+export function computeTrustLevel(
+    tags: string[],
+    developerType: string
+): TrustLevelInfo {
     let isModerator = Boolean(developerType) && developerType !== 'none';
     let isTroll = false;
     let isProbableTroll = false;
@@ -109,7 +133,10 @@ export function computeTrustLevel(tags, developerType) {
  * @param {string} lastPlatform - Last known platform
  * @returns {string} Resolved platform
  */
-export function computeUserPlatform(platform, lastPlatform) {
+export function computeUserPlatform(
+    platform?: string,
+    lastPlatform?: string
+): string {
     if (platform && platform !== 'offline' && platform !== 'web') {
         return platform;
     }
@@ -124,8 +151,12 @@ export function computeUserPlatform(platform, lastPlatform) {
  * @param {(a: any[], b: any[]) => boolean} arraysMatchFn - Function to compare arrays
  * @returns {{ hasPropChanged: boolean, changedProps: object }}
  */
-export function diffObjectProps(ref, json, arraysMatchFn) {
-    const changedProps = {};
+export function diffObjectProps(
+    ref: UserRecord,
+    json: UserRecord,
+    arraysMatchFn: (a: unknown[], b: unknown[]) => boolean
+): ObjectDiffResult {
+    const changedProps: Record<string, true | [unknown, unknown]> = {};
     let hasPropChanged = false;
 
     // Only compare primitive values
@@ -173,7 +204,9 @@ export function diffObjectProps(ref, json, arraysMatchFn) {
  * @param {object} json - API response to merge
  * @returns {object} Default user object with json spread on top
  */
-export function createDefaultUserRef(json) {
+export function createDefaultUserRef<TUser extends UserRecord>(
+    json: TUser
+): TUser & UserRecord {
     return {
         ageVerificationStatus: '',
         ageVerified: false,

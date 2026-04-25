@@ -1,22 +1,58 @@
 import { replaceBioSymbols } from './base/string';
 
+export type NotificationRecord = Record<string, unknown>;
+
+export interface NotificationV1Ref extends NotificationRecord {
+    id: string;
+    senderUserId: string;
+    senderUsername: string;
+    type: string;
+    message: string;
+    details: NotificationRecord;
+    seen: boolean;
+    created_at: string;
+    $isExpired: boolean;
+}
+
+export interface NotificationV2Ref extends NotificationRecord {
+    id: string;
+    createdAt: string;
+    updatedAt: string;
+    expiresAt: string;
+    type: string;
+    link: string;
+    linkText: string;
+    message: string;
+    title: string;
+    imageUrl: string;
+    seen: boolean;
+    senderUserId: string;
+    senderUsername: string;
+    data: NotificationRecord;
+    responses: unknown[];
+    details: NotificationRecord;
+    version: 2;
+}
+
 /**
  * Remove null/undefined keys from a notification JSON object
  * and sanitize message/title fields with replaceBioSymbols.
  * @param {object} json - notification data (mutated in place)
  * @returns {object} the same json reference
  */
-export function sanitizeNotificationJson(json) {
+export function sanitizeNotificationJson(
+    json: NotificationRecord
+): NotificationRecord {
     for (const key in json) {
         if (json[key] === null || typeof json[key] === 'undefined') {
             delete json[key];
         }
     }
-    if (json.message) {
-        json.message = replaceBioSymbols(json.message);
+    if (json['message']) {
+        json['message'] = replaceBioSymbols(String(json['message']));
     }
-    if (json.title) {
-        json.title = replaceBioSymbols(json.title);
+    if (json['title']) {
+        json['title'] = replaceBioSymbols(String(json['title']));
     }
     return json;
 }
@@ -26,15 +62,15 @@ export function sanitizeNotificationJson(json) {
  * @param {*} details - raw details value
  * @returns {object} parsed details object
  */
-export function parseNotificationDetails(details) {
+export function parseNotificationDetails(details: unknown): NotificationRecord {
     if (details === Object(details)) {
-        return details;
+        return details as NotificationRecord;
     }
     if (details !== '{}' && typeof details === 'string') {
         try {
             const object = JSON.parse(details);
-            if (object === Object(object)) {
-                return object;
+            if (object && typeof object === 'object') {
+                return object as NotificationRecord;
             }
         } catch (err) {
             console.log(err);
@@ -50,7 +86,9 @@ export function parseNotificationDetails(details) {
  * @param {object} json - sanitized notification JSON
  * @returns {object} default notification ref
  */
-export function createDefaultNotificationRef(json) {
+export function createDefaultNotificationRef(
+    json: NotificationRecord
+): NotificationV1Ref {
     const ref = {
         id: '',
         senderUserId: '',
@@ -76,7 +114,9 @@ export function createDefaultNotificationRef(json) {
  * @param {string} endpointDomain - API endpoint domain for emoji URLs
  * @returns {object} default notification V2 ref
  */
-export function createDefaultNotificationV2Ref(json) {
+export function createDefaultNotificationV2Ref(
+    json: NotificationRecord
+): NotificationV2Ref {
     return {
         id: '',
         createdAt: '',
@@ -105,16 +145,20 @@ export function createDefaultNotificationV2Ref(json) {
  * @param {object} ref - notification V2 ref
  * @param {string} endpointDomain - API endpoint domain for emoji URLs
  */
-export function applyBoopLegacyHandling(ref, endpointDomain) {
+export function applyBoopLegacyHandling(
+    ref: NotificationV2Ref,
+    endpointDomain: string
+): void {
     if (ref.type !== 'boop' || !ref.title) {
         return;
     }
     ref.message = ref.title;
     ref.title = '';
-    if (ref.details?.emojiId?.startsWith('default_')) {
-        ref.imageUrl = ref.details.emojiId;
-        ref.message += ` ${ref.details.emojiId.replace('default_', '')}`;
+    const emojiId = ref.details.emojiId;
+    if (typeof emojiId === 'string' && emojiId.startsWith('default_')) {
+        ref.imageUrl = emojiId;
+        ref.message += ` ${emojiId.replace('default_', '')}`;
     } else {
-        ref.imageUrl = `${endpointDomain}/file/${ref.details.emojiId}/${ref.details.emojiVersion}`;
+        ref.imageUrl = `${endpointDomain}/file/${String(emojiId)}/${ref.details.emojiVersion}`;
     }
 }

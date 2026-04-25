@@ -1,14 +1,23 @@
+import type { UnlistenFn } from '@tauri-apps/api/event';
+
 import { normalizePlatformError } from './errors.js';
 
-const listeners = new Map();
-const tauriRegistrations = new Map();
+export type BackendEventHandler = (payload: unknown) => void;
+
+interface BackendEventRegistration {
+    promise: Promise<UnlistenFn>;
+    unlisten: UnlistenFn | null;
+}
+
+const listeners = new Map<string, Set<BackendEventHandler>>();
+const tauriRegistrations = new Map<string, BackendEventRegistration>();
 
 async function loadListen() {
     const event = await import('@tauri-apps/api/event');
     return event.listen;
 }
 
-function getBucket(name) {
+function getBucket(name: string): Set<BackendEventHandler> {
     let bucket = listeners.get(name);
     if (!bucket) {
         bucket = new Set();
@@ -17,7 +26,7 @@ function getBucket(name) {
     return bucket;
 }
 
-function dispatch(name, payload) {
+function dispatch(name: string, payload: unknown): void {
     const bucket = listeners.get(name);
     if (!bucket || bucket.size === 0) {
         return;
@@ -32,17 +41,20 @@ function dispatch(name, payload) {
     }
 }
 
-async function ensureTauriSubscription(name) {
+async function ensureTauriSubscription(name: string): Promise<UnlistenFn> {
     const existing = tauriRegistrations.get(name);
     if (existing) {
         return existing.promise;
     }
 
-    const bucket = { promise: null, unlisten: null };
+    const bucket: BackendEventRegistration = {
+        promise: Promise.resolve(() => undefined),
+        unlisten: null
+    };
     bucket.promise = (async () => {
         try {
             const listen = await loadListen();
-            const unlisten = await listen(name, (event) => {
+            const unlisten = await listen<unknown>(name, (event) => {
                 dispatch(name, event.payload);
             });
             bucket.unlisten = unlisten;
@@ -69,14 +81,20 @@ async function ensureTauriSubscription(name) {
     return bucket.promise;
 }
 
-export async function onBackendEvent(name, handler) {
+export async function onBackendEvent(
+    name: string,
+    handler: BackendEventHandler
+): Promise<() => void> {
     getBucket(name).add(handler);
     await ensureTauriSubscription(name);
 
     return () => offBackendEvent(name, handler);
 }
 
-export function offBackendEvent(name, handler) {
+export function offBackendEvent(
+    name: string,
+    handler: BackendEventHandler
+): void {
     const bucket = listeners.get(name);
     if (!bucket) {
         return;
@@ -97,11 +115,11 @@ export function offBackendEvent(name, handler) {
     }
 }
 
-export function emitBackendEvent(name, payload) {
+export function emitBackendEvent(name: string, payload?: unknown): void {
     dispatch(name, payload);
 }
 
-export function clearBackendEventListeners(name = null) {
+export function clearBackendEventListeners(name: string | null = null): void {
     if (name === null) {
         for (const registration of tauriRegistrations.values()) {
             if (registration?.unlisten) {

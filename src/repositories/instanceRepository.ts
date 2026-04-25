@@ -4,15 +4,59 @@ import {
     queryKeys
 } from '@/lib/entityQueryCache.js';
 
-import { executeVrchatRequest } from './vrchatRequest.js';
+import { executeVrchatRequest, type QueryParams } from './vrchatRequest.js';
 
-function normalizeString(value) {
+type InstanceAccessType =
+    | 'public'
+    | 'friends'
+    | 'friends+'
+    | 'invite'
+    | 'invite+'
+    | 'group'
+    | string;
+
+interface InstanceRepositoryOptions {
+    endpoint?: string;
+    force?: boolean;
+    [key: string]: unknown;
+}
+
+interface ExecuteInstanceOptions extends InstanceRepositoryOptions {
+    method?: string;
+    params?: QueryParams;
+}
+
+interface CreateInstanceOptions extends InstanceRepositoryOptions {
+    worldId?: unknown;
+    ownerId?: unknown;
+    accessType?: InstanceAccessType;
+    region?: string;
+    groupId?: unknown;
+    groupAccessType?: string;
+    queueEnabled?: unknown;
+    roleIds?: string[];
+    ageGate?: unknown;
+    displayName?: string;
+}
+
+interface InstanceIdentityOptions extends InstanceRepositoryOptions {
+    worldId?: unknown;
+    instanceId?: unknown;
+    shortName?: string;
+}
+
+interface CloseInstanceOptions extends InstanceRepositoryOptions {
+    location?: unknown;
+    hardClose?: unknown;
+}
+
+function normalizeString(value: unknown): string {
     return typeof value === 'string'
         ? value.trim()
         : String(value ?? '').trim();
 }
 
-function toApiAccessType(accessType) {
+function toApiAccessType(accessType: InstanceAccessType): string {
     if (accessType === 'friends') {
         return 'friends';
     }
@@ -28,7 +72,7 @@ function toApiAccessType(accessType) {
     return 'public';
 }
 
-function toRegionCode(region) {
+function toRegionCode(region: string): string {
     if (region === 'US East') {
         return 'use';
     }
@@ -42,8 +86,8 @@ function toRegionCode(region) {
 }
 
 async function execute(
-    path,
-    { method = 'GET', params = {}, endpoint = '' } = {}
+    path: string,
+    { method = 'GET', params = {}, endpoint = '' }: ExecuteInstanceOptions = {}
 ) {
     return executeVrchatRequest(path, {
         endpoint,
@@ -69,7 +113,7 @@ async function createInstance({
     ageGate = false,
     displayName = '',
     endpoint = ''
-} = {}) {
+}: CreateInstanceOptions = {}) {
     const normalizedWorldId = normalizeString(worldId);
     const normalizedOwnerId = normalizeString(ownerId);
     if (!normalizedWorldId) {
@@ -79,7 +123,7 @@ async function createInstance({
     }
 
     const type = toApiAccessType(accessType);
-    const params = {
+    const params: QueryParams = {
         type,
         canRequestInvite: accessType === 'invite+',
         worldId: normalizedWorldId,
@@ -121,7 +165,7 @@ async function getInstance({
     instanceId,
     endpoint = '',
     force = false
-} = {}) {
+}: InstanceIdentityOptions = {}) {
     const normalizedWorldId = normalizeString(worldId);
     const normalizedInstanceId = normalizeString(instanceId);
     if (!normalizedWorldId || !normalizedInstanceId) {
@@ -161,7 +205,7 @@ async function getInstanceShortName({
     shortName = '',
     endpoint = '',
     force = false
-} = {}) {
+}: InstanceIdentityOptions = {}) {
     const normalizedWorldId = normalizeString(worldId);
     const normalizedInstanceId = normalizeString(instanceId);
     if (!normalizedWorldId || !normalizedInstanceId) {
@@ -204,7 +248,7 @@ async function selfInvite({
     instanceId,
     shortName = '',
     endpoint = ''
-} = {}) {
+}: InstanceIdentityOptions = {}) {
     const normalizedWorldId = normalizeString(worldId);
     const normalizedInstanceId = normalizeString(instanceId);
     if (!normalizedWorldId || !normalizedInstanceId) {
@@ -224,7 +268,7 @@ async function closeInstance({
     location,
     hardClose = false,
     endpoint = ''
-} = {}) {
+}: CloseInstanceOptions = {}) {
     const normalizedLocation = normalizeString(location);
     if (!normalizedLocation) {
         throw new Error(

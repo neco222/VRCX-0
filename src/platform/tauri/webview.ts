@@ -1,5 +1,18 @@
 import { normalizePlatformError } from './errors.js';
 
+type WebviewWindowLike = {
+    setZoom?: (zoom: number) => Promise<unknown> | unknown;
+    scaleFactor?: (() => Promise<number> | number) | number;
+};
+
+type WindowLike = {
+    startDragging?: () => Promise<unknown> | unknown;
+    minimize?: () => Promise<unknown> | unknown;
+    toggleMaximize?: () => Promise<unknown> | unknown;
+    close?: () => Promise<unknown> | unknown;
+    isMaximized?: () => Promise<boolean> | boolean;
+};
+
 async function loadCurrentWebviewWindow() {
     try {
         const module = await import('@tauri-apps/api/webviewWindow');
@@ -21,17 +34,17 @@ async function loadCurrentWindow() {
     }
 }
 
-export async function getCurrentWebviewWindow() {
+export async function getCurrentWebviewWindow(): Promise<WebviewWindowLike> {
     const getWindow = await loadCurrentWebviewWindow();
     return getWindow();
 }
 
-export async function getCurrentWindow() {
+export async function getCurrentWindow(): Promise<WindowLike> {
     const getWindow = await loadCurrentWindow();
     return getWindow();
 }
 
-export async function setZoom(zoom) {
+export async function setZoom(zoom: number): Promise<unknown> {
     const current = await getCurrentWebviewWindow();
     if (current && typeof current.setZoom === 'function') {
         return current.setZoom(zoom);
@@ -39,7 +52,7 @@ export async function setZoom(zoom) {
     return undefined;
 }
 
-export async function getScaleFactor() {
+export async function getScaleFactor(): Promise<number | null> {
     const current = await getCurrentWebviewWindow();
     if (!current) {
         return null;
@@ -56,7 +69,7 @@ export async function getScaleFactor() {
     return null;
 }
 
-export async function startDraggingWindow() {
+export async function startDraggingWindow(): Promise<unknown> {
     const current = await getCurrentWindow();
     if (current && typeof current.startDragging === 'function') {
         return current.startDragging();
@@ -64,7 +77,7 @@ export async function startDraggingWindow() {
     return undefined;
 }
 
-export async function minimizeWindow() {
+export async function minimizeWindow(): Promise<unknown> {
     const current = await getCurrentWindow();
     if (current && typeof current.minimize === 'function') {
         return current.minimize();
@@ -72,7 +85,7 @@ export async function minimizeWindow() {
     return undefined;
 }
 
-export async function toggleMaximizeWindow() {
+export async function toggleMaximizeWindow(): Promise<unknown> {
     const current = await getCurrentWindow();
     if (current && typeof current.toggleMaximize === 'function') {
         return current.toggleMaximize();
@@ -80,7 +93,7 @@ export async function toggleMaximizeWindow() {
     return undefined;
 }
 
-export async function closeWindow() {
+export async function closeWindow(): Promise<unknown> {
     const current = await getCurrentWindow();
     if (current && typeof current.close === 'function') {
         return current.close();
@@ -88,7 +101,7 @@ export async function closeWindow() {
     return undefined;
 }
 
-export async function isWindowMaximized() {
+export async function isWindowMaximized(): Promise<boolean> {
     const current = await getCurrentWindow();
     if (current && typeof current.isMaximized === 'function') {
         return current.isMaximized();

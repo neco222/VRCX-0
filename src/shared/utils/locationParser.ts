@@ -1,11 +1,54 @@
-/**
- *
- * @param {string} location
- * @param {string} worldName
- * @param {string?} groupName
- * @returns {string}
- */
-function displayLocation(location, worldName, groupName = '') {
+export interface ParsedLocation {
+    tag: string;
+    isOffline: boolean;
+    isPrivate: boolean;
+    isTraveling: boolean;
+    isRealInstance: boolean;
+    worldId: string;
+    instanceId: string;
+    instanceName: string;
+    accessType: string;
+    accessTypeName: string;
+    region: string;
+    shortName: string;
+    userId: string | null;
+    hiddenId: string | null;
+    privateId: string | null;
+    friendsId: string | null;
+    groupId: string | null;
+    groupAccessType: string | null;
+    canRequestInvite: boolean;
+    strict: boolean;
+    ageGate: boolean;
+}
+
+type LocationLike = {
+    tag?: unknown;
+    location?: unknown;
+    $location?: {
+        tag?: unknown;
+        worldId?: unknown;
+        instanceId?: unknown;
+    };
+    worldId?: unknown;
+    world_id?: unknown;
+    instanceId?: unknown;
+    instance_id?: unknown;
+    id?: unknown;
+    isOffline?: unknown;
+    isPrivate?: unknown;
+    isTraveling?: unknown;
+};
+
+function isLocationLike(value: unknown): value is LocationLike {
+    return Boolean(value && typeof value === 'object');
+}
+
+function displayLocation(
+    location: string,
+    worldName: string,
+    groupName = ''
+): string {
     let text = worldName;
     const L = parseLocation(location);
     if (L.isOffline) {
@@ -29,11 +72,11 @@ function displayLocation(location, worldName, groupName = '') {
  * @param {string} tag
  * @returns
  */
-function normalizeLocationTag(tag) {
+function normalizeLocationTag(tag: unknown): string {
     if (typeof tag === 'string') {
         return tag;
     }
-    if (!tag || typeof tag !== 'object') {
+    if (!isLocationLike(tag)) {
         return String(tag || '');
     }
 
@@ -64,9 +107,9 @@ function normalizeLocationTag(tag) {
     return '';
 }
 
-function parseLocation(tag) {
+function parseLocation(tag: unknown): ParsedLocation {
     let _tag = normalizeLocationTag(tag);
-    const ctx = {
+    const ctx: ParsedLocation = {
         tag: _tag,
         isOffline: false,
         isPrivate: false,
@@ -180,7 +223,7 @@ function parseLocation(tag) {
  * @param {object} L - A parsed location object from parseLocation()
  * @returns {string} region code (e.g. 'us', 'eu', 'jp') or empty string
  */
-function resolveRegion(L) {
+function resolveRegion(L: ParsedLocation): string {
     if (L.isOffline || L.isPrivate || L.isTraveling) {
         return '';
     }
@@ -199,7 +242,11 @@ function resolveRegion(L) {
  * @param {object} keyMap - Mapping of access type names to locale keys
  * @returns {string} Translated access type label
  */
-function translateAccessType(accessTypeName, t, keyMap) {
+function translateAccessType(
+    accessTypeName: string,
+    t: (key: string) => string,
+    keyMap: Record<string, string>
+): string {
     const key = keyMap[accessTypeName];
     if (!key) {
         return accessTypeName;

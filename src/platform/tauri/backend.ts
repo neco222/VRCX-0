@@ -1,8 +1,8 @@
-type BackendCommand<TReturn = any> = (...args: any[]) => Promise<TReturn>;
+import { createBackendNamespace, type BackendNamespace } from './commands.js';
+import { backendEvents } from './events.js';
+import { webview } from './webview.js';
 
-export interface BackendNamespace {
-    [methodName: string]: BackendCommand;
-}
+export type { BackendCommand, BackendNamespace } from './commands.js';
 
 export interface AssetBundleCacheCheckResult {
     Item1: number;
@@ -63,28 +63,8 @@ export interface AppBackendNamespace extends BackendNamespace {
     GetHostCapabilities(): Promise<HostCapabilities>;
 }
 
-export interface BackendEvents {
-    on(name: string, handler: (payload: unknown) => void): Promise<() => void>;
-    off(name: string, handler: (payload: unknown) => void): void;
-    emit(name: string, payload?: unknown): void;
-    clear(name?: string | null): void;
-    subscribe(
-        name: string,
-        handler: (payload: unknown) => void
-    ): Promise<() => void>;
-}
-
-export interface BackendWebview {
-    getCurrentWebviewWindow(): Promise<unknown>;
-    getCurrentWindow(): Promise<unknown>;
-    setZoom(zoom: number): Promise<unknown>;
-    getScaleFactor(): Promise<number | null>;
-    startDraggingWindow(): Promise<unknown>;
-    minimizeWindow(): Promise<unknown>;
-    toggleMaximizeWindow(): Promise<unknown>;
-    closeWindow(): Promise<unknown>;
-    isWindowMaximized(): Promise<boolean>;
-}
+export type BackendEvents = typeof backendEvents;
+export type BackendWebview = typeof webview;
 
 export interface Backend {
     app: AppBackendNamespace;
@@ -98,5 +78,35 @@ export interface Backend {
     webview: BackendWebview;
 }
 
-export const backend: Backend;
+const app = createBackendNamespace('app');
+const discordCommands = createBackendNamespace('discord');
+
+const discord = new Proxy(discordCommands, {
+    get(target, property): unknown {
+        if (property === 'OpenDiscordProfile') {
+            return (discordId: string) => app.OpenDiscordProfile(discordId);
+        }
+
+        if (typeof property !== 'string') {
+            return undefined;
+        }
+
+        return target[property];
+    }
+});
+
+export const backend: Backend = Object.freeze({
+    app: app as AppBackendNamespace,
+    web: createBackendNamespace('web'),
+    storage: createBackendNamespace('storage'),
+    sqlite: createBackendNamespace('sqlite'),
+    logWatcher: createBackendNamespace('logWatcher'),
+    discord,
+    assetBundle: createBackendNamespace(
+        'assetBundle'
+    ) as AssetBundleBackendNamespace,
+    events: backendEvents,
+    webview
+});
+
 export default backend;

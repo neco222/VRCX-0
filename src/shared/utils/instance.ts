@@ -3,8 +3,25 @@
  * @param {string} instanceId
  * @returns
  */
-function isRealInstance(instanceId) {
-    if (!instanceId) {
+export interface LaunchableInstance {
+    worldId: string;
+    instanceId?: string;
+    shortName?: string;
+}
+
+export interface LegacyInstanceTagOptions {
+    instanceName: string;
+    userId?: string;
+    accessType: string;
+    groupId?: string;
+    groupAccessType?: string;
+    region: string;
+    ageGate?: boolean;
+    strict?: boolean;
+}
+
+function isRealInstance(instanceId: unknown): instanceId is string {
+    if (typeof instanceId !== 'string' || !instanceId) {
         return false;
     }
     switch (instanceId) {
@@ -28,7 +45,7 @@ function isRealInstance(instanceId) {
  * @param {object} instance
  * @returns {string}
  */
-function getLaunchURL(instance) {
+function getLaunchURL(instance: LaunchableInstance): string {
     const L = instance;
     if (L.instanceId) {
         if (L.shortName) {
@@ -75,7 +92,7 @@ function buildLegacyInstanceTag({
     region,
     ageGate,
     strict
-}) {
+}: LegacyInstanceTagOptions): string {
     const tags = [];
 
     if (instanceName) {

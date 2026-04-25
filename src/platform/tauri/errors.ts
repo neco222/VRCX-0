@@ -7,7 +7,10 @@ export class PlatformUnavailableError extends Error {
     }
 }
 
-export function normalizePlatformError(error, fallbackMessage) {
+export function normalizePlatformError(
+    error: unknown,
+    fallbackMessage?: string
+): Error {
     const fallback = fallbackMessage || 'Platform command failed';
     if (error instanceof Error) {
         const details = error.message || String(error);

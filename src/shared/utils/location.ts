@@ -2,45 +2,74 @@ import { isRealInstance } from './instance.js';
 import {
     displayLocation,
     parseLocation,
+    type ParsedLocation,
     resolveRegion,
     translateAccessType
 } from './locationParser.js';
 
 export { parseLocation, displayLocation, resolveRegion, translateAccessType };
 
-function normalizeLocationValue(value) {
+type LocationRecord = Record<string, unknown> & {
+    $location?: Record<string, unknown>;
+    ref?: LocationRecord;
+};
+
+interface LastLocation {
+    friendList?:
+        | Set<string>
+        | Map<string, unknown>
+        | string[]
+        | Record<string, unknown>;
+    location?: unknown;
+}
+
+interface ResolveFriendPresenceOptions {
+    preferTraveling?: boolean;
+    requireInstance?: boolean;
+    lastLocation?: LastLocation | null;
+}
+
+interface LocationTextOptions {
+    hint?: string;
+    worldName?: string;
+    accessTypeLabel: string;
+    t: (key: string) => string;
+}
+
+function normalizeLocationValue(value: unknown): string {
     if (typeof value === 'string') {
         return value.trim();
     }
     if (!value || typeof value !== 'object') {
         return String(value ?? '').trim();
     }
+    const location = value as LocationRecord;
 
     const tag = normalizeLocationValue(
-        value.tag || value.location || value.$location?.tag
+        location.tag || location.location || location.$location?.tag
     );
     if (tag) {
         return tag;
     }
     const worldId = normalizeLocationValue(
-        value.worldId || value.world_id || value.$location?.worldId
+        location.worldId || location.world_id || location.$location?.worldId
     );
     const instanceId = normalizeLocationValue(
-        value.instanceId ||
-            value.instance_id ||
-            value.id ||
-            value.$location?.instanceId
+        location.instanceId ||
+            location.instance_id ||
+            location.id ||
+            location.$location?.instanceId
     );
     if (worldId && instanceId) {
         return `${worldId}:${instanceId}`;
     }
-    if (value.isOffline) {
+    if (location.isOffline) {
         return 'offline';
     }
-    if (value.isPrivate) {
+    if (location.isPrivate) {
         return 'private';
     }
-    if (value.isTraveling) {
+    if (location.isTraveling) {
         return 'traveling';
     }
     return '';
@@ -48,13 +77,18 @@ function normalizeLocationValue(value) {
 
 export { normalizeLocationValue };
 
-function getObject(value) {
-    return value && typeof value === 'object' ? value : null;
+function getObject(value: unknown): LocationRecord | null {
+    return value && typeof value === 'object'
+        ? (value as LocationRecord)
+        : null;
 }
 
-function getFriendLocationValues(friend, field) {
+function getFriendLocationValues(
+    friend: unknown,
+    field: 'location' | 'traveling'
+): unknown[] {
     const direct = getObject(friend);
-    const ref = getObject(friend?.ref);
+    const ref = getObject(direct?.ref);
     if (field === 'traveling') {
         if (ref) {
             return [ref.travelingToLocation, ref.$travelingToLocation];
@@ -67,7 +101,7 @@ function getFriendLocationValues(friend, field) {
     return [direct?.location, direct?.$location?.tag, direct?.$locationTag];
 }
 
-function isSentinelLocationValue(value) {
+function isSentinelLocationValue(value: unknown): boolean {
     const normalized = normalizeLocationValue(value).toLowerCase();
     return (
         normalized === 'offline' ||
@@ -79,14 +113,14 @@ function isSentinelLocationValue(value) {
     );
 }
 
-function normalizeSentinelLocationValue(value) {
+function normalizeSentinelLocationValue(value: unknown): string {
     const normalized = normalizeLocationValue(value).toLowerCase();
     return isSentinelLocationValue(normalized) ? normalized.split(':')[0] : '';
 }
 
-function resolveCurrentFriendLocationValue(friend) {
+function resolveCurrentFriendLocationValue(friend: unknown): string {
     const direct = getObject(friend);
-    const ref = getObject(friend?.ref);
+    const ref = getObject(direct?.ref);
     const values = ref ? [ref.location] : [direct?.location];
     for (const value of values) {
         const normalized = normalizeLocationValue(value);
@@ -97,19 +131,21 @@ function resolveCurrentFriendLocationValue(friend) {
     return '';
 }
 
-function resolveCurrentFriendLocationSentinel(friend) {
+function resolveCurrentFriendLocationSentinel(friend: unknown): string {
     return normalizeSentinelLocationValue(
         resolveCurrentFriendLocationValue(friend)
     );
 }
 
-function getFriendId(friend) {
+function getFriendId(friend: unknown): string {
+    const direct = getObject(friend);
+    const ref = getObject(direct?.ref);
     return normalizeLocationValue(
-        friend?.id || friend?.userId || friend?.ref?.id || friend?.ref?.userId
+        direct?.id || direct?.userId || ref?.id || ref?.userId
     );
 }
 
-function isConcreteInstanceLocation(location) {
+function isConcreteInstanceLocation(location: unknown): boolean {
     const normalized = normalizeLocationValue(location);
     if (!isRealInstance(normalized)) {
         return false;
@@ -118,7 +154,10 @@ function isConcreteInstanceLocation(location) {
     return Boolean(parsed.worldId && parsed.instanceId);
 }
 
-function isLastLocationFriend(lastLocation, friend) {
+function isLastLocationFriend(
+    lastLocation: LastLocation | null | undefined,
+    friend: unknown
+): boolean {
     const friendId = getFriendId(friend);
     if (!friendId) {
         return false;
@@ -140,13 +179,13 @@ function isLastLocationFriend(lastLocation, friend) {
 }
 
 function resolveFriendPresenceLocation(
-    friend,
+    friend: unknown,
     {
         preferTraveling = true,
         requireInstance = false,
         lastLocation = null
-    } = {}
-) {
+    }: ResolveFriendPresenceOptions = {}
+): string {
     const currentLocation = resolveCurrentFriendLocationValue(friend);
     const currentSentinel = resolveCurrentFriendLocationSentinel(friend);
     if (currentSentinel === 'offline' || currentSentinel === 'private') {
@@ -157,7 +196,7 @@ function resolveFriendPresenceLocation(
         isConcreteInstanceLocation(currentLocation);
     const canUseLegacyLocationFields =
         currentLocationIsConcrete || currentSentinel === 'traveling';
-    const orderedFields = preferTraveling
+    const orderedFields: Array<'location' | 'traveling'> = preferTraveling
         ? ['traveling', 'location']
         : ['location', 'traveling'];
     for (const field of orderedFields) {
@@ -200,7 +239,10 @@ function resolveFriendPresenceLocation(
  * @param {Set} lastLocation.friendList
  * @param {string} lastLocation.location
  */
-function getFriendsLocations(friendsArr, lastLocation) {
+function getFriendsLocations(
+    friendsArr: unknown[],
+    lastLocation?: LastLocation | null
+): string {
     if (!friendsArr?.length) {
         return '';
     }
@@ -243,7 +285,10 @@ export { getFriendsLocations, resolveFriendPresenceLocation };
  * @param {Function} options.t - i18n translate function
  * @returns {string} Display text for the location
  */
-function getLocationText(L, { hint, worldName, accessTypeLabel, t }) {
+function getLocationText(
+    L: ParsedLocation,
+    { hint, worldName, accessTypeLabel, t }: LocationTextOptions
+): string {
     if (L.isOffline) {
         return t('location.offline');
     }

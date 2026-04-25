@@ -7,6 +7,25 @@ import {
 
 import { executeVrchatRequest } from './vrchatRequest.js';
 
+interface WorldRepositoryOptions {
+    endpoint?: string;
+    force?: boolean;
+    [key: string]: unknown;
+}
+
+interface WorldsByUserOptions extends WorldRepositoryOptions {
+    userId?: unknown;
+    n?: number;
+    offset?: number;
+    sort?: string;
+    order?: string;
+    releaseStatus?: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return Boolean(value && typeof value === 'object');
+}
+
 function normalizeEntityId(value) {
     if (typeof value === 'string') {
         return value.trim();
@@ -238,7 +257,7 @@ async function getWorldsByUser({
     order = 'descending',
     releaseStatus = 'all',
     force = false
-} = {}) {
+}: WorldsByUserOptions = {}) {
     const normalizedUserId = normalizeEntityId(userId);
     if (!normalizedUserId) {
         throw new Error(
@@ -400,7 +419,10 @@ async function hasWorldPersistentData({
             if (typeof response.json === 'boolean') {
                 return response.json;
             }
-            if (typeof response.json?.exists === 'boolean') {
+            if (
+                isRecord(response.json) &&
+                typeof response.json.exists === 'boolean'
+            ) {
                 return response.json.exists;
             }
             return String(response.json ?? '').toLowerCase() === 'true';
@@ -415,7 +437,7 @@ async function getAllWorldsByUser({
     order = 'descending',
     releaseStatus = 'all',
     force = false
-} = {}) {
+}: WorldsByUserOptions = {}) {
     return collectPages(({ n, offset }) =>
         getWorldsByUser({
             userId,

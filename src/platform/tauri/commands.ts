@@ -1,6 +1,20 @@
 import { PlatformUnavailableError, normalizePlatformError } from './errors.js';
 
-const serviceMap = {
+type InvokeArgs = Record<string, unknown> | number[] | ArrayBuffer | Uint8Array;
+type InvokeFn = <TReturn = unknown>(
+    command: string,
+    args?: InvokeArgs
+) => Promise<TReturn>;
+
+export type BackendCommand<TReturn = unknown> = (
+    ...args: unknown[]
+) => Promise<TReturn>;
+
+export interface BackendNamespace {
+    [methodName: string]: BackendCommand;
+}
+
+const serviceMap: Record<string, string> = {
     app: 'app',
     web: 'web',
     storage: 'storage',
@@ -10,7 +24,7 @@ const serviceMap = {
     assetBundle: 'asset_bundle'
 };
 
-const commandArgs = {
+const commandArgs: Record<string, string[]> = {
     storage__get: ['key'],
     storage__set: ['key', 'value'],
     storage__remove: ['key'],
@@ -139,23 +153,23 @@ const commandArgs = {
     ]
 };
 
-let invokeFn = null;
+let invokeFn: InvokeFn | null = null;
 
-async function loadInvoke() {
+async function loadInvoke(): Promise<InvokeFn> {
     if (invokeFn) {
         return invokeFn;
     }
 
     try {
         const core = await import('@tauri-apps/api/core');
-        invokeFn = core.invoke;
+        invokeFn = core.invoke as InvokeFn;
         return invokeFn;
     } catch {
         throw new PlatformUnavailableError('Unable to load Tauri invoke API');
     }
 }
 
-const toSnake = (value) =>
+const toSnake = (value: string): string =>
     value
         .replace(/VRChat/g, 'Vrchat')
         .replace(/SteamVR/g, 'Steamvr')
@@ -165,19 +179,22 @@ const toSnake = (value) =>
         .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
         .toLowerCase();
 
-export function toCommandName(namespace, methodName) {
+export function toCommandName(namespace: string, methodName: string): string {
     const prefix = serviceMap[namespace] ?? toSnake(namespace);
     return `${prefix}__${toSnake(methodName)}`;
 }
 
-export function toNamedArgs(commandName, args) {
+export function toNamedArgs(
+    commandName: string,
+    args: unknown[]
+): Record<string, unknown> {
     if (!args || args.length === 0) {
         return {};
     }
 
     const names = commandArgs[commandName];
     if (names) {
-        const payload = {};
+        const payload: Record<string, unknown> = {};
         for (let index = 0; index < args.length; index += 1) {
             if (names[index]) {
                 payload[names[index]] = args[index];
@@ -192,22 +209,29 @@ export function toNamedArgs(commandName, args) {
         args[0] !== null &&
         !Array.isArray(args[0])
     ) {
-        return args[0];
+        return args[0] as Record<string, unknown>;
     }
 
-    const payload = {};
+    const payload: Record<string, unknown> = {};
     for (let index = 0; index < args.length; index += 1) {
         payload[`arg${index}`] = args[index];
     }
     return payload;
 }
 
-export async function callBackendCommand(namespace, methodName, args = []) {
+export async function callBackendCommand<TReturn = unknown>(
+    namespace: string,
+    methodName: string,
+    args: unknown[] = []
+): Promise<TReturn> {
     const invoke = await loadInvoke();
     const commandName = toCommandName(namespace, methodName);
 
     try {
-        return await invoke(commandName, toNamedArgs(commandName, args));
+        return await invoke<TReturn>(
+            commandName,
+            toNamedArgs(commandName, args)
+        );
     } catch (error) {
         throw normalizePlatformError(
             error,
@@ -216,7 +240,7 @@ export async function callBackendCommand(namespace, methodName, args = []) {
     }
 }
 
-export function createBackendNamespace(namespace) {
+export function createBackendNamespace(namespace: string): BackendNamespace {
     return new Proxy(
         {},
         {
