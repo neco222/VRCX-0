@@ -37,16 +37,6 @@ import { AppMenuBar } from './AppMenuBar.jsx';
 import { shouldShowSidePanel } from './sidePanelRoutes.js';
 import { useDirectAccessAction } from './useDirectAccessAction.js';
 
-const TITLE_BAR_INTERACTIVE_SELECTOR = [
-    'button',
-    'a',
-    'input',
-    'textarea',
-    'select',
-    '[role="button"]',
-    '[data-titlebar-interactive="true"]'
-].join(',');
-
 const UPDATE_EXE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const UPDATE_EXE_CHECK_RETRY_MS = 5 * 60 * 1000;
 
@@ -226,32 +216,6 @@ export function AppTitleBar() {
         }
     }
 
-    function isTitleBarDragTarget(event) {
-        if (event.defaultPrevented || event.button !== 0) {
-            return false;
-        }
-
-        return !event.target.closest(TITLE_BAR_INTERACTIVE_SELECTOR);
-    }
-
-    function handleTitleBarMouseDown(event) {
-        if (!isTitleBarDragTarget(event) || event.detail > 1) {
-            return;
-        }
-
-        void backend.webview.startDraggingWindow().catch((error) => {
-            console.warn('Window drag action failed:', error);
-        });
-    }
-
-    function handleTitleBarDoubleClick(event) {
-        if (!isTitleBarDragTarget(event)) {
-            return;
-        }
-
-        void runWindowAction(backend.webview.toggleMaximizeWindow);
-    }
-
     const MaximizeIcon = isMaximized ? CopyIcon : SquareIcon;
     const maximizeLabel = isMaximized ? 'Restore window' : 'Maximize window';
     const titleBarActionsVisible = isSessionReady;
@@ -315,11 +279,13 @@ export function AppTitleBar() {
                 className="bg-background text-foreground pointer-events-auto relative z-[60] flex h-8 shrink-0 items-center border-b select-none"
             >
                 <div
+                    data-tauri-drag-region
                     className="flex h-full min-w-0 flex-1 items-center gap-2 px-3"
-                    onMouseDown={handleTitleBarMouseDown}
-                    onDoubleClick={handleTitleBarDoubleClick}
                 >
-                    <span className="text-foreground shrink-0 text-xs font-semibold">
+                    <span
+                        data-tauri-drag-region
+                        className="text-foreground shrink-0 text-xs font-semibold"
+                    >
                         {t(
                             'view.settings.advanced.advanced.vrcx_settings.header'
                         )}
@@ -350,7 +316,10 @@ export function AppTitleBar() {
                             />
                         </div>
                     ) : null}
-                    <div className="h-full min-w-0 flex-1" />
+                    <div
+                        data-tauri-drag-region
+                        className="h-full min-w-0 flex-1"
+                    />
                 </div>
                 {titleBarActionsVisible ? (
                     <div className="flex h-full shrink-0 items-center">
