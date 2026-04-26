@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils.js';
+import { toolsRepository } from '@/repositories/index.js';
 import {
     IMAGE_UPLOAD_ACCEPT,
     readFileAsBase64,
@@ -74,7 +75,11 @@ export function InviteMessagePanel({
         if (!currentUserId) {
             requestIdRef.current += 1;
             setRows([]);
-            setError('No current user session is available.');
+            setError(
+                t(
+                    'dialog.user.generated.cannot_load_message_templates_no_current_user_session_is_ava'
+                )
+            );
             setLoading(false);
             return;
         }
@@ -192,7 +197,11 @@ export function InviteMessagePanel({
             return;
         }
         if (isInviteMessageOnCooldown(editingRow, nowMs)) {
-            setError('This message template is on cooldown.');
+            setError(
+                t(
+                    'dialog.invite_message.generated.this_message_template_is_on_cooldown_and_cannot_be_edited_ye'
+                )
+            );
             return;
         }
 
@@ -202,9 +211,7 @@ export function InviteMessagePanel({
             await saveMessage(editingRow, editMessage);
             setEditingRow(null);
             await loadRows();
-            toast.success(
-                t('dialog.invite_message.generated.message_template_updated')
-            );
+            toast.success(t('message.invite.message_updated'));
         } catch (nextError) {
             setError(
                 nextError instanceof Error
@@ -223,7 +230,7 @@ export function InviteMessagePanel({
         const nextMessage =
             resolvedMode === 'respond' ? String(message || '').trim() : message;
         if (resolvedMode === 'respond' && !nextMessage) {
-            setError('Message cannot be empty.');
+            setError(t('dialog.invite_message.generated.message_required'));
             return;
         }
 
@@ -236,7 +243,11 @@ export function InviteMessagePanel({
                 resolvedMode !== 'select'
             ) {
                 if (isInviteMessageOnCooldown(row, nowMs)) {
-                    throw new Error('This message template is on cooldown.');
+                    throw new Error(
+                        t(
+                            'dialog.invite_message.generated.this_message_template_is_on_cooldown_and_cannot_be_edited_ye'
+                        )
+                    );
                 }
                 await saveMessage(row, nextMessage);
             }
@@ -262,7 +273,11 @@ export function InviteMessagePanel({
 
     const showActionColumn =
         allowEdit || resolvedMode === 'respond' || Boolean(onUse);
-    const actionLabel = primaryActionLabel(resolvedMode, resolvedMessageType);
+    const actionLabel = primaryActionLabel(
+        resolvedMode,
+        resolvedMessageType,
+        t
+    );
 
     return (
         <div className="flex min-h-0 flex-col gap-3">
@@ -287,9 +302,7 @@ export function InviteMessagePanel({
                             }}
                         >
                             <ImageIcon data-icon="inline-start" />
-                            {t(
-                                'dialog.invite_message.generated.clear_image'
-                            )}{' '}
+                            {t('dialog.invite_message.clear_selected_image')}{' '}
                             {imageName}
                         </Button>
                     ) : null}
@@ -313,16 +326,14 @@ export function InviteMessagePanel({
                                 {t('table.profile.invite_messages.slot')}
                             </TableHead>
                             <TableHead>
-                                {t('dialog.invite_message.generated.message')}
+                                {t('table.profile.invite_messages.message')}
                             </TableHead>
                             <TableHead className="w-32 text-right">
-                                {t('dialog.invite_message.generated.cooldown')}
+                                {t('table.profile.invite_messages.cool_down')}
                             </TableHead>
                             {showActionColumn ? (
                                 <TableHead className="w-28 text-right">
-                                    {t(
-                                        'dialog.invite_message.generated.action'
-                                    )}
+                                    {t('table.profile.invite_messages.action')}
                                 </TableHead>
                             ) : null}
                         </TableRow>
@@ -336,9 +347,7 @@ export function InviteMessagePanel({
                                 >
                                     <span className="inline-flex items-center gap-2">
                                         <Spinner data-icon="inline-start" />
-                                        {t(
-                                            'dialog.invite_message.generated.loading_message_templates'
-                                        )}
+                                        {t('common.loading')}
                                     </span>
                                 </TableCell>
                             </TableRow>
@@ -441,9 +450,7 @@ export function InviteMessagePanel({
                                     colSpan={showActionColumn ? 4 : 3}
                                     className="text-muted-foreground h-24 text-center"
                                 >
-                                    {t(
-                                        'dialog.invite_message.generated.no_message_templates'
-                                    )}
+                                    {t('common.no_data')}
                                 </TableCell>
                             </TableRow>
                         )}
@@ -453,8 +460,10 @@ export function InviteMessagePanel({
             {editingRow ? (
                 <div className="flex flex-col gap-2 rounded-md border p-3">
                     <div className="text-sm font-medium">
-                        {resolvedMode === 'respond' ? 'Edit and send' : 'Edit'}{' '}
-                        {t('dialog.invite_message.generated.slot')}{' '}
+                        {resolvedMode === 'respond'
+                            ? t('dialog.edit_send_invite_message.header')
+                            : t('dialog.edit_invite_message.header')}{' '}
+                        {t('table.profile.invite_messages.slot')}{' '}
                         <span className="font-mono">{editingRow.slot}</span>
                     </div>
                     <Textarea
@@ -500,7 +509,9 @@ export function InviteMessagePanel({
                                 ) : resolvedMode === 'respond' ? (
                                     <SendIcon data-icon="inline-start" />
                                 ) : null}
-                                {resolvedMode === 'respond' ? 'Send' : 'Save'}
+                                {resolvedMode === 'respond'
+                                    ? t('dialog.edit_send_invite_message.send')
+                                    : t('dialog.edit_invite_message.save')}
                             </Button>
                         </div>
                     </div>
@@ -508,7 +519,8 @@ export function InviteMessagePanel({
             ) : confirmRow ? (
                 <div className="flex flex-col gap-2 rounded-md border p-3 md:flex-row md:items-center md:justify-between">
                     <div className="min-w-0 text-sm">
-                        {t('dialog.invite_message.generated.send_slot')}{' '}
+                        {t('dialog.edit_send_invite_message.send')}{' '}
+                        {t('table.profile.invite_messages.slot')}{' '}
                         <span className="font-mono">{confirmRow.slot}</span>
                         {confirmRow.message ? (
                             <span className="text-muted-foreground ml-2">

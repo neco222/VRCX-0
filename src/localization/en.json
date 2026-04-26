@@ -3348,6 +3348,7 @@
                 "action": "Action",
                 "loading_message_templates": "Loading message templates",
                 "no_message_templates": "No message templates",
+                "message_required": "Message cannot be empty.",
                 "slot": "slot",
                 "send_slot": "Send slot",
                 "message_templates": "Message Templates",

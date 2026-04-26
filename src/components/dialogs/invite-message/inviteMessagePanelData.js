@@ -76,45 +76,38 @@ export function rowUpdatedAt(row) {
     return row?.updatedAt || row?.updated_at || '';
 }
 
-export function messageTypeLabel(messageType) {
-    return (
-        INVITE_MESSAGE_TYPES.find((entry) => entry.type === messageType)
-            ?.label || 'Invite'
-    );
-}
-
-export function dialogTitle(mode, messageType) {
+export function dialogTitle(mode, messageType, t) {
     if (mode === 'manage') {
-        return 'Message Templates';
+        return t('dialog.edit_invite_messages.header');
     }
     if (mode === 'respond') {
         return messageType === 'requestResponse'
-            ? 'Request Invite Response'
-            : 'Invite Response';
+            ? t('dialog.invite_request_response_message.header')
+            : t('dialog.invite_response_message.header');
     }
     return messageType === 'request'
-        ? 'Request With Message'
-        : 'Send With Message';
+        ? t('dialog.invite_request_message.header')
+        : t('dialog.invite_message.header');
 }
 
-export function dialogDescription(mode, messageType, targetLabel) {
+export function dialogDescription(mode, messageType, _targetLabel, t) {
     if (mode === 'manage') {
-        return 'Edit reusable invite and request message templates.';
+        return t('view.tools.other.edit_invite_message_description');
     }
     if (mode === 'respond') {
-        return `Choose a ${messageTypeLabel(messageType).toLowerCase()} template${targetLabel ? ` for ${targetLabel}` : ''}.`;
+        return t('dialog.edit_send_invite_response_message.description');
     }
-    return `Choose a message template${targetLabel ? ` for ${targetLabel}` : ''}.`;
+    return t('dialog.edit_send_invite_message.description');
 }
 
-export function primaryActionLabel(mode, messageType) {
+export function primaryActionLabel(mode, messageType, t) {
     if (mode === 'manage') {
-        return 'Save';
+        return t('dialog.edit_invite_message.save');
     }
     if (mode === 'select' && messageType === 'request') {
-        return 'Request';
+        return t('dialog.user.actions.request_invite');
     }
-    return 'Send';
+    return t('dialog.edit_send_invite_message.send');
 }
 
 export async function saveInviteMessage({

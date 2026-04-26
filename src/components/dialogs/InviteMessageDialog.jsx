@@ -37,6 +37,7 @@ function InviteMessageDialog({
     title,
     description
 }) {
+    const { t } = useTranslation();
     const resolvedMode = validModes.has(mode) ? mode : 'select';
     const resolvedMessageType = messageType || 'message';
 
@@ -59,14 +60,16 @@ function InviteMessageDialog({
             <DialogContent className="flex max-h-[90vh] max-w-[min(92vw,56rem)] flex-col">
                 <DialogHeader>
                     <DialogTitle>
-                        {title || dialogTitle(resolvedMode, resolvedMessageType)}
+                        {title ||
+                            dialogTitle(resolvedMode, resolvedMessageType, t)}
                     </DialogTitle>
                     <DialogDescription>
                         {description ||
                             dialogDescription(
                                 resolvedMode,
                                 resolvedMessageType,
-                                targetLabel
+                                targetLabel,
+                                t
                             )}
                     </DialogDescription>
                 </DialogHeader>
@@ -114,14 +117,10 @@ function InviteMessageTemplatesDialog({
             <DialogContent className="flex max-h-[90vh] max-w-[min(92vw,64rem)] flex-col">
                 <DialogHeader>
                     <DialogTitle>
-                        {t(
-                            'dialog.invite_message.generated.message_templates'
-                        )}
+                        {t('dialog.edit_invite_messages.header')}
                     </DialogTitle>
                     <DialogDescription>
-                        {t(
-                            'dialog.invite_message.generated.edit_reusable_invite_and_request_message_templates'
-                        )}
+                        {t('view.tools.other.edit_invite_message_description')}
                     </DialogDescription>
                 </DialogHeader>
                 {open ? (
