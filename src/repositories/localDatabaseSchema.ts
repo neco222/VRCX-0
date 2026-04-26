@@ -1,4 +1,4 @@
-function normalizeUserTablePrefix(userId) {
+function normalizeUserTablePrefix(userId: unknown): string {
     const normalizedUserId =
         typeof userId === 'string'
             ? userId.trim()
@@ -18,7 +18,7 @@ function normalizeUserTablePrefix(userId) {
     return userPrefix;
 }
 
-function buildUserTableName(userIdOrPrefix, suffix) {
+function buildUserTableName(userIdOrPrefix: unknown, suffix: string): string {
     const value =
         typeof userIdOrPrefix === 'string'
             ? userIdOrPrefix.trim()
@@ -36,7 +36,7 @@ function buildUserTableName(userIdOrPrefix, suffix) {
     return `${tablePrefix}_${suffix}`;
 }
 
-function buildInitUserTableStatements(userPrefix) {
+function buildInitUserTableStatements(userPrefix: string): string[] {
     if (!/^[A-Za-z_][A-Za-z0-9]*$/.test(userPrefix)) {
         throw new Error('User table prefix contains invalid characters.');
     }
@@ -116,7 +116,7 @@ const GLOBAL_TABLE_STATEMENTS = Object.freeze([
     `CREATE TABLE IF NOT EXISTS world_memos (world_id TEXT PRIMARY KEY, edited_at TEXT, memo TEXT)`,
     `CREATE TABLE IF NOT EXISTS avatar_memos (avatar_id TEXT PRIMARY KEY, edited_at TEXT, memo TEXT)`,
     `CREATE TABLE IF NOT EXISTS avatar_tags (avatar_id TEXT NOT NULL, tag TEXT NOT NULL, color TEXT, PRIMARY KEY (avatar_id, tag))`
-]);
+]) satisfies readonly string[];
 
 export {
     GLOBAL_TABLE_STATEMENTS,

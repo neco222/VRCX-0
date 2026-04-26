@@ -1,26 +1,14 @@
-/**
- * @param {string} s
- * @returns {string}
- */
-function extractFileId(s) {
+function extractFileId(s: string): string {
     const match = String(s).match(/file_[0-9A-Za-z-]+/);
     return match ? match[0] : '';
 }
 
-/**
- * @param {string} s
- * @returns {string}
- */
-function extractFileVersion(s) {
+function extractFileVersion(s: string): string {
     const match = /(?:\/file_[0-9A-Za-z-]+\/)([0-9]+)/gi.exec(s);
     return match ? match[1] : '';
 }
 
-/**
- * @param {string} url
- * @returns {string}
- */
-function extractVariantVersion(url) {
+function extractVariantVersion(url: string): string {
     if (!url) {
         return '0';
     }

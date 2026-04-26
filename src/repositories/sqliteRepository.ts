@@ -2,6 +2,47 @@ import { normalizePlatformError } from '../platform/tauri/errors.js';
 import { backend } from '../platform/tauri/index.js';
 import { notifySQLiteError } from '../shared/sqliteErrorEvents.js';
 
+export type SQLiteValue = string | number | boolean | null | Uint8Array | undefined;
+export type SQLiteParams = SQLiteValue[] | Record<string, SQLiteValue> | null;
+export type SQLiteRow = Record<string, unknown> | unknown[];
+export type SQLiteErrorCategory =
+    | 'malformed'
+    | 'disk_full'
+    | 'locked'
+    | 'io_error'
+    | 'unknown';
+
+export interface SQLiteError extends Error {
+    sqliteCategory: SQLiteErrorCategory;
+    sqliteCode: string;
+    originalMessage: string;
+}
+
+export interface SQLiteRepository {
+    query<T extends SQLiteRow = SQLiteRow>(
+        sql: string,
+        args?: SQLiteParams
+    ): Promise<T[]>;
+    all<T extends SQLiteRow = SQLiteRow>(
+        sql: string,
+        args?: SQLiteParams
+    ): Promise<T[]>;
+    execute<T extends SQLiteRow = SQLiteRow>(
+        sql: string,
+        args?: SQLiteParams
+    ): Promise<T[]>;
+    execute<T extends SQLiteRow = SQLiteRow>(
+        callback: (row: T) => void,
+        sql: string,
+        args?: SQLiteParams
+    ): Promise<T[]>;
+    executeNonQuery(sql: string, args?: SQLiteParams): Promise<unknown>;
+    run(sql: string, args?: SQLiteParams): Promise<unknown>;
+    transaction<T>(
+        steps: (repository: SQLiteRepository) => Promise<T> | T
+    ): Promise<T>;
+}
+
 const SQLITE_ERROR_PATTERNS = [
     {
         category: 'malformed',
@@ -26,9 +67,13 @@ const SQLITE_ERROR_PATTERNS = [
         code: 'SQLITE_IOERR',
         matches: ['disk I/O error']
     }
-];
+] satisfies Array<{
+    category: Exclude<SQLiteErrorCategory, 'unknown'>;
+    code: string;
+    matches: string[];
+}>;
 
-function getErrorMessage(error) {
+function getErrorMessage(error: unknown): string {
     if (error instanceof Error) {
         return error.message || String(error);
     }
@@ -45,7 +90,10 @@ function getErrorMessage(error) {
     }
 }
 
-function classifySQLiteError(message) {
+function classifySQLiteError(message: unknown): {
+    category: SQLiteErrorCategory;
+    code: string;
+} {
     const normalizedMessage = String(message || '').toLowerCase();
     const match = SQLITE_ERROR_PATTERNS.find((entry) =>
         entry.matches.some((pattern) =>
@@ -64,9 +112,15 @@ function classifySQLiteError(message) {
     };
 }
 
-function normalizeSQLiteError(error, fallbackMessage) {
+function normalizeSQLiteError(
+    error: unknown,
+    fallbackMessage: string
+): SQLiteError {
     const originalMessage = getErrorMessage(error);
-    const normalizedError = normalizePlatformError(error, fallbackMessage);
+    const normalizedError = normalizePlatformError(
+        error,
+        fallbackMessage
+    ) as SQLiteError;
     const { category, code } = classifySQLiteError(originalMessage);
     normalizedError.sqliteCategory = category;
     normalizedError.sqliteCode = code;
@@ -74,9 +128,12 @@ function normalizeSQLiteError(error, fallbackMessage) {
     return normalizedError;
 }
 
-async function query(sql, args = null) {
+async function query<T extends SQLiteRow = SQLiteRow>(
+    sql: string,
+    args: SQLiteParams = null
+): Promise<T[]> {
     try {
-        return await backend.sqlite.execute(sql, args);
+        return (await backend.sqlite.execute(sql, args)) as T[];
     } catch (error) {
         const normalizedError = normalizeSQLiteError(
             error,
@@ -87,13 +144,29 @@ async function query(sql, args = null) {
     }
 }
 
-async function all(sql, args = null) {
+async function all<T extends SQLiteRow = SQLiteRow>(
+    sql: string,
+    args: SQLiteParams = null
+): Promise<T[]> {
     return query(sql, args);
 }
 
-async function execute(callbackOrSql, sqlOrArgs = null, maybeArgs = null) {
+async function execute<T extends SQLiteRow = SQLiteRow>(
+    sql: string,
+    args?: SQLiteParams
+): Promise<T[]>;
+async function execute<T extends SQLiteRow = SQLiteRow>(
+    callback: (row: T) => void,
+    sql: string,
+    args?: SQLiteParams
+): Promise<T[]>;
+async function execute<T extends SQLiteRow = SQLiteRow>(
+    callbackOrSql: string | ((row: T) => void),
+    sqlOrArgs: string | SQLiteParams = null,
+    maybeArgs: SQLiteParams = null
+): Promise<T[]> {
     if (typeof callbackOrSql === 'function') {
-        const rows = await query(sqlOrArgs, maybeArgs);
+        const rows = await query<T>(sqlOrArgs as string, maybeArgs);
         if (Array.isArray(rows)) {
             for (const row of rows) {
                 callbackOrSql(row);
@@ -102,10 +175,13 @@ async function execute(callbackOrSql, sqlOrArgs = null, maybeArgs = null) {
         return rows;
     }
 
-    return query(callbackOrSql, sqlOrArgs);
+    return query<T>(callbackOrSql, sqlOrArgs as SQLiteParams);
 }
 
-async function executeNonQuery(sql, args = null) {
+async function executeNonQuery(
+    sql: string,
+    args: SQLiteParams = null
+): Promise<unknown> {
     try {
         return await backend.sqlite.executeNonQuery(sql, args);
     } catch (error) {
@@ -118,11 +194,16 @@ async function executeNonQuery(sql, args = null) {
     }
 }
 
-async function run(sql, args = null) {
+async function run(
+    sql: string,
+    args: SQLiteParams = null
+): Promise<unknown> {
     return executeNonQuery(sql, args);
 }
 
-async function transaction(steps) {
+async function transaction<T>(
+    steps: (repository: SQLiteRepository) => Promise<T> | T
+): Promise<T> {
     await executeNonQuery('BEGIN');
     try {
         const result = await steps(sqliteRepository);
@@ -134,7 +215,7 @@ async function transaction(steps) {
     }
 }
 
-const sqliteRepository = Object.freeze({
+const sqliteRepository: SQLiteRepository = Object.freeze({
     query,
     all,
     execute,

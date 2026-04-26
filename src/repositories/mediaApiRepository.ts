@@ -13,18 +13,58 @@ import {
     buildUrl,
     executeVrchatRequest,
     parseJsonResponse,
+    type QueryParams,
+    type QueryValue,
+    type VrchatRequestResponse,
     unwrapErrorMessage
 } from './vrchatRequest.js';
 import webRepository from './webRepository.js';
 
-function normalizeParams(params = {}) {
+type MediaApiRecord = Record<string, any>;
+type MediaApiParams = QueryParams;
+
+interface MediaApiOptions {
+    endpoint?: string;
+    force?: boolean;
+    matchingDimensions?: boolean;
+}
+
+interface MediaUploadResponse {
+    json: MediaApiRecord;
+    params: MediaApiParams;
+    status: number;
+    raw: unknown;
+}
+
+interface FilePutOptions {
+    url: string;
+    fileData: string;
+    fileMIME: string;
+    fileMD5: string;
+}
+
+interface LegacyImageUploadOptions {
+    avatarId?: unknown;
+    worldId?: unknown;
+    imageUrl?: string;
+    base64File: string;
+    blob?: Blob | { size?: number } | null;
+    endpoint?: string;
+}
+
+function normalizeParams(params: unknown = {}): MediaApiParams {
     if (!params || typeof params !== 'object') {
         return {};
     }
-    return { ...params };
+    return { ...(params as Record<string, QueryValue | QueryValue[]>) };
 }
 
-async function executeFilePut({ url, fileData, fileMIME, fileMD5 }) {
+async function executeFilePut({
+    url,
+    fileData,
+    fileMIME,
+    fileMD5
+}: FilePutOptions) {
     const response = await webRepository.execute({
         url,
         uploadFilePUT: true,
@@ -40,22 +80,26 @@ async function executeFilePut({ url, fileData, fileMIME, fileMD5 }) {
     return response;
 }
 
-async function signFile(base64File) {
+async function signFile(base64File: string): Promise<string> {
     try {
-        return await backend.app.SignFile(base64File);
+        return (await backend.app.SignFile(base64File)) as string;
     } catch (error) {
         throw normalizePlatformError(error, 'App command failed: SignFile');
     }
 }
 
 async function executeRequest(
-    path,
-    { method = 'GET', params = {}, endpoint = '' } = {}
-) {
+    path: string,
+    {
+        method = 'GET',
+        params = {},
+        endpoint = ''
+    }: { method?: string; params?: MediaApiParams; endpoint?: string } = {}
+): Promise<VrchatRequestResponse<MediaApiRecord>> {
     const normalizedParams = normalizeParams(params);
 
     try {
-        return await executeVrchatRequest(path, {
+        return await executeVrchatRequest<MediaApiRecord>(path, {
             endpoint,
             method,
             params: normalizedParams,
@@ -69,7 +113,12 @@ async function executeRequest(
     }
 }
 
-async function executeGet(path, params = {}, extra = {}, options = {}) {
+async function executeGet(
+    path: string,
+    params: MediaApiParams = {},
+    extra: MediaApiRecord = {},
+    options: MediaApiOptions = {}
+) {
     const normalizedParams = normalizeParams(params);
 
     try {
@@ -87,7 +136,11 @@ async function executeGet(path, params = {}, extra = {}, options = {}) {
     }
 }
 
-async function executeDelete(path, extra = {}, options = {}) {
+async function executeDelete(
+    path: string,
+    extra: MediaApiRecord = {},
+    options: MediaApiOptions = {}
+) {
     try {
         return await executeVrchatRequest(path, {
             endpoint: options.endpoint,
@@ -102,7 +155,12 @@ async function executeDelete(path, extra = {}, options = {}) {
     }
 }
 
-async function uploadImage(path, imageData, params = {}, options = {}) {
+async function uploadImage(
+    path: string,
+    imageData: string,
+    params: MediaApiParams = {},
+    options: MediaApiOptions = {}
+): Promise<MediaUploadResponse> {
     try {
         const response = await webRepository.execute({
             url: buildUrl(path, {}, options.endpoint, {
@@ -113,7 +171,7 @@ async function uploadImage(path, imageData, params = {}, options = {}) {
             postData: JSON.stringify(params ?? {}),
             imageData
         });
-        const json = parseJsonResponse(response.data);
+        const json = parseJsonResponse(response.data) as MediaApiRecord;
 
         if (response.status >= 400) {
             throw new Error(
@@ -142,15 +200,21 @@ async function uploadImage(path, imageData, params = {}, options = {}) {
     }
 }
 
-async function getFiles(params = {}, options = {}) {
+async function getFiles(
+    params: MediaApiParams = {},
+    options: MediaApiOptions = {}
+) {
     return executeGet('files', params, {}, options);
 }
 
-async function getFileList(params = {}, options = {}) {
+async function getFileList(
+    params: MediaApiParams = {},
+    options: MediaApiOptions = {}
+) {
     return getFiles(params, options);
 }
 
-async function deleteFile(fileId, options = {}) {
+async function deleteFile(fileId: unknown, options: MediaApiOptions = {}) {
     const normalizedFileId =
         typeof fileId === 'string'
             ? fileId.trim()
@@ -168,7 +232,10 @@ async function deleteFile(fileId, options = {}) {
     );
 }
 
-async function uploadGalleryImage(imageData, options = {}) {
+async function uploadGalleryImage(
+    imageData: string,
+    options: MediaApiOptions = {}
+) {
     return uploadImage(
         'file/image',
         imageData,
@@ -182,7 +249,11 @@ async function uploadGalleryImage(imageData, options = {}) {
     );
 }
 
-async function uploadAvatarGalleryImage(imageData, avatarId, options = {}) {
+async function uploadAvatarGalleryImage(
+    imageData: string,
+    avatarId: QueryValue,
+    options: MediaApiOptions = {}
+) {
     return uploadImage(
         'file/image',
         imageData,
@@ -197,7 +268,10 @@ async function uploadAvatarGalleryImage(imageData, avatarId, options = {}) {
     );
 }
 
-async function uploadVrcPlusIcon(imageData, options = {}) {
+async function uploadVrcPlusIcon(
+    imageData: string,
+    options: MediaApiOptions = {}
+) {
     return uploadImage(
         'file/image',
         imageData,
@@ -211,14 +285,21 @@ async function uploadVrcPlusIcon(imageData, options = {}) {
     );
 }
 
-async function uploadEmoji(imageData, params = {}, options = {}) {
+async function uploadEmoji(
+    imageData: string,
+    params: MediaApiParams = {},
+    options: MediaApiOptions = {}
+) {
     return uploadImage('file/image', imageData, params, {
         matchingDimensions: true,
         endpoint: options.endpoint
     });
 }
 
-async function uploadSticker(imageData, options = {}) {
+async function uploadSticker(
+    imageData: string,
+    options: MediaApiOptions = {}
+) {
     return uploadImage(
         'file/image',
         imageData,
@@ -234,9 +315,17 @@ async function uploadSticker(imageData, options = {}) {
 }
 
 async function uploadPrint(
-    imageData,
-    { endpoint = '', cropWhiteBorder = true, params = {} } = {}
-) {
+    imageData: string,
+    {
+        endpoint = '',
+        cropWhiteBorder = true,
+        params = {}
+    }: {
+        endpoint?: string;
+        cropWhiteBorder?: boolean;
+        params?: MediaApiParams;
+    } = {}
+): Promise<MediaUploadResponse> {
     try {
         const response = await webRepository.execute({
             url: buildUrl('prints', {}, endpoint, {
@@ -247,7 +336,7 @@ async function uploadPrint(
             postData: JSON.stringify(params ?? {}),
             imageData
         });
-        const json = parseJsonResponse(response.data);
+        const json = parseJsonResponse(response.data) as MediaApiRecord;
 
         if (response.status >= 400) {
             throw new Error(
@@ -276,7 +365,10 @@ async function uploadPrint(
     }
 }
 
-async function getPrints({ userId, n = 100 } = {}, options = {}) {
+async function getPrints(
+    { userId, n = 100 }: { userId?: unknown; n?: number } = {},
+    options: MediaApiOptions = {}
+) {
     const normalizedUserId =
         typeof userId === 'string'
             ? userId.trim()
@@ -293,7 +385,7 @@ async function getPrints({ userId, n = 100 } = {}, options = {}) {
     );
 }
 
-async function getPrint(printId, options = {}) {
+async function getPrint(printId: unknown, options: MediaApiOptions = {}) {
     const normalizedPrintId =
         typeof printId === 'string'
             ? printId.trim()
@@ -312,7 +404,7 @@ async function getPrint(printId, options = {}) {
     );
 }
 
-async function deletePrint(printId, options = {}) {
+async function deletePrint(printId: unknown, options: MediaApiOptions = {}) {
     const normalizedPrintId =
         typeof printId === 'string'
             ? printId.trim()
@@ -330,13 +422,16 @@ async function deletePrint(printId, options = {}) {
     );
 }
 
-async function getInventoryItems(params = {}, options = {}) {
+async function getInventoryItems(
+    params: MediaApiParams = {},
+    options: MediaApiOptions = {}
+) {
     return executeGet('inventory', params, {}, options);
 }
 
 async function getUserInventoryItem(
-    { inventoryId, userId } = {},
-    options = {}
+    { inventoryId, userId }: { inventoryId?: unknown; userId?: unknown } = {},
+    options: MediaApiOptions = {}
 ) {
     const normalizedInventoryId =
         typeof inventoryId === 'string'
@@ -375,7 +470,10 @@ async function getUserInventoryItem(
     });
 }
 
-async function consumeInventoryBundle(inventoryId, options = {}) {
+async function consumeInventoryBundle(
+    inventoryId: unknown,
+    options: MediaApiOptions = {}
+) {
     const normalizedInventoryId =
         typeof inventoryId === 'string'
             ? inventoryId.trim()
@@ -398,7 +496,7 @@ async function consumeInventoryBundle(inventoryId, options = {}) {
     );
 }
 
-async function redeemReward(code, options = {}) {
+async function redeemReward(code: unknown, options: MediaApiOptions = {}) {
     const normalizedCode =
         typeof code === 'string' ? code.trim() : String(code ?? '').trim();
     if (!normalizedCode) {
@@ -416,11 +514,11 @@ async function redeemReward(code, options = {}) {
 
 async function uploadAvatarImageLegacy({
     avatarId,
-    imageUrl,
+    imageUrl = '',
     base64File,
     blob,
     endpoint = ''
-}) {
+}: LegacyImageUploadOptions) {
     const normalizedAvatarId =
         typeof avatarId === 'string'
             ? avatarId.trim()
@@ -536,11 +634,11 @@ async function uploadAvatarImageLegacy({
 
 async function uploadWorldImageLegacy({
     worldId,
-    imageUrl,
+    imageUrl = '',
     base64File,
     blob,
     endpoint = ''
-}) {
+}: LegacyImageUploadOptions) {
     const normalizedWorldId =
         typeof worldId === 'string'
             ? worldId.trim()

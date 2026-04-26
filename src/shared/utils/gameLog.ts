@@ -1,10 +1,65 @@
-/**
- * Filter a game log row by search query.
- * @param {object} row
- * @param {string} searchQuery
- * @returns {boolean}
- */
-function gameLogSearchFilter(row, searchQuery) {
+export type GameLogEntryType =
+    | 'Location'
+    | 'OnPlayerJoined'
+    | 'OnPlayerLeft'
+    | 'PortalSpawn'
+    | 'Event'
+    | 'External'
+    | 'VideoPlay'
+    | 'StringLoad'
+    | 'ImageLoad'
+    | 'JoinGroup'
+    | 'LeftGroup';
+
+export interface GameLogRow extends Record<string, unknown> {
+    id?: number | string;
+    uid?: string;
+    rowId?: number;
+    created_at?: string;
+    createdAt?: string;
+    dt?: string | number;
+    type?: GameLogEntryType | string;
+    location?: string;
+    worldId?: string;
+    worldName?: string;
+    groupName?: string;
+    displayName?: string;
+    userId?: string;
+    videoUrl?: string;
+    videoName?: string;
+    resourceUrl?: string;
+    data?: string;
+    message?: string;
+    time?: number;
+    isFriend?: boolean;
+    isFavorite?: boolean;
+    playCount?: number;
+}
+
+export interface GameLogSessionMember {
+    displayName?: string;
+    userId?: string;
+    created_at?: string;
+    isFriend?: boolean;
+    isFavorite?: boolean;
+}
+
+export interface GameLogSessionGroup extends GameLogRow {
+    type: 'JoinGroup' | 'LeftGroup';
+    count: number;
+    members: GameLogSessionMember[];
+}
+
+export interface GameLogSessionSegment extends GameLogRow {
+    events: Array<GameLogRow | GameLogSessionGroup>;
+    duration: number | null;
+}
+
+export interface GameLogSessionsResult {
+    segments: GameLogSessionSegment[];
+}
+
+function gameLogSearchFilter(row: GameLogRow, searchQuery: string): boolean {
     const value = searchQuery.trim().toUpperCase();
     if (!value) {
         return true;
@@ -79,7 +134,7 @@ function gameLogSearchFilter(row, searchQuery) {
  * @param {object} row
  * @returns {number} millisecond timestamp, or 0 if unparseable
  */
-function getGameLogCreatedAtTs(row) {
+function getGameLogCreatedAtTs(row: GameLogRow): number {
     // dynamic import avoided — dayjs is a lightweight dep already used by the
     // consumer; we import it lazily to keep the module usable without bundler
     // context in tests (dayjs is a CJS/ESM dual package).
@@ -108,7 +163,7 @@ function getGameLogCreatedAtTs(row) {
  * @param {object} b
  * @returns {number} negative if a should come first, positive if b first
  */
-function compareGameLogRows(a, b) {
+function compareGameLogRows(a: GameLogRow, b: GameLogRow): number {
     const aTs = getGameLogCreatedAtTs(a);
     const bTs = getGameLogCreatedAtTs(b);
     if (aTs !== bTs) {
@@ -128,15 +183,12 @@ function compareGameLogRows(a, b) {
 
 export { gameLogSearchFilter, getGameLogCreatedAtTs, compareGameLogRows };
 
-/**
- * Create a Location game log entry.
- * @param {string} dt
- * @param {string} location
- * @param {string} worldId
- * @param {string} worldName
- * @returns {object}
- */
-export function createLocationEntry(dt, location, worldId, worldName) {
+export function createLocationEntry(
+    dt: string,
+    location: string,
+    worldId: string,
+    worldName: string
+): GameLogRow {
     return {
         created_at: dt,
         type: 'Location',
@@ -159,13 +211,13 @@ export function createLocationEntry(dt, location, worldId, worldName) {
  * @returns {object}
  */
 export function createJoinLeaveEntry(
-    type,
-    dt,
-    displayName,
-    location,
-    userId,
+    type: 'OnPlayerJoined' | 'OnPlayerLeft',
+    dt: string,
+    displayName: string,
+    location: string,
+    userId: string,
     time = 0
-) {
+): GameLogRow {
     return {
         created_at: dt,
         type,
@@ -182,7 +234,10 @@ export function createJoinLeaveEntry(
  * @param {string} location
  * @returns {object}
  */
-export function createPortalSpawnEntry(dt, location) {
+export function createPortalSpawnEntry(
+    dt: string,
+    location: string
+): GameLogRow {
     return {
         created_at: dt,
         type: 'PortalSpawn',
@@ -202,7 +257,12 @@ export function createPortalSpawnEntry(dt, location) {
  * @param {string} location
  * @returns {object}
  */
-export function createResourceLoadEntry(rawType, dt, resourceUrl, location) {
+export function createResourceLoadEntry(
+    rawType: string,
+    dt: string,
+    resourceUrl: string,
+    location: string
+): GameLogRow {
     return {
         created_at: dt,
         type: rawType === 'resource-load-string' ? 'StringLoad' : 'ImageLoad',
@@ -219,7 +279,9 @@ export function createResourceLoadEntry(rawType, dt, resourceUrl, location) {
  * @param {string} url
  * @returns {{ userId: string, inventoryId: string } | null}
  */
-export function parseInventoryFromUrl(url) {
+export function parseInventoryFromUrl(
+    url: string
+): { userId: string; inventoryId: string } | null {
     try {
         const parsed = new URL(url);
         if (
@@ -245,7 +307,7 @@ export function parseInventoryFromUrl(url) {
  * @param {string} url
  * @returns {string|null} printId or null
  */
-export function parsePrintFromUrl(url) {
+export function parsePrintFromUrl(url: string): string | null {
     try {
         const parsed = new URL(url);
         if (parsed.pathname.substring(0, 14) === '/api/1/prints/') {
@@ -265,15 +327,18 @@ const SESSION_TOLERANCE_MS = 1000;
 const SESSION_AGGREGATE_THRESHOLD = 5;
 const SESSION_AGGREGATE_WINDOW_MS = 5000;
 
-function toGameLogSessionEpoch(dateStr) {
+function toGameLogSessionEpoch(dateStr: unknown): number {
     if (!dateStr) {
         return 0;
     }
-    const timestamp = Date.parse(dateStr);
+    const timestamp = Date.parse(String(dateStr));
     return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
-function findGameLogSessionIndex(eventEpoch, segmentsAsc) {
+function findGameLogSessionIndex(
+    eventEpoch: number,
+    segmentsAsc: Array<GameLogSessionSegment & { epoch: number }>
+): number {
     const target = eventEpoch + SESSION_TOLERANCE_MS;
     for (let index = segmentsAsc.length - 1; index >= 0; index -= 1) {
         if (segmentsAsc[index].epoch <= target) {
@@ -283,7 +348,11 @@ function findGameLogSessionIndex(eventEpoch, segmentsAsc) {
     return -1;
 }
 
-function findMatchingGameLogSessionIndex(event, segmentsAsc, locationMap) {
+function findMatchingGameLogSessionIndex(
+    event: GameLogRow,
+    segmentsAsc: Array<GameLogSessionSegment & { epoch: number }>,
+    locationMap: Map<string, number[]>
+): number {
     const eventEpoch = toGameLogSessionEpoch(event.created_at);
     const target = eventEpoch + SESSION_TOLERANCE_MS;
     const candidates = event.location ? locationMap.get(event.location) : null;
@@ -301,7 +370,7 @@ function findMatchingGameLogSessionIndex(event, segmentsAsc, locationMap) {
     return findGameLogSessionIndex(eventEpoch, segmentsAsc);
 }
 
-function toGameLogSessionMember(event) {
+function toGameLogSessionMember(event: GameLogRow): GameLogSessionMember {
     return {
         displayName: event.displayName,
         userId: event.userId,
@@ -311,7 +380,10 @@ function toGameLogSessionMember(event) {
     };
 }
 
-function makeGameLogSessionGroup(groupType, batch) {
+function makeGameLogSessionGroup(
+    groupType: 'JoinGroup' | 'LeftGroup',
+    batch: GameLogRow[]
+): GameLogSessionGroup {
     return {
         type: groupType,
         created_at: batch[0].created_at,
@@ -320,7 +392,11 @@ function makeGameLogSessionGroup(groupType, batch) {
     };
 }
 
-function aggregateGameLogSessionTailEvents(events, matchType, groupType) {
+function aggregateGameLogSessionTailEvents(
+    events: Array<GameLogRow | GameLogSessionGroup>,
+    matchType: GameLogEntryType,
+    groupType: 'JoinGroup' | 'LeftGroup'
+): void {
     if (events.length === 0) {
         return;
     }
@@ -360,7 +436,11 @@ function aggregateGameLogSessionTailEvents(events, matchType, groupType) {
     events.splice(indices[0], 0, group);
 }
 
-function aggregateGameLogSessionHeadEvents(events, matchType, groupType) {
+function aggregateGameLogSessionHeadEvents(
+    events: Array<GameLogRow | GameLogSessionGroup>,
+    matchType: GameLogEntryType,
+    groupType: 'JoinGroup' | 'LeftGroup'
+): void {
     if (events.length === 0) {
         return;
     }
@@ -400,7 +480,9 @@ function aggregateGameLogSessionHeadEvents(events, matchType, groupType) {
     events.splice(indices[0], 0, group);
 }
 
-function applyGameLogSessionAggregation(segmentsAsc) {
+function applyGameLogSessionAggregation(
+    segmentsAsc: GameLogSessionSegment[]
+): void {
     for (const segment of segmentsAsc) {
         aggregateGameLogSessionTailEvents(
             segment.events,
@@ -420,7 +502,9 @@ function applyGameLogSessionAggregation(segmentsAsc) {
     }
 }
 
-function deduplicateGameLogSessionVideoPlay(events) {
+function deduplicateGameLogSessionVideoPlay(
+    events: Array<GameLogRow | GameLogSessionGroup>
+): void {
     for (let index = events.length - 1; index > 0; index -= 1) {
         if (
             events[index].type === 'VideoPlay' &&
@@ -440,7 +524,10 @@ function deduplicateGameLogSessionVideoPlay(events) {
     }
 }
 
-export function buildGameLogSessions(locationSegments, flatEvents) {
+export function buildGameLogSessions(
+    locationSegments: GameLogRow[],
+    flatEvents: GameLogRow[]
+): GameLogSessionsResult {
     if (!locationSegments || locationSegments.length === 0) {
         return { segments: [] };
     }

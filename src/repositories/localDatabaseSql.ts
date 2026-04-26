@@ -1,13 +1,37 @@
-function safeParameterPart(value) {
+import type { SQLiteParams, SQLiteValue } from './sqliteRepository.js';
+
+type SqlRow = Record<string, unknown>;
+type SqlColumnSpec =
+    | string
+    | {
+          column: string;
+          value?: string | ((row: SqlRow) => SQLiteValue);
+      };
+
+interface InClauseResult {
+    clause: string;
+    args: Exclude<SQLiteParams, null | SQLiteValue[]>;
+}
+
+interface ValuesListResult {
+    valuesSql: string;
+    args: Exclude<SQLiteParams, null | SQLiteValue[]>;
+}
+
+function safeParameterPart(value: unknown): string {
     return String(value || 'value').replace(/[^A-Za-z0-9_]/g, '_');
 }
 
-function buildInClause(column, values, prefix = 'in') {
+function buildInClause(
+    column: string,
+    values: SQLiteValue[],
+    prefix = 'in'
+): InClauseResult {
     if (!Array.isArray(values) || values.length === 0) {
         return { clause: '', args: {} };
     }
 
-    const args = {};
+    const args: InClauseResult['args'] = {};
     const safePrefix = safeParameterPart(prefix);
     const placeholders = values.map((value, index) => {
         const key = `@${safePrefix}_${index}`;
@@ -21,21 +45,25 @@ function buildInClause(column, values, prefix = 'in') {
     };
 }
 
-function columnNameFor(columnSpec) {
+function columnNameFor(columnSpec: SqlColumnSpec): string {
     return typeof columnSpec === 'string' ? columnSpec : columnSpec.column;
 }
 
-function valueFor(row, columnSpec) {
+function valueFor(row: SqlRow, columnSpec: SqlColumnSpec): SQLiteValue {
     if (typeof columnSpec === 'string') {
-        return row[columnSpec];
+        return row[columnSpec] as SQLiteValue;
     }
     if (typeof columnSpec.value === 'function') {
         return columnSpec.value(row);
     }
-    return row[columnSpec.value ?? columnSpec.column];
+    return row[columnSpec.value ?? columnSpec.column] as SQLiteValue;
 }
 
-function buildValuesList(rows, columns, prefix = 'value') {
+function buildValuesList(
+    rows: SqlRow[],
+    columns: SqlColumnSpec[],
+    prefix = 'value'
+): ValuesListResult {
     if (!Array.isArray(rows) || rows.length === 0) {
         return { valuesSql: '', args: {} };
     }
@@ -43,7 +71,7 @@ function buildValuesList(rows, columns, prefix = 'value') {
         return { valuesSql: '', args: {} };
     }
 
-    const args = {};
+    const args: ValuesListResult['args'] = {};
     const safePrefix = safeParameterPart(prefix);
     const valuesSql = rows
         .map((row, rowIndex) => {
@@ -59,8 +87,8 @@ function buildValuesList(rows, columns, prefix = 'value') {
     return { valuesSql, args };
 }
 
-function clampSqlLimit(value, fallback = 500, max = 50000) {
-    const parsed = Number.parseInt(value, 10);
+function clampSqlLimit(value: unknown, fallback = 500, max = 50000): number {
+    const parsed = Number.parseInt(String(value), 10);
     if (!Number.isFinite(parsed) || parsed <= 0) {
         return fallback;
     }

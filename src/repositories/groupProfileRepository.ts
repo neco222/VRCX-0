@@ -6,10 +6,12 @@ import {
 import { replaceBioSymbols } from '@/shared/utils/base/string.js';
 import { createDefaultGroupRef } from '@/shared/utils/groupTransforms.js';
 
-import { executeVrchatRequest } from './vrchatRequest.js';
+import { executeVrchatRequest, type QueryParams } from './vrchatRequest.js';
 
-function normalizeEntityId(value) {
-    const normalize = (text) => {
+type GroupRecord = Record<string, any>;
+
+function normalizeEntityId(value: unknown): string {
+    const normalize = (text: string) => {
         const normalized = text.trim();
         return normalized === '[object Object]' ? '' : normalized;
     };
@@ -22,11 +24,11 @@ function normalizeEntityId(value) {
     return '';
 }
 
-function normalizeString(value) {
+function normalizeString(value: unknown): string {
     return typeof value === 'string' ? value.trim() : '';
 }
 
-function normalizeText(value) {
+function normalizeText(value: unknown): string {
     if (typeof value !== 'string' || !value) {
         return '';
     }
@@ -37,7 +39,7 @@ function normalizeText(value) {
     return replaceBioSymbols(rawText).trim();
 }
 
-function normalizeArray(values) {
+function normalizeArray(values: unknown): string[] {
     if (!Array.isArray(values)) {
         return [];
     }
@@ -51,12 +53,12 @@ function normalizeArray(values) {
         .filter(Boolean);
 }
 
-function parseInteger(value) {
-    const parsed = Number.parseInt(value, 10);
+function parseInteger(value: unknown): number {
+    const parsed = Number.parseInt(String(value), 10);
     return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function normalizeGroupRoles(values) {
+function normalizeGroupRoles(values: unknown): GroupRecord[] {
     if (!Array.isArray(values)) {
         return [];
     }
@@ -72,7 +74,7 @@ function normalizeGroupRoles(values) {
         }));
 }
 
-function normalizeGroupProfile(group) {
+function normalizeGroupProfile(group: GroupRecord | null | undefined) {
     const base = createDefaultGroupRef(group ?? {});
     const shortCode = normalizeString(base.shortCode);
     const discriminator = normalizeString(base.discriminator);
@@ -119,7 +121,7 @@ function normalizeGroupProfile(group) {
     };
 }
 
-function responseRows(json, key = '') {
+function responseRows(json: any, key = '') {
     if (Array.isArray(json)) {
         return json;
     }
@@ -135,7 +137,7 @@ async function collectPages(
     fetchPage,
     { pageSize = 100, maxPages = Number.POSITIVE_INFINITY } = {}
 ) {
-    const rows = [];
+    const rows: any[] = [];
 
     for (let page = 0; page < maxPages; page += 1) {
         const nextRows = await fetchPage({
@@ -152,12 +154,12 @@ async function collectPages(
     return rows;
 }
 
-function normalize(group) {
+function normalize(group: GroupRecord) {
     return normalizeGroupProfile(group);
 }
 
-async function executeGet(path, params = {}, { endpoint = '' } = {}) {
-    return executeVrchatRequest(path, {
+async function executeGet(path: string, params: QueryParams = {}, { endpoint = '' } = {}) {
+    return executeVrchatRequest<any>(path, {
         endpoint,
         method: 'GET',
         params,
@@ -165,8 +167,8 @@ async function executeGet(path, params = {}, { endpoint = '' } = {}) {
     });
 }
 
-async function executePost(path, params = {}, { endpoint = '' } = {}) {
-    return executeVrchatRequest(path, {
+async function executePost(path: string, params: QueryParams = {}, { endpoint = '' } = {}) {
+    return executeVrchatRequest<any>(path, {
         endpoint,
         method: 'POST',
         body: params,
@@ -174,8 +176,8 @@ async function executePost(path, params = {}, { endpoint = '' } = {}) {
     });
 }
 
-async function executePut(path, params = {}, { endpoint = '' } = {}) {
-    return executeVrchatRequest(path, {
+async function executePut(path: string, params: QueryParams = {}, { endpoint = '' } = {}) {
+    return executeVrchatRequest<any>(path, {
         endpoint,
         method: 'PUT',
         body: params,
@@ -183,8 +185,8 @@ async function executePut(path, params = {}, { endpoint = '' } = {}) {
     });
 }
 
-async function executeDelete(path, params = {}, { endpoint = '' } = {}) {
-    return executeVrchatRequest(path, {
+async function executeDelete(path: string, params: QueryParams = {}, { endpoint = '' } = {}) {
+    return executeVrchatRequest<any>(path, {
         endpoint,
         method: 'DELETE',
         params,
@@ -337,7 +339,7 @@ async function getGroupMembers({
         );
     }
 
-    const params = { n, offset, sort };
+    const params: QueryParams = { n, offset, sort };
     if (roleId) {
         params.roleId = roleId;
     }
@@ -411,7 +413,7 @@ async function getGroupGallery({
         );
     }
 
-    const params = { n, offset };
+    const params: QueryParams = { n, offset };
     return fetchCachedData({
         queryKey: queryKeys.groupGallery(
             {
@@ -723,7 +725,7 @@ async function getGroupLogs({
         );
     }
 
-    const params = { n, offset };
+    const params: QueryParams = { n, offset };
     if (Array.isArray(eventTypes) && eventTypes.length) {
         params.eventTypes = eventTypes.join(',');
     }

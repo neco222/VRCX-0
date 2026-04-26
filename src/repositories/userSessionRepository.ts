@@ -4,13 +4,36 @@ import {
 } from './localDatabaseSchema.js';
 import sqliteRepository from './sqliteRepository.js';
 
-const userTableInitPromises = new Map();
+export interface UserTableContext {
+    userId: string;
+    userPrefix: string;
+}
 
-function normalizeUserTablePrefix(userId) {
+export interface UserSessionRepository {
+    normalizeUserTablePrefix(userId: unknown): string;
+    ensureUserTables(userId: unknown): Promise<UserTableContext>;
+    getUserTableContext(userId: unknown): Promise<UserTableContext>;
+    initUserTables(userId: unknown): Promise<UserTableContext>;
+    initUserTablesUncached(userId: unknown): Promise<UserTableContext>;
+    purgeAvatarFeedData(
+        userId: unknown,
+        cutoffDate?: string | null
+    ): Promise<void>;
+}
+
+const userTableInitPromises = new Map<string, Promise<UserTableContext>>();
+
+function normalizeUserTablePrefix(userId: unknown): string {
     return baseNormalizeUserTablePrefix(userId);
 }
 
-async function ensureUserTables(userId) {
+function normalizeUserId(userId: unknown): string {
+    return typeof userId === 'string'
+        ? userId.trim()
+        : String(userId ?? '').trim();
+}
+
+async function ensureUserTables(userId: unknown): Promise<UserTableContext> {
     const userPrefix = normalizeUserTablePrefix(userId);
     const existing = userTableInitPromises.get(userPrefix);
     if (existing) {
@@ -23,10 +46,7 @@ async function ensureUserTables(userId) {
         }
 
         return {
-            userId:
-                typeof userId === 'string'
-                    ? userId.trim()
-                    : String(userId ?? '').trim(),
+            userId: normalizeUserId(userId),
             userPrefix
         };
     })().catch((error) => {
@@ -40,30 +60,34 @@ async function ensureUserTables(userId) {
     return promise;
 }
 
-async function initUserTables(userId) {
+async function initUserTables(userId: unknown): Promise<UserTableContext> {
     return ensureUserTables(userId);
 }
 
-async function getUserTableContext(userId) {
+async function getUserTableContext(
+    userId: unknown
+): Promise<UserTableContext> {
     return ensureUserTables(userId);
 }
 
-async function initUserTablesUncached(userId) {
+async function initUserTablesUncached(
+    userId: unknown
+): Promise<UserTableContext> {
     const userPrefix = normalizeUserTablePrefix(userId);
     for (const sql of buildInitUserTableStatements(userPrefix)) {
         await sqliteRepository.executeNonQuery(sql);
     }
 
     return {
-        userId:
-            typeof userId === 'string'
-                ? userId.trim()
-                : String(userId ?? '').trim(),
+        userId: normalizeUserId(userId),
         userPrefix
     };
 }
 
-async function purgeAvatarFeedData(userId, cutoffDate = null) {
+async function purgeAvatarFeedData(
+    userId: unknown,
+    cutoffDate: string | null = null
+): Promise<void> {
     const userPrefix = normalizeUserTablePrefix(userId);
     if (cutoffDate) {
         await sqliteRepository.executeNonQuery(
@@ -80,7 +104,7 @@ async function purgeAvatarFeedData(userId, cutoffDate = null) {
     );
 }
 
-const userSessionRepository = {
+const userSessionRepository: UserSessionRepository = {
     normalizeUserTablePrefix,
     ensureUserTables,
     getUserTableContext,

@@ -21,7 +21,7 @@ const K = new Uint32Array([
     0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391
 ]);
 
-export function bytesToBase64(bytes) {
+export function bytesToBase64(bytes: Uint8Array): string {
     let binary = '';
     for (let i = 0; i < bytes.length; i++) {
         binary += String.fromCharCode(bytes[i]);
@@ -29,11 +29,16 @@ export function bytesToBase64(bytes) {
     return btoa(binary);
 }
 
-export function bytesToObjectUrl(bytes, mimeType = 'application/octet-stream') {
-    return URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+export function bytesToObjectUrl(
+    bytes: Uint8Array,
+    mimeType = 'application/octet-stream'
+): string {
+    return URL.createObjectURL(
+        new Blob([bytes as BlobPart], { type: mimeType })
+    );
 }
 
-export function base64ToBytes(base64) {
+export function base64ToBytes(base64: string): Uint8Array {
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
@@ -42,11 +47,11 @@ export function base64ToBytes(base64) {
     return bytes;
 }
 
-export function getBase64ByteLength(base64) {
+export function getBase64ByteLength(base64: string): number {
     return base64ToBytes(base64).length;
 }
 
-export function md5Bytes(input) {
+export function md5Bytes(input: Uint8Array): Uint8Array {
     const bitLen = input.length * 8;
     const padLen = (56 - ((input.length + 1) % 64) + 64) % 64;
     const buf = new Uint8Array(input.length + 1 + padLen + 8);
@@ -74,8 +79,8 @@ export function md5Bytes(input) {
         let D = d0;
 
         for (let i = 0; i < 64; i++) {
-            let F;
-            let g;
+            let F: number;
+            let g: number;
             if (i < 16) {
                 F = (B & C) | (~B & D);
                 g = i;
@@ -112,6 +117,6 @@ export function md5Bytes(input) {
     return hash;
 }
 
-export function md5Base64(base64) {
+export function md5Base64(base64: string): string {
     return bytesToBase64(md5Bytes(base64ToBytes(base64)));
 }

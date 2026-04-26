@@ -1,4 +1,25 @@
-import { bytesToBase64 } from './binary';
+import { bytesToBase64 } from './binary.js';
+
+export interface ImageUploadValidationOptions {
+    maxSize?: number;
+}
+
+export type ImageUploadValidationResult =
+    | { ok: true; reason: '' }
+    | { ok: false; reason: 'missing' | 'too_large' | 'not_image' };
+
+export interface ImageCropOptions {
+    zoom?: number;
+    offsetX?: number;
+    offsetY?: number;
+}
+
+export interface ImageCropRect {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
 
 const UPLOAD_TIMEOUT_MS = 30_000;
 const DEFAULT_MAX_IMAGE_UPLOAD_BYTES = 20_000_000;
@@ -15,38 +36,35 @@ const SAFE_RASTER_IMAGE_TYPES = new Set([
 
 /**
  *
- * @param promise
  */
-export function withUploadTimeout(promise) {
-    let timeoutId;
-    const timeout = new Promise((_, reject) => {
+export function withUploadTimeout<T>(promise: Promise<T>): Promise<T> {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(
             () => reject(new Error('Upload timed out')),
             UPLOAD_TIMEOUT_MS
         );
     });
-    return Promise.race([promise, timeout]).finally(() => {
+    return Promise.race<T>([promise, timeout]).finally(() => {
         clearTimeout(timeoutId);
     });
 }
 
-export async function readBlobAsBytes(blob) {
+export async function readBlobAsBytes(blob: Blob): Promise<Uint8Array> {
     return new Uint8Array(await blob.arrayBuffer());
 }
 
 /**
  * File -> base64
- * @param {Blob|File} blob
- * @returns {Promise<string>} base64 encoded string
  */
-export async function readFileAsBase64(blob) {
+export async function readFileAsBase64(blob: Blob): Promise<string> {
     return bytesToBase64(await readBlobAsBytes(blob));
 }
 
 export function validateImageUploadFile(
-    file,
+    file: Blob | File | null | undefined,
     { maxSize = DEFAULT_MAX_IMAGE_UPLOAD_BYTES } = {}
-) {
+): ImageUploadValidationResult {
     if (!file) {
         return { ok: false, reason: 'missing' };
     }
@@ -62,7 +80,11 @@ export function validateImageUploadFile(
     return { ok: true, reason: '' };
 }
 
-export async function cropImageFileToAspect(file, aspectRatio, options = {}) {
+export async function cropImageFileToAspect(
+    file: File,
+    aspectRatio: number,
+    options: ImageCropOptions = {}
+): Promise<Blob> {
     if (!validateImageUploadFile(file).ok) {
         throw new Error('Selected file is not a supported image.');
     }
@@ -115,7 +137,12 @@ export async function cropImageFileToAspect(file, aspectRatio, options = {}) {
     }
 }
 
-export function computeAspectCrop(width, height, aspectRatio, options = {}) {
+export function computeAspectCrop(
+    width: number,
+    height: number,
+    aspectRatio: number,
+    options: ImageCropOptions = {}
+): ImageCropRect {
     const sourceAspect = width / height;
     let baseWidth = width;
     let baseHeight = height;

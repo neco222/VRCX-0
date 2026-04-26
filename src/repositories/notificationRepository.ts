@@ -9,9 +9,31 @@ import {
     createRequestError,
     executeVrchatRequest,
     parseJsonResponse,
+    type QueryParams,
+    type QueryValue,
     unwrapErrorMessage
 } from './vrchatRequest.js';
 import webRepository from './webRepository.js';
+
+type NotificationRecord = Record<string, any>;
+type NotificationRow = NotificationRecord | unknown[];
+
+interface NotificationUserOptions {
+    userId?: unknown;
+}
+
+interface NotificationActionOptions {
+    id?: unknown;
+    responseSlot?: unknown;
+    responseType?: unknown;
+    responseData?: unknown;
+    imageData?: unknown;
+    receiverUserId?: unknown;
+    userId?: unknown;
+    emojiId?: unknown;
+    params?: QueryParams;
+    endpoint?: string;
+}
 
 export const NOTIFICATION_TYPES = Object.freeze([
     'requestInvite',
@@ -37,13 +59,13 @@ export const NOTIFICATION_TYPES = Object.freeze([
     'economy.alert'
 ]);
 
-function normalizeUserId(value) {
+function normalizeUserId(value: unknown): string {
     return typeof value === 'string'
         ? value.trim()
         : String(value ?? '').trim();
 }
 
-function readColumn(row, index, key) {
+function readColumn(row: NotificationRow, index: number, key: string) {
     if (Array.isArray(row)) {
         return row[index];
     }
@@ -55,7 +77,7 @@ function readColumn(row, index, key) {
     return null;
 }
 
-function normalizeV1Notification(row) {
+function normalizeV1Notification(row: NotificationRow): NotificationRecord {
     const details = {
         worldId: readColumn(row, 7, 'world_id') || '',
         worldName: readColumn(row, 8, 'world_name') || '',
@@ -87,15 +109,15 @@ function normalizeV1Notification(row) {
     };
 }
 
-function isExpiredTimestamp(value) {
+function isExpiredTimestamp(value: unknown): boolean {
     if (!value) {
         return false;
     }
-    const expiresAt = Date.parse(value);
+    const expiresAt = Date.parse(String(value));
     return Number.isFinite(expiresAt) ? expiresAt <= Date.now() : false;
 }
 
-function normalizeV2Notification(row) {
+function normalizeV2Notification(row: NotificationRow): NotificationRecord {
     const data = safeJsonParse(readColumn(row, 13, 'data') || '{}', {});
     const responses = safeJsonParse(
         readColumn(row, 14, 'responses') || '[]',
@@ -126,7 +148,7 @@ function normalizeV2Notification(row) {
     };
 }
 
-function matchesSearch(notification, search) {
+function matchesSearch(notification: NotificationRecord, search: string): boolean {
     const query = String(search || '')
         .trim()
         .toLowerCase();
@@ -155,7 +177,7 @@ function matchesSearch(notification, search) {
     );
 }
 
-function matchesFilters(notification, filters) {
+function matchesFilters(notification: NotificationRecord, filters: unknown): boolean {
     const normalizedFilters = Array.isArray(filters)
         ? filters.map((value) => String(value || '').trim()).filter(Boolean)
         : [];
@@ -166,10 +188,14 @@ function matchesFilters(notification, filters) {
 }
 
 async function executeApi(
-    path,
-    { endpoint = '', method = 'GET', params = null } = {}
+    path: string,
+    {
+        endpoint = '',
+        method = 'GET',
+        params = null
+    }: { endpoint?: string; method?: string; params?: QueryParams | null } = {}
 ) {
-    return executeVrchatRequest(path, {
+    return executeVrchatRequest<NotificationRecord>(path, {
         endpoint,
         method,
         params,
@@ -179,7 +205,11 @@ async function executeApi(
     });
 }
 
-async function queryNotifications({ userId, search = '', filters = [] } = {}) {
+async function queryNotifications({
+    userId,
+    search = '',
+    filters = []
+}: NotificationUserOptions & { search?: string; filters?: unknown[] } = {}) {
     const normalizedUserId = normalizeUserId(userId);
     if (!normalizedUserId) {
         return [];
@@ -193,8 +223,8 @@ async function queryNotifications({ userId, search = '', filters = [] } = {}) {
     ]);
     const limit =
         search || (Array.isArray(filters) && filters.length)
-            ? searchLimit
-            : maxTableSize;
+            ? Number(searchLimit)
+            : Number(maxTableSize);
 
     const [v1Rows, v2Rows] = await Promise.all([
         sqliteRepository.query(
@@ -205,7 +235,7 @@ async function queryNotifications({ userId, search = '', filters = [] } = {}) {
         )
     ]);
 
-    const deduped = new Map();
+    const deduped = new Map<string, NotificationRecord>();
     for (const notification of [
         ...(Array.isArray(v1Rows) ? v1Rows.map(normalizeV1Notification) : []),
         ...(Array.isArray(v2Rows) ? v2Rows.map(normalizeV2Notification) : [])
@@ -237,7 +267,10 @@ async function queryNotifications({ userId, search = '', filters = [] } = {}) {
         .slice(0, limit);
 }
 
-async function addNotificationToDatabase({ userId, notification } = {}) {
+async function addNotificationToDatabase({
+    userId,
+    notification
+}: NotificationUserOptions & { notification?: NotificationRecord } = {}) {
     const normalizedUserId = normalizeUserId(userId);
     if (!normalizedUserId) {
         return;
@@ -245,7 +278,7 @@ async function addNotificationToDatabase({ userId, notification } = {}) {
 
     await userSessionRepository.ensureUserTables(normalizedUserId);
     const userPrefix = normalizeUserTablePrefix(normalizedUserId);
-    const entry = {
+    const entry: NotificationRecord = {
         id: '',
         created_at: '',
         type: '',
@@ -292,7 +325,10 @@ async function addNotificationToDatabase({ userId, notification } = {}) {
     );
 }
 
-async function addNotificationV2ToDatabase({ userId, notification } = {}) {
+async function addNotificationV2ToDatabase({
+    userId,
+    notification
+}: NotificationUserOptions & { notification?: NotificationRecord } = {}) {
     const normalizedUserId = normalizeUserId(userId);
     if (!normalizedUserId || !notification?.id) {
         return;
@@ -323,7 +359,10 @@ async function addNotificationV2ToDatabase({ userId, notification } = {}) {
     );
 }
 
-async function expireNotificationV2({ userId, id } = {}) {
+async function expireNotificationV2({
+    userId,
+    id
+}: NotificationUserOptions & { id?: unknown } = {}) {
     const normalizedUserId = normalizeUserId(userId);
     const normalizedId = normalizeUserId(id);
     if (!normalizedUserId || !normalizedId) {
@@ -341,7 +380,10 @@ async function expireNotificationV2({ userId, id } = {}) {
     );
 }
 
-async function seenNotificationV2({ userId, id } = {}) {
+async function seenNotificationV2({
+    userId,
+    id
+}: NotificationUserOptions & { id?: unknown } = {}) {
     const normalizedUserId = normalizeUserId(userId);
     const normalizedId = normalizeUserId(id);
     if (!normalizedUserId || !normalizedId) {
@@ -358,7 +400,10 @@ async function seenNotificationV2({ userId, id } = {}) {
     );
 }
 
-async function updateNotificationExpired({ userId, notification } = {}) {
+async function updateNotificationExpired({
+    userId,
+    notification
+}: NotificationUserOptions & { notification?: NotificationRecord } = {}) {
     const normalizedUserId = normalizeUserId(userId);
     if (!normalizedUserId || !notification?.id) {
         return;
@@ -561,7 +606,7 @@ async function sendNotificationResponse({
     responseType,
     responseData = '',
     endpoint = ''
-} = {}) {
+}: NotificationActionOptions = {}) {
     const normalizedId =
         typeof id === 'string' ? id.trim() : String(id ?? '').trim();
     const normalizedResponseType =
@@ -580,16 +625,20 @@ async function sendNotificationResponse({
             params: {
                 notificationId: normalizedId,
                 responseType: normalizedResponseType,
-                responseData: responseData ?? ''
+                responseData: (responseData ?? '') as QueryValue
             }
         }
     );
 }
 
-async function sendInviteResponse({ id, responseSlot, endpoint = '' } = {}) {
+async function sendInviteResponse({
+    id,
+    responseSlot,
+    endpoint = ''
+}: NotificationActionOptions = {}) {
     const normalizedId =
         typeof id === 'string' ? id.trim() : String(id ?? '').trim();
-    const normalizedSlot = Number.parseInt(responseSlot, 10);
+    const normalizedSlot = Number.parseInt(String(responseSlot), 10);
     if (!normalizedId || !Number.isFinite(normalizedSlot)) {
         return null;
     }
@@ -609,10 +658,10 @@ async function sendInviteResponsePhoto({
     responseSlot,
     imageData,
     endpoint = ''
-} = {}) {
+}: NotificationActionOptions = {}) {
     const normalizedId =
         typeof id === 'string' ? id.trim() : String(id ?? '').trim();
-    const normalizedSlot = Number.parseInt(responseSlot, 10);
+    const normalizedSlot = Number.parseInt(String(responseSlot), 10);
     const normalizedImageData =
         typeof imageData === 'string'
             ? imageData.trim()
@@ -666,7 +715,11 @@ async function sendInviteResponsePhoto({
     };
 }
 
-async function sendInvite({ receiverUserId, params = {}, endpoint = '' } = {}) {
+async function sendInvite({
+    receiverUserId,
+    params = {},
+    endpoint = ''
+}: NotificationActionOptions = {}) {
     const normalizedReceiverUserId =
         typeof receiverUserId === 'string'
             ? receiverUserId.trim()
@@ -689,7 +742,7 @@ async function sendRequestInvite({
     receiverUserId,
     params = {},
     endpoint = ''
-} = {}) {
+}: NotificationActionOptions = {}) {
     const normalizedReceiverUserId =
         typeof receiverUserId === 'string'
             ? receiverUserId.trim()
@@ -708,7 +761,11 @@ async function sendRequestInvite({
     );
 }
 
-async function sendBoop({ userId, emojiId = '', endpoint = '' } = {}) {
+async function sendBoop({
+    userId,
+    emojiId = '',
+    endpoint = ''
+}: NotificationActionOptions = {}) {
     const normalizedUserId =
         typeof userId === 'string'
             ? userId.trim()

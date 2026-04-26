@@ -5,6 +5,32 @@ import {
     resolveFriendPresenceLocation
 } from './location.js';
 
+export type CurrentUserPresenceRecord = Record<string, unknown>;
+
+export interface CurrentUserPresenceGameState {
+    isGameRunning?: boolean;
+    currentLocation?: unknown;
+    currentDestination?: unknown;
+    currentWorldId?: unknown;
+}
+
+export interface CurrentUserPresenceOptions {
+    currentUserSnapshot?: CurrentUserPresenceRecord | null;
+    gameState?: CurrentUserPresenceGameState | null;
+    gameLogDisabled?: boolean;
+}
+
+export interface CurrentUserPresencePatch extends CurrentUserPresenceRecord {
+    location: string;
+    worldId: unknown;
+    instanceId: unknown;
+    travelingToLocation: string;
+    travelingToWorld: string;
+    travelingToInstance: string;
+    state: unknown;
+    stateBucket: 'online';
+}
+
 const HIDDEN_LOCATION_STATUSES = new Set(['offline', 'private', 'traveling']);
 
 const CURRENT_USER_PRESENCE_FIELDS = [
@@ -23,13 +49,13 @@ const CURRENT_USER_PRESENCE_FIELDS = [
     'stateBucket'
 ];
 
-function normalizeString(value) {
+function normalizeString(value: unknown): string {
     return typeof value === 'string'
         ? value.trim()
         : String(value ?? '').trim();
 }
 
-function normalizeLocationStatus(value) {
+function normalizeLocationStatus(value: unknown): string {
     const normalized = normalizeString(value).toLowerCase();
     if (normalized === 'offline:offline') {
         return 'offline';
@@ -43,16 +69,20 @@ function normalizeLocationStatus(value) {
     return normalized;
 }
 
-export function isVisibleCurrentUserLocation(value) {
+export function isVisibleCurrentUserLocation(value: unknown): boolean {
     const location = normalizeLocationStatus(value);
     return Boolean(location && !HIDDEN_LOCATION_STATUSES.has(location));
 }
 
-export function hasVisibleCurrentUserPresence(profile) {
+export function hasVisibleCurrentUserPresence(
+    profile: CurrentUserPresenceRecord | null | undefined
+): boolean {
     return isVisibleCurrentUserLocation(resolveFriendPresenceLocation(profile));
 }
 
-function currentGameStateLocationTarget(gameState) {
+function currentGameStateLocationTarget(
+    gameState: CurrentUserPresenceGameState | null | undefined
+): string {
     const currentLocation = normalizeString(gameState?.currentLocation);
     if (currentLocation === 'traveling') {
         return normalizeString(gameState?.currentDestination);
@@ -60,7 +90,7 @@ function currentGameStateLocationTarget(gameState) {
     return currentLocation;
 }
 
-function buildPresenceLocationTag(world, instance) {
+function buildPresenceLocationTag(world: unknown, instance: unknown): string {
     const worldId = normalizeString(world);
     const instanceId = normalizeString(instance);
     if (!worldId) {
@@ -71,7 +101,7 @@ function buildPresenceLocationTag(world, instance) {
         : worldId;
 }
 
-function preferVisibleLocation(primary, fallback) {
+function preferVisibleLocation(primary: unknown, fallback: unknown): unknown {
     if (isVisibleCurrentUserLocation(primary)) {
         return primary;
     }
@@ -88,7 +118,14 @@ function buildPresencePatch({
     instanceId = '',
     state = '',
     source = null
-}) {
+}: {
+    location: unknown;
+    travelingToLocation?: unknown;
+    worldId?: unknown;
+    instanceId?: unknown;
+    state?: unknown;
+    source?: CurrentUserPresenceRecord | null;
+}): CurrentUserPresencePatch | null {
     const normalizedLocation = normalizeLocationValue(location);
     const normalizedTraveling = normalizeLocationValue(travelingToLocation);
     const targetLocation =
@@ -150,8 +187,13 @@ export function buildCurrentUserGameStatePresencePatch(gameState, currentUser) {
     });
 }
 
-export function buildCurrentUserApiPresencePatch(currentUser) {
-    const presence = currentUser?.presence;
+export function buildCurrentUserApiPresencePatch(
+    currentUser: CurrentUserPresenceRecord | null | undefined
+): CurrentUserPresencePatch | null {
+    const presence = currentUser?.presence as
+        | CurrentUserPresenceRecord
+        | null
+        | undefined;
     if (!presence || typeof presence !== 'object') {
         return null;
     }
@@ -182,7 +224,9 @@ export function buildCurrentUserApiPresencePatch(currentUser) {
     });
 }
 
-export function mergeCurrentUserPresenceFields(nextUser, previousUser) {
+export function mergeCurrentUserPresenceFields<
+    TUser extends CurrentUserPresenceRecord | null | undefined
+>(nextUser: TUser, previousUser: CurrentUserPresenceRecord | null | undefined) {
     if (!nextUser) {
         return nextUser;
     }
@@ -207,7 +251,7 @@ export function mergeCurrentUserPresenceFields(nextUser, previousUser) {
         return nextUser;
     }
 
-    const merged = { ...previousUser, ...nextUser };
+    const merged: CurrentUserPresenceRecord = { ...previousUser, ...nextUser };
     for (const field of CURRENT_USER_PRESENCE_FIELDS) {
         if (previousUser[field] !== undefined) {
             merged[field] = previousUser[field];
@@ -216,9 +260,15 @@ export function mergeCurrentUserPresenceFields(nextUser, previousUser) {
     return merged;
 }
 
-export function buildCurrentUserPresenceView(
-    currentUser,
-    { currentUserSnapshot = null, gameState = null, gameLogDisabled = false } = {}
+export function buildCurrentUserPresenceView<
+    TUser extends CurrentUserPresenceRecord | null | undefined
+>(
+    currentUser: TUser,
+    {
+        currentUserSnapshot = null,
+        gameState = null,
+        gameLogDisabled = false
+    }: CurrentUserPresenceOptions = {}
 ) {
     if (!currentUser) {
         return currentUser;

@@ -7,6 +7,14 @@
  * DB storage format: "config:vrcx_{key_lowercase}"
  */
 
+export type ConfigValueType = 'string' | 'int' | 'bool' | 'float';
+export type ConfigDefaultValue = string | number | boolean | null;
+
+export interface ConfigKeyDefinition {
+    type: ConfigValueType;
+    default: ConfigDefaultValue;
+}
+
 export const ConfigKeys = {
     // ── App Core ─────────────────────────────────────
     databaseVersion: { type: 'int', default: 0 },
@@ -200,7 +208,9 @@ export const ConfigKeys = {
     },
     avatarRemoteDatabaseProvider: { type: 'string', default: '' },
     showConfirmationOnSwitchAvatar: { type: 'bool', default: true }
-};
+} satisfies Record<string, ConfigKeyDefinition>;
+
+export type ConfigKeyName = keyof typeof ConfigKeys;
 
 /** DB key prefix */
 export const DB_KEY_PREFIX = 'config:vrcx_';
@@ -209,6 +219,6 @@ export const DB_KEY_PREFIX = 'config:vrcx_';
  * Schema name → DB key
  * e.g. "appLanguage" → "config:vrcx_applanguage"
  */
-export function toDbKey(name) {
+export function toDbKey(name: string): string {
     return `${DB_KEY_PREFIX}${name.toLowerCase()}`;
 }

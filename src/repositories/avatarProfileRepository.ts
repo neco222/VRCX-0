@@ -11,25 +11,45 @@ import { normalizeVrchatEndpointDomain } from '@/shared/vrchatEndpoint.js';
 
 import avatarLocalRepository from './avatarLocalRepository.js';
 import memoRepository from './memoRepository.js';
-import { executeVrchatRequest } from './vrchatRequest.js';
+import { executeVrchatRequest, type QueryParams } from './vrchatRequest.js';
 
-const cachedAvatarNames = new Map();
+type AvatarRecord = Record<string, any>;
 
-function normalizeEntityId(value) {
+interface AvatarProfileExtras extends AvatarRecord {
+    cachedAvatar?: AvatarRecord | null;
+    localTags?: unknown[];
+    timeSpent?: unknown;
+    memo?: unknown;
+}
+
+interface AvatarListOptions {
+    userId?: unknown;
+    user?: string;
+    endpoint?: string;
+    n?: number;
+    offset?: number;
+    sort?: string;
+    order?: string;
+    releaseStatus?: string;
+}
+
+const cachedAvatarNames = new Map<string, any>();
+
+function normalizeEntityId(value: unknown): string {
     return typeof value === 'string'
         ? value.trim()
         : String(value ?? '').trim();
 }
 
-function normalizeString(value) {
+function normalizeString(value: unknown): string {
     return typeof value === 'string' ? value.trim() : '';
 }
 
-function normalizeMemoString(value) {
+function normalizeMemoString(value: unknown): string {
     return typeof value === 'string' ? value : '';
 }
 
-function normalizeArray(values) {
+function normalizeArray(values: unknown): string[] {
     if (!Array.isArray(values)) {
         return [];
     }
@@ -43,7 +63,7 @@ function normalizeArray(values) {
         .filter(Boolean);
 }
 
-function normalizeLocalTags(values) {
+function normalizeLocalTags(values: unknown): Array<{ tag: string; color: string | null }> {
     if (!Array.isArray(values)) {
         return [];
     }
@@ -56,7 +76,7 @@ function normalizeLocalTags(values) {
         .filter((entry) => entry.tag);
 }
 
-function normalizeUnityPackages(values) {
+function normalizeUnityPackages(values: unknown): AvatarRecord[] {
     if (!Array.isArray(values)) {
         return [];
     }
@@ -64,12 +84,15 @@ function normalizeUnityPackages(values) {
     return values.filter((value) => value && typeof value === 'object');
 }
 
-function parseInteger(value) {
-    const parsed = Number.parseInt(value, 10);
+function parseInteger(value: unknown): number {
+    const parsed = Number.parseInt(String(value), 10);
     return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function normalizeAvatarProfile(avatar, extras = {}) {
+function normalizeAvatarProfile(
+    avatar: AvatarRecord | null | undefined,
+    extras: AvatarProfileExtras = {}
+) {
     return {
         ...avatar,
         id: normalizeEntityId(avatar?.id),
@@ -103,8 +126,11 @@ function normalizeAvatarProfile(avatar, extras = {}) {
     };
 }
 
-async function collectPages(fetchPage, { pageSize = 100, maxPages = 50 } = {}) {
-    const rows = [];
+async function collectPages<T>(
+    fetchPage: (page: { n: number; offset: number }) => Promise<T[]>,
+    { pageSize = 100, maxPages = 50 } = {}
+): Promise<T[]> {
+    const rows: T[] = [];
 
     for (let page = 0; page < maxPages; page += 1) {
         const nextRows = await fetchPage({
@@ -121,7 +147,7 @@ async function collectPages(fetchPage, { pageSize = 100, maxPages = 50 } = {}) {
     return rows;
 }
 
-function normalize(avatar, extras = {}) {
+function normalize(avatar: AvatarRecord, extras: AvatarProfileExtras = {}) {
     return normalizeAvatarProfile(avatar, extras);
 }
 
@@ -135,8 +161,12 @@ function getAvatarNameCacheSize() {
     return cachedAvatarNames.size;
 }
 
-async function executeGet(path, params = {}, { endpoint = '' } = {}) {
-    return executeVrchatRequest(path, {
+async function executeGet(
+    path: string,
+    params: QueryParams = {},
+    { endpoint = '' } = {}
+) {
+    return executeVrchatRequest<AvatarRecord | AvatarRecord[]>(path, {
         endpoint,
         method: 'GET',
         params,
@@ -144,8 +174,12 @@ async function executeGet(path, params = {}, { endpoint = '' } = {}) {
     });
 }
 
-async function executePut(path, params = {}, { endpoint = '' } = {}) {
-    return executeVrchatRequest(path, {
+async function executePut(
+    path: string,
+    params: QueryParams = {},
+    { endpoint = '' } = {}
+) {
+    return executeVrchatRequest<AvatarRecord>(path, {
         endpoint,
         method: 'PUT',
         body: params,
@@ -154,8 +188,12 @@ async function executePut(path, params = {}, { endpoint = '' } = {}) {
     });
 }
 
-async function executePost(path, params = {}, { endpoint = '' } = {}) {
-    return executeVrchatRequest(path, {
+async function executePost(
+    path: string,
+    params: QueryParams = {},
+    { endpoint = '' } = {}
+) {
+    return executeVrchatRequest<AvatarRecord>(path, {
         endpoint,
         method: 'POST',
         body: params,
@@ -163,8 +201,12 @@ async function executePost(path, params = {}, { endpoint = '' } = {}) {
     });
 }
 
-async function executeDelete(path, params = {}, { endpoint = '' } = {}) {
-    return executeVrchatRequest(path, {
+async function executeDelete(
+    path: string,
+    params: QueryParams = {},
+    { endpoint = '' } = {}
+) {
+    return executeVrchatRequest<AvatarRecord>(path, {
         endpoint,
         method: 'DELETE',
         params,
@@ -174,7 +216,10 @@ async function executeDelete(path, params = {}, { endpoint = '' } = {}) {
     });
 }
 
-async function getLocalSnapshot(avatarId, currentUserId = '') {
+async function getLocalSnapshot(
+    avatarId: unknown,
+    currentUserId = ''
+): Promise<AvatarProfileExtras> {
     const normalizedAvatarId = normalizeEntityId(avatarId);
     if (!normalizedAvatarId) {
         return {
@@ -260,7 +305,15 @@ async function getAvatarProfile({
     }
 }
 
-async function getAvatarGallery({ avatarId, endpoint = '', force = false }) {
+async function getAvatarGallery({
+    avatarId,
+    endpoint = '',
+    force = false
+}: {
+    avatarId?: unknown;
+    endpoint?: string;
+    force?: boolean;
+}) {
     const normalizedAvatarId = normalizeEntityId(avatarId);
     if (!normalizedAvatarId) {
         throw new Error(
@@ -307,7 +360,7 @@ async function getAvatarsByUser({
     sort = 'updated',
     order = 'descending',
     releaseStatus = 'all'
-} = {}) {
+}: AvatarListOptions = {}) {
     const normalizedUserId = normalizeEntityId(userId);
     if (!normalizedUserId) {
         throw new Error(
@@ -315,7 +368,7 @@ async function getAvatarsByUser({
         );
     }
 
-    const params = { n, offset, sort, order, releaseStatus };
+    const params: QueryParams = { n, offset, sort, order, releaseStatus };
     if (user) {
         params.user = user;
     } else {
@@ -335,7 +388,7 @@ async function getAllAvatarsByUser({
     sort = 'updated',
     order = 'descending',
     releaseStatus = 'all'
-} = {}) {
+}: Omit<AvatarListOptions, 'n' | 'offset'> = {}) {
     return collectPages(({ n, offset }) =>
         getAvatarsByUser({
             userId,

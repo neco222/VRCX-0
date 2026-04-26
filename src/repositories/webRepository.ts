@@ -6,6 +6,17 @@ export interface WebExecuteOptions {
     method?: string;
     headers?: Record<string, string>;
     body?: string;
+    uploadFilePUT?: boolean;
+    uploadImage?: boolean;
+    uploadImagePrint?: boolean;
+    uploadImageLegacy?: boolean;
+    matchingDimensions?: boolean;
+    cropWhiteBorder?: boolean;
+    postData?: string;
+    imageData?: string;
+    fileData?: string;
+    fileMIME?: string;
+    fileMD5?: string;
 }
 
 export interface WebExecuteResponse<TData = unknown> {

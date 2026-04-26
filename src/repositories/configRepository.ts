@@ -1,4 +1,7 @@
-import { ConfigKeys } from '@/repositories/configKeys.js';
+import {
+    ConfigKeys,
+    type ConfigDefaultValue
+} from '@/repositories/configKeys.js';
 
 import {
     asString,
@@ -7,11 +10,21 @@ import {
 } from './baseRepository.js';
 import sqliteRepository from './sqliteRepository.js';
 
+type ConfigEntries = Array<[string, unknown]>;
+type ConfigObject = Record<string, unknown> | unknown[] | null;
+
+interface ConfigRow {
+    key?: unknown;
+    value?: unknown;
+    [key: string]: unknown;
+    [index: number]: unknown;
+}
+
 class ConfigRepository {
-    #cache = new Map();
+    #cache = new Map<string, string>();
     #ready = false;
 
-    #resolveKey(key) {
+    #resolveKey(key: string): string {
         if (key.startsWith('config:')) {
             return key;
         }
@@ -20,12 +33,12 @@ class ConfigRepository {
         return `config:vrcx_${stripped.toLowerCase()}`;
     }
 
-    #getSchemaDefault(key) {
+    #getSchemaDefault(key: string): ConfigDefaultValue {
         const stripped = key.startsWith('VRCX_') ? key.slice(5) : key;
         return ConfigKeys[stripped]?.default ?? null;
     }
 
-    async init() {
+    async init(): Promise<void> {
         if (this.#ready) {
             return;
         }
@@ -34,18 +47,18 @@ class ConfigRepository {
             'CREATE TABLE IF NOT EXISTS configs (`key` TEXT PRIMARY KEY, `value` TEXT)'
         );
 
-        const rows = await sqliteRepository.query(
+        const rows = await sqliteRepository.query<ConfigRow>(
             'SELECT key, value FROM configs'
         );
         if (Array.isArray(rows)) {
             for (const row of rows) {
                 if (Array.isArray(row) && row[0] != null && row[1] != null) {
-                    this.#cache.set(row[0], row[1]);
+                    this.#cache.set(String(row[0]), String(row[1]));
                 } else if (row && typeof row === 'object') {
                     const key = row.key ?? row[0];
                     const value = row.value ?? row[1];
                     if (key != null && value != null) {
-                        this.#cache.set(key, value);
+                        this.#cache.set(String(key), String(value));
                     }
                 }
             }
@@ -54,19 +67,19 @@ class ConfigRepository {
         this.#ready = true;
     }
 
-    async reload() {
+    async reload(): Promise<void> {
         this.#cache.clear();
         this.#ready = false;
         await this.init();
     }
 
-    async #ensureReady() {
+    async #ensureReady(): Promise<void> {
         if (!this.#ready) {
             await this.init();
         }
     }
 
-    async getRawValue(key) {
+    async getRawValue(key: string): Promise<string | null> {
         await this.#ensureReady();
         const dbKey = this.#resolveKey(key);
         const value = this.#cache.get(dbKey);
@@ -76,7 +89,10 @@ class ConfigRepository {
         return value;
     }
 
-    async getString(key, defaultValue = null) {
+    async getString(
+        key: string,
+        defaultValue: ConfigDefaultValue = null
+    ): Promise<ConfigDefaultValue> {
         const value = await this.getRawValue(key);
         if (value === null) {
             if (defaultValue !== null) {
@@ -84,14 +100,20 @@ class ConfigRepository {
             }
             return this.#getSchemaDefault(key);
         }
-        return asString(value, defaultValue ?? '');
+        return asString(value, String(defaultValue ?? ''));
     }
 
-    async get(key, defaultValue = null) {
+    async get(
+        key: string,
+        defaultValue: ConfigDefaultValue = null
+    ): Promise<ConfigDefaultValue> {
         return this.getString(key, defaultValue);
     }
 
-    async getBool(key, defaultValue = undefined) {
+    async getBool(
+        key: string,
+        defaultValue: boolean | undefined = undefined
+    ): Promise<ConfigDefaultValue> {
         const value = await this.getRawValue(key);
         if (value === null) {
             if (defaultValue !== undefined) {
@@ -102,7 +124,10 @@ class ConfigRepository {
         return value === 'true';
     }
 
-    async getInt(key, defaultValue = undefined) {
+    async getInt(
+        key: string,
+        defaultValue: number | undefined = undefined
+    ): Promise<ConfigDefaultValue> {
         const value = await this.getRawValue(key);
         if (value === null) {
             if (defaultValue !== undefined) {
@@ -123,7 +148,10 @@ class ConfigRepository {
         return this.#getSchemaDefault(key);
     }
 
-    async getFloat(key, defaultValue = undefined) {
+    async getFloat(
+        key: string,
+        defaultValue: number | undefined = undefined
+    ): Promise<ConfigDefaultValue> {
         const value = await this.getRawValue(key);
         if (value === null) {
             if (defaultValue !== undefined) {
@@ -144,17 +172,23 @@ class ConfigRepository {
         return this.#getSchemaDefault(key);
     }
 
-    async getObject(key, defaultValue = null) {
+    async getObject<T extends ConfigObject = ConfigObject>(
+        key: string,
+        defaultValue: T | null = null
+    ): Promise<T | null | unknown> {
         const value = await this.getString(key, null);
         return safeJsonParse(value, defaultValue);
     }
 
-    async getArray(key, defaultValue = null) {
+    async getArray<T = unknown>(
+        key: string,
+        defaultValue: T[] | null = null
+    ): Promise<T[] | null> {
         const value = await this.getObject(key, null);
         return Array.isArray(value) ? value : defaultValue;
     }
 
-    async setString(key, value) {
+    async setString(key: string, value: unknown): Promise<unknown> {
         await this.#ensureReady();
         const dbKey = this.#resolveKey(key);
         const stringValue = String(value);
@@ -166,27 +200,27 @@ class ConfigRepository {
         return result;
     }
 
-    async set(key, value) {
+    async set(key: string, value: unknown): Promise<unknown> {
         return this.setString(key, value);
     }
 
-    async setBool(key, value) {
+    async setBool(key: string, value: boolean): Promise<unknown> {
         return this.setString(key, value ? 'true' : 'false');
     }
 
-    async setInt(key, value) {
+    async setInt(key: string, value: number): Promise<unknown> {
         return this.setString(key, value);
     }
 
-    async setFloat(key, value) {
+    async setFloat(key: string, value: number): Promise<unknown> {
         return this.setString(key, value);
     }
 
-    async setObject(key, value) {
+    async setObject(key: string, value: unknown): Promise<unknown> {
         return this.setString(key, safeJsonStringify(value));
     }
 
-    async setMany(entries) {
+    async setMany(entries: ConfigEntries): Promise<void> {
         await this.#ensureReady();
         const normalizedEntries = entries.map(([key, value]) => [
             this.#resolveKey(key),
@@ -207,11 +241,11 @@ class ConfigRepository {
         }
     }
 
-    async setArray(key, value) {
+    async setArray(key: string, value: unknown[]): Promise<unknown> {
         return this.setObject(key, value);
     }
 
-    async remove(key) {
+    async remove(key: string): Promise<unknown> {
         await this.#ensureReady();
         const dbKey = this.#resolveKey(key);
         const result = await sqliteRepository.executeNonQuery(
@@ -224,7 +258,7 @@ class ConfigRepository {
         return result;
     }
 
-    async has(key) {
+    async has(key: string): Promise<boolean> {
         return (await this.getRawValue(key)) !== null;
     }
 }

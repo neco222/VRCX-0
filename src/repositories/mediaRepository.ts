@@ -46,10 +46,12 @@ import mediaFileRepository, {
     saveStickerToFile
 } from './mediaFileRepository.js';
 
+type MediaRepository = typeof mediaApiRepository & typeof mediaFileRepository;
+
 const mediaRepository = Object.freeze({
     ...mediaApiRepository,
     ...mediaFileRepository
-});
+}) as MediaRepository;
 
 export {
     executeFilePut,
