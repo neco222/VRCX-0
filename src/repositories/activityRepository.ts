@@ -1,42 +1,134 @@
+import type { ActivitySession } from '@/shared/utils/activityEngine.js';
+
 import sqliteRepository from './sqliteRepository.js';
+import type { SQLiteRepository } from './sqliteRepository.js';
 import {
     buildUserTableName,
     normalizeUserTablePrefix
 } from './localDatabaseSchema.js';
+
+type ActivityViewKind = (typeof ACTIVITY_VIEW_KIND)[keyof typeof ACTIVITY_VIEW_KIND];
+type ObjectRow = Record<string, unknown>;
+
+interface ActivitySyncStateRow extends ObjectRow {
+    user_id?: unknown;
+    userId?: unknown;
+    updated_at?: unknown;
+    updatedAt?: unknown;
+    is_self?: unknown;
+    isSelf?: unknown;
+    source_last_created_at?: unknown;
+    sourceLastCreatedAt?: unknown;
+    pending_session_start_at?: unknown;
+    pendingSessionStartAt?: unknown;
+    cached_range_days?: unknown;
+    cachedRangeDays?: unknown;
+}
+
+interface ActivitySessionRow extends ObjectRow {
+    start_at?: unknown;
+    start?: unknown;
+    end_at?: unknown;
+    end?: unknown;
+    is_open_tail?: unknown;
+    isOpenTail?: unknown;
+    source_revision?: unknown;
+    sourceRevision?: unknown;
+}
+
+interface ActivityLocationRow extends ObjectRow {
+    created_at?: unknown;
+    createdAt?: unknown;
+    time?: unknown;
+}
+
+interface PresenceRow extends ObjectRow {
+    created_at?: unknown;
+    type?: unknown;
+}
+
+interface ActivitySyncStateInput {
+    userId?: unknown;
+    updatedAt?: string;
+    isSelf?: unknown;
+    sourceLastCreatedAt?: string;
+    pendingSessionStartAt?: string | number | null;
+    cachedRangeDays?: string | number;
+}
+
+interface AppendActivitySessionsInput {
+    userId?: unknown;
+    sessions?: ActivitySession[];
+    replaceFromStartAt?: number | null;
+}
+
+interface ActivityBucketCacheRow extends ObjectRow {
+    user_id?: unknown;
+    target_user_id?: unknown;
+    range_days?: unknown;
+    view_kind?: unknown;
+    exclude_key?: unknown;
+    bucket_version?: unknown;
+    built_from_cursor?: unknown;
+    raw_buckets_json?: unknown;
+    normalized_buckets_json?: unknown;
+    summary_json?: unknown;
+    built_at?: unknown;
+}
+
+interface ActivityBucketCacheQuery {
+    ownerUserId: string;
+    targetUserId?: string;
+    rangeDays: number;
+    viewKind: ActivityViewKind | string;
+    excludeKey?: string;
+}
+
+interface ActivityBucketCacheInput extends ActivityBucketCacheQuery {
+    bucketVersion?: number;
+    builtFromCursor?: string;
+    rawBuckets?: unknown[];
+    normalizedBuckets?: unknown[];
+    summary?: unknown;
+    builtAt?: string;
+}
 
 const ACTIVITY_VIEW_KIND = Object.freeze({
     ACTIVITY: 'activity',
     OVERLAP: 'overlap'
 });
 
-function getSyncStateTable(userId) {
+function getSyncStateTable(userId: unknown): string {
     return `${normalizeUserTablePrefix(userId)}_activity_sync_state_v2`;
 }
 
-function getSessionsTable(userId) {
+function getSessionsTable(userId: unknown): string {
     return `${normalizeUserTablePrefix(userId)}_activity_sessions_v2`;
 }
 
-function getBucketCacheTable(userId) {
+function getBucketCacheTable(userId: unknown): string {
     return buildUserTableName(userId, 'activity_bucket_cache_v2');
 }
 
-function getFeedOnlineOfflineTable(ownerUserId) {
+function getFeedOnlineOfflineTable(ownerUserId: unknown): string {
     return buildUserTableName(ownerUserId, 'feed_online_offline');
 }
 
-function parseJson(value, fallback) {
+function parseJson<T>(value: unknown, fallback: T): T | unknown {
     if (!value) {
         return fallback;
     }
     try {
-        return JSON.parse(value);
+        return JSON.parse(String(value));
     } catch {
         return fallback;
     }
 }
 
-function normalizeActivitySyncStateRow(row, fallbackUserId) {
+function normalizeActivitySyncStateRow(
+    row: ActivitySyncStateRow | unknown[] | null,
+    fallbackUserId: string
+) {
     if (Array.isArray(row)) {
         return {
             userId: row[0] ?? fallbackUserId,
@@ -45,7 +137,7 @@ function normalizeActivitySyncStateRow(row, fallbackUserId) {
             sourceLastCreatedAt: row[3] || '',
             pendingSessionStartAt:
                 typeof row[4] === 'number' ? row[4] : (row[4] ?? null),
-            cachedRangeDays: Number.parseInt(row[5] ?? 0, 10) || 0
+            cachedRangeDays: Number.parseInt(String(row[5] ?? 0), 10) || 0
         };
     }
 
@@ -63,17 +155,17 @@ function normalizeActivitySyncStateRow(row, fallbackUserId) {
             row.pending_session_start_at ?? row.pendingSessionStartAt ?? null,
         cachedRangeDays:
             Number.parseInt(
-                row.cached_range_days ?? row.cachedRangeDays ?? 0,
+                String(row.cached_range_days ?? row.cachedRangeDays ?? 0),
                 10
             ) || 0
     };
 }
 
-function normalizeActivitySessionRow(row) {
+function normalizeActivitySessionRow(row: ActivitySessionRow | unknown[] | null) {
     if (Array.isArray(row)) {
         return {
-            start: Number.parseInt(row[0] ?? 0, 10) || 0,
-            end: Number.parseInt(row[1] ?? 0, 10) || 0,
+            start: Number.parseInt(String(row[0] ?? 0), 10) || 0,
+            end: Number.parseInt(String(row[1] ?? 0), 10) || 0,
             isOpenTail: Boolean(row[2]),
             sourceRevision: row[3] || ''
         };
@@ -84,18 +176,18 @@ function normalizeActivitySessionRow(row) {
     }
 
     return {
-        start: Number.parseInt(row.start_at ?? row.start ?? 0, 10) || 0,
-        end: Number.parseInt(row.end_at ?? row.end ?? 0, 10) || 0,
+        start: Number.parseInt(String(row.start_at ?? row.start ?? 0), 10) || 0,
+        end: Number.parseInt(String(row.end_at ?? row.end ?? 0), 10) || 0,
         isOpenTail: Boolean(row.is_open_tail ?? row.isOpenTail),
         sourceRevision: row.source_revision ?? row.sourceRevision ?? ''
     };
 }
 
-function normalizeLocationRow(row) {
+function normalizeLocationRow(row: ActivityLocationRow | unknown[] | null) {
     if (Array.isArray(row)) {
         return {
             created_at: row[0] ?? '',
-            time: Number.parseInt(row[1] ?? 0, 10) || 0
+            time: Number.parseInt(String(row[1] ?? 0), 10) || 0
         };
     }
 
@@ -105,11 +197,16 @@ function normalizeLocationRow(row) {
 
     return {
         created_at: row.created_at ?? row.createdAt ?? '',
-        time: Number.parseInt(row.time ?? 0, 10) || 0
+        time: Number.parseInt(String(row.time ?? 0), 10) || 0
     };
 }
 
-async function insertSessions(tx, userId, tableName, sessions = []) {
+async function insertSessions(
+    tx: SQLiteRepository,
+    userId: string,
+    tableName: string,
+    sessions: ActivitySession[] = []
+) {
     if (!Array.isArray(sessions) || sessions.length === 0) {
         return;
     }
@@ -121,14 +218,14 @@ async function insertSessions(tx, userId, tableName, sessions = []) {
         chunkStart += chunkSize
     ) {
         const chunk = sessions.slice(chunkStart, chunkStart + chunkSize);
-        const args = {};
+        const args: Record<string, string | number> = {};
         const values = chunk.map((session, index) => {
             const suffix = `${chunkStart + index}`;
             args[`@userId_${suffix}`] = userId;
             args[`@startAt_${suffix}`] =
-                Number.parseInt(session?.start ?? 0, 10) || 0;
+                Number.parseInt(String(session?.start ?? 0), 10) || 0;
             args[`@endAt_${suffix}`] =
-                Number.parseInt(session?.end ?? 0, 10) || 0;
+                Number.parseInt(String(session?.end ?? 0), 10) || 0;
             args[`@isOpenTail_${suffix}`] = session?.isOpenTail ? 1 : 0;
             args[`@sourceRevision_${suffix}`] = session?.sourceRevision || '';
             return `(@userId_${suffix}, @startAt_${suffix}, @endAt_${suffix}, @isOpenTail_${suffix}, @sourceRevision_${suffix})`;
@@ -152,7 +249,7 @@ async function getSelfActivitySourceSlice({ fromDays, toDays = 0 }) {
             ? new Date(Date.now() - toDays * 86400000).toISOString()
             : '';
 
-    const rows = await sqliteRepository.query(
+    const rows = await sqliteRepository.query<ActivityLocationRow>(
         `
             SELECT created_at, time
             FROM (
@@ -205,7 +302,7 @@ async function getSelfActivitySourceAfter({
     inclusive = false
 }) {
     const operator = inclusive ? '>=' : '>';
-    const rows = await sqliteRepository.query(
+    const rows = await sqliteRepository.query<ActivityLocationRow>(
         `SELECT created_at, time
          FROM gamelog_location
          WHERE created_at ${operator} @afterCreatedAt
@@ -231,7 +328,7 @@ async function getFriendPresenceSlice({
     ownerUserId
 }) {
     const tableName = getFeedOnlineOfflineTable(ownerUserId);
-    const rows = await sqliteRepository.query(
+    const rows = await sqliteRepository.query<PresenceRow | unknown[]>(
         `
             SELECT created_at, type
             FROM (
@@ -270,7 +367,7 @@ async function getFriendPresenceSlice({
         : [];
 
     if (toDateIso) {
-        const tailRows = await sqliteRepository.query(
+        const tailRows = await sqliteRepository.query<PresenceRow | unknown[]>(
             `SELECT created_at, type
              FROM ${tableName}
              WHERE user_id = @userId
@@ -304,7 +401,7 @@ async function getFriendPresenceAfter({
     ownerUserId
 }) {
     const tableName = getFeedOnlineOfflineTable(ownerUserId);
-    const rows = await sqliteRepository.query(
+    const rows = await sqliteRepository.query<PresenceRow | unknown[]>(
         `SELECT created_at, type
          FROM ${tableName}
          WHERE user_id = @userId
@@ -375,7 +472,7 @@ async function getActivitySyncState(userId) {
         return null;
     }
 
-    const rows = await sqliteRepository.query(
+    const rows = await sqliteRepository.query<ActivitySyncStateRow | unknown[]>(
         `SELECT user_id, updated_at, is_self, source_last_created_at, pending_session_start_at, cached_range_days
          FROM ${getSyncStateTable(normalizedUserId)}
          WHERE user_id = @userId
@@ -392,7 +489,7 @@ async function getActivitySyncState(userId) {
     return normalizeActivitySyncStateRow(rows[0], normalizedUserId);
 }
 
-async function upsertActivitySyncState(entry) {
+async function upsertActivitySyncState(entry: ActivitySyncStateInput) {
     const normalizedUserId =
         typeof entry?.userId === 'string'
             ? entry.userId.trim()
@@ -414,7 +511,7 @@ async function upsertActivitySyncState(entry) {
             '@sourceLastCreatedAt': entry.sourceLastCreatedAt || '',
             '@pendingSessionStartAt': entry.pendingSessionStartAt ?? null,
             '@cachedRangeDays':
-                Number.parseInt(entry.cachedRangeDays ?? 0, 10) || 0
+                Number.parseInt(String(entry.cachedRangeDays ?? 0), 10) || 0
         }
     );
 }
@@ -428,7 +525,7 @@ async function getActivitySessions(userId) {
         return [];
     }
 
-    const rows = await sqliteRepository.query(
+    const rows = await sqliteRepository.query<ActivitySessionRow | unknown[]>(
         `SELECT start_at, end_at, is_open_tail, source_revision
          FROM ${getSessionsTable(normalizedUserId)}
          WHERE user_id = @userId
@@ -471,7 +568,7 @@ async function appendActivitySessions({
     userId,
     sessions = [],
     replaceFromStartAt = null
-}) {
+}: AppendActivitySessionsInput) {
     const normalizedUserId =
         typeof userId === 'string'
             ? userId.trim()
@@ -500,8 +597,8 @@ async function getActivityBucketCache({
     rangeDays,
     viewKind,
     excludeKey = ''
-}) {
-    const rows = await sqliteRepository.query(
+}: ActivityBucketCacheQuery) {
+    const rows = await sqliteRepository.query<ActivityBucketCacheRow | unknown[]>(
         `SELECT user_id, target_user_id, range_days, view_kind, exclude_key, bucket_version, built_from_cursor, raw_buckets_json, normalized_buckets_json, summary_json, built_at
          FROM ${getBucketCacheTable(ownerUserId)}
          WHERE user_id = @ownerUserId AND target_user_id = @targetUserId AND range_days = @rangeDays AND view_kind = @viewKind AND exclude_key = @excludeKey
@@ -534,7 +631,7 @@ async function getActivityBucketCache({
     };
 }
 
-async function upsertActivityBucketCache(entry) {
+async function upsertActivityBucketCache(entry: ActivityBucketCacheInput) {
     await sqliteRepository.executeNonQuery(
         `INSERT OR REPLACE INTO ${getBucketCacheTable(entry.ownerUserId)}
          (user_id, target_user_id, range_days, view_kind, exclude_key, bucket_version, built_from_cursor, raw_buckets_json, normalized_buckets_json, summary_json, built_at)

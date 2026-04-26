@@ -1,5 +1,43 @@
 import configRepository from './configRepository.js';
 import sqliteRepository from './sqliteRepository.js';
+import type { SQLiteRow, SQLiteValue } from './sqliteRepository.js';
+
+type ObjectRow = Record<string, unknown>;
+
+interface CacheEntryInput {
+    id?: unknown;
+    authorId?: unknown;
+    authorName?: unknown;
+    created_at?: unknown;
+    description?: unknown;
+    imageUrl?: unknown;
+    name?: unknown;
+    releaseStatus?: unknown;
+    thumbnailImageUrl?: unknown;
+    updated_at?: unknown;
+    version?: unknown;
+}
+
+interface LocalFavoriteInput {
+    kind?: unknown;
+    entityId?: unknown;
+    groupName?: unknown;
+}
+
+interface LocalFavoriteGroupInput {
+    kind?: unknown;
+    groupName?: unknown;
+}
+
+interface RenameLocalFavoriteGroupInput extends LocalFavoriteGroupInput {
+    newGroupName?: unknown;
+}
+
+interface LocalFavoriteDeleteTarget {
+    table: string;
+    column: string;
+    entityParam: string;
+}
 
 const LOCAL_FAVORITE_GROUP_CONFIG_KEYS = Object.freeze({
     friend: 'localFavoriteFriendGroups',
@@ -7,7 +45,24 @@ const LOCAL_FAVORITE_GROUP_CONFIG_KEYS = Object.freeze({
     world: 'localFavoriteWorldGroups'
 });
 
-function normalizeWorldCacheRow(row) {
+function asObjectRow(row: SQLiteRow | null | undefined): ObjectRow {
+    return row && !Array.isArray(row) ? row : {};
+}
+
+function asSQLiteValue(value: unknown): SQLiteValue {
+    return value as SQLiteValue;
+}
+
+function getLocalFavoriteGroupConfigKey(kind: unknown): string | undefined {
+    return (
+        LOCAL_FAVORITE_GROUP_CONFIG_KEYS as Record<
+            PropertyKey,
+            string | undefined
+        >
+    )[kind as PropertyKey];
+}
+
+function normalizeWorldCacheRow(row: SQLiteRow | null | undefined) {
     if (Array.isArray(row)) {
         return {
             id: row[0] ?? '',
@@ -24,23 +79,24 @@ function normalizeWorldCacheRow(row) {
         };
     }
 
+    const record = asObjectRow(row);
     return {
-        id: row?.id ?? '',
-        authorId: row?.author_id ?? row?.authorId ?? '',
-        authorName: row?.author_name ?? row?.authorName ?? '',
-        created_at: row?.created_at ?? '',
-        description: row?.description ?? '',
-        imageUrl: row?.image_url ?? row?.imageUrl ?? '',
-        name: row?.name ?? '',
-        releaseStatus: row?.release_status ?? row?.releaseStatus ?? '',
+        id: record.id ?? '',
+        authorId: record.author_id ?? record.authorId ?? '',
+        authorName: record.author_name ?? record.authorName ?? '',
+        created_at: record.created_at ?? '',
+        description: record.description ?? '',
+        imageUrl: record.image_url ?? record.imageUrl ?? '',
+        name: record.name ?? '',
+        releaseStatus: record.release_status ?? record.releaseStatus ?? '',
         thumbnailImageUrl:
-            row?.thumbnail_image_url ?? row?.thumbnailImageUrl ?? '',
-        updated_at: row?.updated_at ?? '',
-        version: row?.version ?? 0
+            record.thumbnail_image_url ?? record.thumbnailImageUrl ?? '',
+        updated_at: record.updated_at ?? '',
+        version: record.version ?? 0
     };
 }
 
-function normalizeAvatarCacheRow(row) {
+function normalizeAvatarCacheRow(row: SQLiteRow | null | undefined) {
     if (Array.isArray(row)) {
         return {
             id: row[0] ?? '',
@@ -57,23 +113,24 @@ function normalizeAvatarCacheRow(row) {
         };
     }
 
+    const record = asObjectRow(row);
     return {
-        id: row?.id ?? '',
-        authorId: row?.author_id ?? row?.authorId ?? '',
-        authorName: row?.author_name ?? row?.authorName ?? '',
-        created_at: row?.created_at ?? '',
-        description: row?.description ?? '',
-        imageUrl: row?.image_url ?? row?.imageUrl ?? '',
-        name: row?.name ?? '',
-        releaseStatus: row?.release_status ?? row?.releaseStatus ?? '',
+        id: record.id ?? '',
+        authorId: record.author_id ?? record.authorId ?? '',
+        authorName: record.author_name ?? record.authorName ?? '',
+        created_at: record.created_at ?? '',
+        description: record.description ?? '',
+        imageUrl: record.image_url ?? record.imageUrl ?? '',
+        name: record.name ?? '',
+        releaseStatus: record.release_status ?? record.releaseStatus ?? '',
         thumbnailImageUrl:
-            row?.thumbnail_image_url ?? row?.thumbnailImageUrl ?? '',
-        updated_at: row?.updated_at ?? '',
-        version: row?.version ?? 0
+            record.thumbnail_image_url ?? record.thumbnailImageUrl ?? '',
+        updated_at: record.updated_at ?? '',
+        version: record.version ?? 0
     };
 }
 
-function normalizeWorldFavoriteRow(row) {
+function normalizeWorldFavoriteRow(row: SQLiteRow | null | undefined) {
     if (Array.isArray(row)) {
         return {
             created_at: row[1] ?? '',
@@ -82,14 +139,15 @@ function normalizeWorldFavoriteRow(row) {
         };
     }
 
+    const record = asObjectRow(row);
     return {
-        created_at: row?.created_at ?? '',
-        worldId: row?.world_id ?? row?.worldId ?? '',
-        groupName: row?.group_name ?? row?.groupName ?? ''
+        created_at: record.created_at ?? '',
+        worldId: record.world_id ?? record.worldId ?? '',
+        groupName: record.group_name ?? record.groupName ?? ''
     };
 }
 
-function normalizeAvatarFavoriteRow(row) {
+function normalizeAvatarFavoriteRow(row: SQLiteRow | null | undefined) {
     if (Array.isArray(row)) {
         return {
             created_at: row[1] ?? '',
@@ -98,14 +156,15 @@ function normalizeAvatarFavoriteRow(row) {
         };
     }
 
+    const record = asObjectRow(row);
     return {
-        created_at: row?.created_at ?? '',
-        avatarId: row?.avatar_id ?? row?.avatarId ?? '',
-        groupName: row?.group_name ?? row?.groupName ?? ''
+        created_at: record.created_at ?? '',
+        avatarId: record.avatar_id ?? record.avatarId ?? '',
+        groupName: record.group_name ?? record.groupName ?? ''
     };
 }
 
-function normalizeFriendFavoriteRow(row) {
+function normalizeFriendFavoriteRow(row: SQLiteRow | null | undefined) {
     if (Array.isArray(row)) {
         return {
             created_at: row[1] ?? '',
@@ -114,20 +173,23 @@ function normalizeFriendFavoriteRow(row) {
         };
     }
 
+    const record = asObjectRow(row);
     return {
-        created_at: row?.created_at ?? '',
-        userId: row?.user_id ?? row?.userId ?? '',
-        groupName: row?.group_name ?? row?.groupName ?? ''
+        created_at: record.created_at ?? '',
+        userId: record.user_id ?? record.userId ?? '',
+        groupName: record.group_name ?? record.groupName ?? ''
     };
 }
 
-function normalizeEntityId(value) {
+function normalizeEntityId(value: unknown) {
     return typeof value === 'string'
         ? value.trim()
         : String(value ?? '').trim();
 }
 
-function resolveLocalFavoriteDeleteTarget(kind) {
+function resolveLocalFavoriteDeleteTarget(
+    kind: unknown
+): LocalFavoriteDeleteTarget | null {
     if (kind === 'friend') {
         return {
             table: 'favorite_friend',
@@ -155,13 +217,13 @@ function resolveLocalFavoriteDeleteTarget(kind) {
     return null;
 }
 
-function normalizeGroupName(value) {
+function normalizeGroupName(value: unknown) {
     return typeof value === 'string'
         ? value.trim()
         : String(value ?? '').trim();
 }
 
-function normalizeGroupList(values) {
+function normalizeGroupList(values: unknown) {
     return Array.from(
         new Set(
             (Array.isArray(values) ? values : [])
@@ -171,8 +233,8 @@ function normalizeGroupList(values) {
     ).sort((left, right) => left.localeCompare(right));
 }
 
-async function getExplicitLocalFavoriteGroups(kind) {
-    const key = LOCAL_FAVORITE_GROUP_CONFIG_KEYS[kind];
+async function getExplicitLocalFavoriteGroups(kind: unknown) {
+    const key = getLocalFavoriteGroupConfigKey(kind);
     if (!key) {
         return [];
     }
@@ -180,8 +242,11 @@ async function getExplicitLocalFavoriteGroups(kind) {
     return normalizeGroupList(await configRepository.getArray(key, []));
 }
 
-async function createLocalFavoriteGroup({ kind, groupName }) {
-    const key = LOCAL_FAVORITE_GROUP_CONFIG_KEYS[kind];
+async function createLocalFavoriteGroup({
+    kind,
+    groupName
+}: LocalFavoriteGroupInput) {
+    const key = getLocalFavoriteGroupConfigKey(kind);
     const normalizedGroupName = normalizeGroupName(groupName);
     if (!key || !normalizedGroupName) {
         throw new Error(
@@ -199,56 +264,63 @@ async function createLocalFavoriteGroup({ kind, groupName }) {
 }
 
 async function getWorldFavorites() {
-    const rows = await sqliteRepository.query('SELECT * FROM favorite_world');
+    const rows =
+        await sqliteRepository.query<SQLiteRow>('SELECT * FROM favorite_world');
     return Array.isArray(rows) ? rows.map(normalizeWorldFavoriteRow) : [];
 }
 
 async function getAvatarFavorites() {
-    const rows = await sqliteRepository.query('SELECT * FROM favorite_avatar');
+    const rows = await sqliteRepository.query<SQLiteRow>(
+        'SELECT * FROM favorite_avatar'
+    );
     return Array.isArray(rows) ? rows.map(normalizeAvatarFavoriteRow) : [];
 }
 
 async function getFriendFavorites() {
-    const rows = await sqliteRepository.query('SELECT * FROM favorite_friend');
+    const rows = await sqliteRepository.query<SQLiteRow>(
+        'SELECT * FROM favorite_friend'
+    );
     return Array.isArray(rows) ? rows.map(normalizeFriendFavoriteRow) : [];
 }
 
 async function getWorldCache() {
-    const rows = await sqliteRepository.query('SELECT * FROM cache_world');
+    const rows =
+        await sqliteRepository.query<SQLiteRow>('SELECT * FROM cache_world');
     return Array.isArray(rows) ? rows.map(normalizeWorldCacheRow) : [];
 }
 
 async function getAvatarCache() {
-    const rows = await sqliteRepository.query('SELECT * FROM cache_avatar');
+    const rows =
+        await sqliteRepository.query<SQLiteRow>('SELECT * FROM cache_avatar');
     return Array.isArray(rows) ? rows.map(normalizeAvatarCacheRow) : [];
 }
 
-async function addWorldToCache(entry) {
+async function addWorldToCache(entry: CacheEntryInput) {
     return sqliteRepository.executeNonQuery(
         `INSERT OR REPLACE INTO cache_world (id, added_at, author_id, author_name, created_at, description, image_url, name, release_status, thumbnail_image_url, updated_at, version) VALUES (@id, @added_at, @author_id, @author_name, @created_at, @description, @image_url, @name, @release_status, @thumbnail_image_url, @updated_at, @version)`,
         {
-            '@id': entry.id,
+            '@id': asSQLiteValue(entry.id),
             '@added_at': new Date().toJSON(),
-            '@author_id': entry.authorId,
-            '@author_name': entry.authorName,
-            '@created_at': entry.created_at,
-            '@description': entry.description,
-            '@image_url': entry.imageUrl,
-            '@name': entry.name,
-            '@release_status': entry.releaseStatus,
-            '@thumbnail_image_url': entry.thumbnailImageUrl,
-            '@updated_at': entry.updated_at,
-            '@version': entry.version
+            '@author_id': asSQLiteValue(entry.authorId),
+            '@author_name': asSQLiteValue(entry.authorName),
+            '@created_at': asSQLiteValue(entry.created_at),
+            '@description': asSQLiteValue(entry.description),
+            '@image_url': asSQLiteValue(entry.imageUrl),
+            '@name': asSQLiteValue(entry.name),
+            '@release_status': asSQLiteValue(entry.releaseStatus),
+            '@thumbnail_image_url': asSQLiteValue(entry.thumbnailImageUrl),
+            '@updated_at': asSQLiteValue(entry.updated_at),
+            '@version': asSQLiteValue(entry.version)
         }
     );
 }
 
-async function getCachedWorldById(id) {
+async function getCachedWorldById(id: unknown) {
     const normalizedId = normalizeEntityId(id);
     if (!normalizedId) {
         return null;
     }
-    const rows = await sqliteRepository.query(
+    const rows = await sqliteRepository.query<SQLiteRow>(
         'SELECT * FROM cache_world WHERE id = @id LIMIT 1',
         {
             '@id': normalizedId
@@ -259,7 +331,7 @@ async function getCachedWorldById(id) {
         : null;
 }
 
-async function removeWorldFromCache(worldId) {
+async function removeWorldFromCache(worldId: unknown) {
     const normalizedWorldId = normalizeEntityId(worldId);
     if (!normalizedWorldId) {
         return;
@@ -272,7 +344,11 @@ async function removeWorldFromCache(worldId) {
     );
 }
 
-async function addLocalFavorite({ kind, entityId, groupName }) {
+async function addLocalFavorite({
+    kind,
+    entityId,
+    groupName
+}: LocalFavoriteInput) {
     const target = resolveLocalFavoriteDeleteTarget(kind);
     const normalizedEntityId = normalizeEntityId(entityId);
     const normalizedGroupName = normalizeGroupName(groupName);
@@ -293,7 +369,7 @@ async function addLocalFavorite({ kind, entityId, groupName }) {
     );
 }
 
-function addAvatarToFavorites(avatarId, groupName) {
+function addAvatarToFavorites(avatarId: unknown, groupName: unknown) {
     return addLocalFavorite({
         kind: 'avatar',
         entityId: avatarId,
@@ -301,7 +377,7 @@ function addAvatarToFavorites(avatarId, groupName) {
     });
 }
 
-function addWorldToFavorites(worldId, groupName) {
+function addWorldToFavorites(worldId: unknown, groupName: unknown) {
     return addLocalFavorite({
         kind: 'world',
         entityId: worldId,
@@ -309,7 +385,7 @@ function addWorldToFavorites(worldId, groupName) {
     });
 }
 
-function addFriendToLocalFavorites(userId, groupName) {
+function addFriendToLocalFavorites(userId: unknown, groupName: unknown) {
     return addLocalFavorite({
         kind: 'friend',
         entityId: userId,
@@ -317,7 +393,11 @@ function addFriendToLocalFavorites(userId, groupName) {
     });
 }
 
-async function removeLocalFavorite({ kind, entityId, groupName }) {
+async function removeLocalFavorite({
+    kind,
+    entityId,
+    groupName
+}: LocalFavoriteInput) {
     const target = resolveLocalFavoriteDeleteTarget(kind);
     const normalizedEntityId = normalizeEntityId(entityId);
     const normalizedGroupName = normalizeEntityId(groupName);
@@ -337,7 +417,11 @@ async function removeLocalFavorite({ kind, entityId, groupName }) {
     );
 }
 
-async function renameLocalFavoriteGroup({ kind, groupName, newGroupName }) {
+async function renameLocalFavoriteGroup({
+    kind,
+    groupName,
+    newGroupName
+}: RenameLocalFavoriteGroupInput) {
     const target = resolveLocalFavoriteDeleteTarget(kind);
     const normalizedGroupName = normalizeGroupName(groupName);
     const normalizedNewGroupName = normalizeGroupName(newGroupName);
@@ -356,7 +440,7 @@ async function renameLocalFavoriteGroup({ kind, groupName, newGroupName }) {
         }
     );
 
-    const key = LOCAL_FAVORITE_GROUP_CONFIG_KEYS[kind];
+    const key = getLocalFavoriteGroupConfigKey(kind);
     if (key) {
         const groups = normalizeGroupList(
             await configRepository.getArray(key, [])
@@ -370,7 +454,10 @@ async function renameLocalFavoriteGroup({ kind, groupName, newGroupName }) {
     return result;
 }
 
-async function deleteLocalFavoriteGroup({ kind, groupName }) {
+async function deleteLocalFavoriteGroup({
+    kind,
+    groupName
+}: LocalFavoriteGroupInput) {
     const target = resolveLocalFavoriteDeleteTarget(kind);
     const normalizedGroupName = normalizeGroupName(groupName);
 
@@ -387,7 +474,7 @@ async function deleteLocalFavoriteGroup({ kind, groupName }) {
         }
     );
 
-    const key = LOCAL_FAVORITE_GROUP_CONFIG_KEYS[kind];
+    const key = getLocalFavoriteGroupConfigKey(kind);
     if (key) {
         const groups = normalizeGroupList(
             await configRepository.getArray(key, [])

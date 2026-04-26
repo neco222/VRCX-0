@@ -1,30 +1,77 @@
 import sqliteRepository from './sqliteRepository.js';
+import type { SQLiteValue } from './sqliteRepository.js';
 import userSessionRepository, {
     normalizeUserTablePrefix
 } from './userSessionRepository.js';
 import { executeVrchatRequest } from './vrchatRequest.js';
 
-function normalizePlayerModerationRow(row) {
+type ObjectRow = Record<string, unknown>;
+type RequestOptions = {
+    endpoint?: string;
+};
+
+interface LocalModerationRow extends ObjectRow {
+    user_id?: unknown;
+    updated_at?: unknown;
+    display_name?: unknown;
+    block?: unknown;
+    mute?: unknown;
+}
+
+interface PlayerModerationRow extends ObjectRow {
+    id?: unknown;
+    type?: unknown;
+    sourceUserId?: unknown;
+    sourceDisplayName?: unknown;
+    targetUserId?: unknown;
+    targetDisplayName?: unknown;
+    created?: unknown;
+}
+
+interface SyncLocalModerationSnapshotInput {
+    ownerUserId?: unknown;
+    rows?: PlayerModerationRow[];
+}
+
+interface PlayerModerationMutationInput extends RequestOptions {
+    moderated?: unknown;
+    type?: unknown;
+}
+
+interface LocalModerationQueryInput {
+    ownerUserId?: unknown;
+    userId?: unknown;
+}
+
+interface SaveLocalModerationInput extends LocalModerationQueryInput {
+    updatedAt?: unknown;
+    displayName?: unknown;
+    block?: unknown;
+    mute?: unknown;
+}
+
+function normalizePlayerModerationRow(row: unknown) {
     if (!row || typeof row !== 'object') {
         return null;
     }
 
+    const record = row as PlayerModerationRow;
     const id =
-        typeof row.id === 'string'
-            ? row.id.trim()
-            : String(row.id ?? '').trim();
+        typeof record.id === 'string'
+            ? record.id.trim()
+            : String(record.id ?? '').trim();
     const type =
-        typeof row.type === 'string'
-            ? row.type.trim()
-            : String(row.type ?? '').trim();
+        typeof record.type === 'string'
+            ? record.type.trim()
+            : String(record.type ?? '').trim();
     const sourceUserId =
-        typeof row.sourceUserId === 'string'
-            ? row.sourceUserId.trim()
-            : String(row.sourceUserId ?? '').trim();
+        typeof record.sourceUserId === 'string'
+            ? record.sourceUserId.trim()
+            : String(record.sourceUserId ?? '').trim();
     const targetUserId =
-        typeof row.targetUserId === 'string'
-            ? row.targetUserId.trim()
-            : String(row.targetUserId ?? '').trim();
+        typeof record.targetUserId === 'string'
+            ? record.targetUserId.trim()
+            : String(record.targetUserId ?? '').trim();
 
     if (!id || !type || !targetUserId) {
         return null;
@@ -35,23 +82,27 @@ function normalizePlayerModerationRow(row) {
         type,
         sourceUserId,
         sourceDisplayName:
-            typeof row.sourceDisplayName === 'string'
-                ? row.sourceDisplayName
+            typeof record.sourceDisplayName === 'string'
+                ? record.sourceDisplayName
                 : '',
         targetUserId,
         targetDisplayName:
-            typeof row.targetDisplayName === 'string'
-                ? row.targetDisplayName
+            typeof record.targetDisplayName === 'string'
+                ? record.targetDisplayName
                 : '',
-        created: typeof row.created === 'string' ? row.created : ''
+        created: typeof record.created === 'string' ? record.created : ''
     };
 }
 
-function normalizeUserId(value) {
+function normalizeUserId(value: unknown): string {
     return typeof value === 'string' ? value.trim() : String(value ?? '').trim();
 }
 
-async function executeGet(path, { endpoint = '' } = {}) {
+function asSQLiteValue(value: unknown): SQLiteValue {
+    return value as SQLiteValue;
+}
+
+async function executeGet(path: string, { endpoint = '' }: RequestOptions = {}) {
     return executeVrchatRequest(path, {
         endpoint,
         method: 'GET',
@@ -59,7 +110,11 @@ async function executeGet(path, { endpoint = '' } = {}) {
     });
 }
 
-async function executePut(path, payload = {}, { endpoint = '' } = {}) {
+async function executePut(
+    path: string,
+    payload: ObjectRow = {},
+    { endpoint = '' }: RequestOptions = {}
+) {
     return executeVrchatRequest(path, {
         endpoint,
         method: 'PUT',
@@ -68,7 +123,11 @@ async function executePut(path, payload = {}, { endpoint = '' } = {}) {
     });
 }
 
-async function executePost(path, payload = {}, { endpoint = '' } = {}) {
+async function executePost(
+    path: string,
+    payload: ObjectRow = {},
+    { endpoint = '' }: RequestOptions = {}
+) {
     return executeVrchatRequest(path, {
         endpoint,
         method: 'POST',
@@ -77,7 +136,7 @@ async function executePost(path, payload = {}, { endpoint = '' } = {}) {
     });
 }
 
-async function getPlayerModerations({ endpoint = '' } = {}) {
+async function getPlayerModerations({ endpoint = '' }: RequestOptions = {}) {
     const response = await executeGet('auth/user/playermoderations', {
         endpoint
     });
@@ -91,7 +150,7 @@ async function getPlayerModerations({ endpoint = '' } = {}) {
     };
 }
 
-async function getAllLocalModerations(ownerUserId) {
+async function getAllLocalModerations(ownerUserId: unknown) {
     const normalizedOwnerUserId = normalizeUserId(ownerUserId);
     if (!normalizedOwnerUserId) {
         return [];
@@ -99,7 +158,7 @@ async function getAllLocalModerations(ownerUserId) {
 
     await userSessionRepository.ensureUserTables(normalizedOwnerUserId);
     const userPrefix = normalizeUserTablePrefix(normalizedOwnerUserId);
-    const rows = await sqliteRepository.query(
+    const rows = await sqliteRepository.query<LocalModerationRow | unknown[]>(
         `SELECT user_id, updated_at, display_name, block, mute FROM ${userPrefix}_moderation`
     );
     return Array.isArray(rows)
@@ -113,7 +172,7 @@ async function getAllLocalModerations(ownerUserId) {
         : [];
 }
 
-async function getLocalModerationRow(ownerUserId, userId) {
+async function getLocalModerationRow(ownerUserId: unknown, userId: unknown) {
     const normalizedOwnerUserId = normalizeUserId(ownerUserId);
     const normalizedUserId = normalizeUserId(userId);
     if (!normalizedOwnerUserId || !normalizedUserId) {
@@ -122,7 +181,7 @@ async function getLocalModerationRow(ownerUserId, userId) {
 
     await userSessionRepository.ensureUserTables(normalizedOwnerUserId);
     const userPrefix = normalizeUserTablePrefix(normalizedOwnerUserId);
-    const rows = await sqliteRepository.query(
+    const rows = await sqliteRepository.query<LocalModerationRow | unknown[]>(
         `SELECT user_id, updated_at, display_name, block, mute FROM ${userPrefix}_moderation WHERE user_id = @userId LIMIT 1`,
         {
             '@userId': normalizedUserId
@@ -141,7 +200,7 @@ async function getLocalModerationRow(ownerUserId, userId) {
     };
 }
 
-async function setLocalModerationRow(ownerUserId, entry) {
+async function setLocalModerationRow(ownerUserId: unknown, entry: SaveLocalModerationInput) {
     const normalizedOwnerUserId = normalizeUserId(ownerUserId);
     if (!normalizedOwnerUserId || !entry?.userId) {
         return;
@@ -152,16 +211,16 @@ async function setLocalModerationRow(ownerUserId, entry) {
     await sqliteRepository.executeNonQuery(
         `INSERT OR REPLACE INTO ${userPrefix}_moderation (user_id, updated_at, display_name, block, mute) VALUES (@user_id, @updated_at, @display_name, @block, @mute)`,
         {
-            '@user_id': entry.userId,
-            '@updated_at': entry.updatedAt,
-            '@display_name': entry.displayName,
+            '@user_id': asSQLiteValue(entry.userId),
+            '@updated_at': asSQLiteValue(entry.updatedAt),
+            '@display_name': asSQLiteValue(entry.displayName),
             '@block': entry.block ? 1 : 0,
             '@mute': entry.mute ? 1 : 0
         }
     );
 }
 
-async function deleteLocalModerationRow(ownerUserId, userId) {
+async function deleteLocalModerationRow(ownerUserId: unknown, userId: unknown) {
     const normalizedOwnerUserId = normalizeUserId(ownerUserId);
     const normalizedUserId = normalizeUserId(userId);
     if (!normalizedOwnerUserId || !normalizedUserId) {
@@ -178,7 +237,10 @@ async function deleteLocalModerationRow(ownerUserId, userId) {
     );
 }
 
-async function syncLocalModerationSnapshot({ ownerUserId, rows = [] } = {}) {
+async function syncLocalModerationSnapshot({
+    ownerUserId,
+    rows = []
+}: SyncLocalModerationSnapshotInput = {}) {
     const moderationByUserId = new Map();
 
     for (const row of Array.isArray(rows) ? rows : []) {
@@ -228,7 +290,11 @@ async function syncLocalModerationSnapshot({ ownerUserId, rows = [] } = {}) {
     return Array.from(moderationByUserId.values());
 }
 
-async function sendPlayerModeration({ endpoint = '', moderated, type } = {}) {
+async function sendPlayerModeration({
+    endpoint = '',
+    moderated,
+    type
+}: PlayerModerationMutationInput = {}) {
     const normalizedModerated =
         typeof moderated === 'string'
             ? moderated.trim()
@@ -252,7 +318,11 @@ async function sendPlayerModeration({ endpoint = '', moderated, type } = {}) {
     );
 }
 
-async function deletePlayerModeration({ endpoint = '', moderated, type } = {}) {
+async function deletePlayerModeration({
+    endpoint = '',
+    moderated,
+    type
+}: PlayerModerationMutationInput = {}) {
     const normalizedModerated =
         typeof moderated === 'string'
             ? moderated.trim()
@@ -276,7 +346,10 @@ async function deletePlayerModeration({ endpoint = '', moderated, type } = {}) {
     );
 }
 
-async function getLocalModeration({ ownerUserId = '', userId } = {}) {
+async function getLocalModeration({
+    ownerUserId = '',
+    userId
+}: LocalModerationQueryInput = {}) {
     const normalizedUserId = normalizeUserId(userId);
     if (!normalizedUserId) {
         return {
@@ -300,7 +373,7 @@ async function saveLocalModeration({
     displayName = '',
     block = false,
     mute = false
-} = {}) {
+}: SaveLocalModerationInput = {}) {
     const normalizedUserId = normalizeUserId(userId);
     if (!normalizedUserId) {
         throw new Error(

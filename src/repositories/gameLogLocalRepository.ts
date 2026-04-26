@@ -1,6 +1,27 @@
 import { buildInClause, buildValuesList } from './localDatabaseSql.js';
 import sqliteService from './sqliteRepository.js';
 
+type GameLogDatabaseRow = {
+    [key: string]: unknown;
+    rowId: unknown;
+    created_at: unknown;
+    type: unknown;
+    location?: unknown;
+    worldId?: unknown;
+    worldName?: unknown;
+    time?: unknown;
+    groupName?: unknown;
+    displayName?: unknown;
+    userId?: unknown;
+    instanceId?: unknown;
+    videoUrl?: unknown;
+    videoName?: unknown;
+    videoId?: unknown;
+    resourceUrl?: unknown;
+    data?: unknown;
+    message?: unknown;
+};
+
 const DEFAULT_MAX_TABLE_SIZE = 500;
 const DEFAULT_SEARCH_TABLE_SIZE = 50000;
 
@@ -757,7 +778,7 @@ const gameLog = {
             return [];
         }
 
-        const gamelogDatabase = [];
+        const gamelogDatabase: GameLogDatabaseRow[] = [];
         const args = {
             '@locationLike': `%${instanceId}%`,
             '@currentUserId': normalizedCurrentUserId,
@@ -768,7 +789,7 @@ const gameLog = {
         await sqliteService.execute(
             (dbRow) => {
                 const type = dbRow[2];
-                const row = {
+                const row: GameLogDatabaseRow = {
                     rowId: dbRow[0],
                     created_at: dbRow[1],
                     type
@@ -950,7 +971,7 @@ const gameLog = {
         if (selects.length === 0) {
             return [];
         }
-        const gamelogDatabase = [];
+        const gamelogDatabase: GameLogDatabaseRow[] = [];
         const args = {
             '@limit': maxEntries,
             '@perTable': maxEntries,
@@ -958,7 +979,7 @@ const gameLog = {
         };
         await sqliteService.execute(
             (dbRow) => {
-                const row = {
+                const row: GameLogDatabaseRow = {
                     rowId: dbRow[0],
                     created_at: dbRow[1],
                     type: dbRow[2]
@@ -1176,7 +1197,7 @@ const gameLog = {
         if (selects.length === 0) {
             return [];
         }
-        const gamelogDatabase = [];
+        const gamelogDatabase: GameLogDatabaseRow[] = [];
         const args = {
             '@searchLike': searchLike,
             '@currentUserId': normalizedCurrentUserId,
@@ -1184,10 +1205,10 @@ const gameLog = {
             '@perTable': maxEntries,
             ...vipArgs
         };
-        await sqliteService.execute(
+        await sqliteService.execute<unknown[]>(
             (dbRow) => {
                 const type = dbRow[2];
-                const row = {
+                const row: GameLogDatabaseRow = {
                     rowId: dbRow[0],
                     created_at: dbRow[1],
                     type
@@ -1334,7 +1355,7 @@ const gameLog = {
             return data;
         }
 
-        await sqliteService.execute(
+        await sqliteService.execute<unknown[]>(
             (dbRow) => {
                 var [
                     created_at_iso,
@@ -1350,7 +1371,7 @@ const gameLog = {
                 if (
                     !currentGroup ||
                     currentGroup.location !== location ||
-                    (created_at_ts - currentGroup.last_ts >
+                    (Number(created_at_ts) - currentGroup.last_ts >
                         groupingTimeTolerance && // groups multiple OnPlayerJoined and OnPlayerLeft together if they are within time tolerance limit
                         !(
                             prevEvent === 'OnPlayerJoined' &&
@@ -1364,13 +1385,13 @@ const gameLog = {
                         worldName,
                         groupName,
                         events: [eventId],
-                        last_ts: created_at_ts
+                        last_ts: Number(created_at_ts)
                     };
 
                     data.add(currentGroup);
                 } else {
                     currentGroup.time += time;
-                    currentGroup.last_ts = created_at_ts;
+                    currentGroup.last_ts = Number(created_at_ts);
                     currentGroup.events.push(eventId);
                 }
 

@@ -1,6 +1,32 @@
 import sqliteService from './sqliteRepository.js';
 import { normalizeUserTablePrefix } from './userSessionRepository.js';
 
+type FeedDatabaseRow = {
+    [key: string]: unknown;
+    rowId: unknown;
+    created_at: unknown;
+    userId: unknown;
+    displayName: unknown;
+    type: unknown;
+    location?: unknown;
+    worldName?: unknown;
+    previousLocation?: unknown;
+    time?: unknown;
+    groupName?: unknown;
+    status?: unknown;
+    statusDescription?: unknown;
+    previousStatus?: unknown;
+    previousStatusDescription?: unknown;
+    bio?: unknown;
+    previousBio?: unknown;
+    ownerId?: unknown;
+    avatarName?: unknown;
+    currentAvatarImageUrl?: unknown;
+    currentAvatarThumbnailImageUrl?: unknown;
+    previousCurrentAvatarImageUrl?: unknown;
+    previousCurrentAvatarThumbnailImageUrl?: unknown;
+};
+
 const DEFAULT_MAX_TABLE_SIZE = 500;
 const DEFAULT_SEARCH_TABLE_SIZE = 50000;
 
@@ -363,7 +389,7 @@ const feed = {
         if (selects.length === 0) {
             return [];
         }
-        const feedDatabase = [];
+        const feedDatabase: FeedDatabaseRow[] = [];
         const args = {
             '@searchLike': searchLike,
             '@limit': maxEntries,
@@ -379,7 +405,7 @@ const feed = {
         await sqliteService.execute(
             (dbRow) => {
                 const type = dbRow[4];
-                const row = {
+                const row: FeedDatabaseRow = {
                     rowId: dbRow[0],
                     created_at: dbRow[1],
                     userId: dbRow[2],
@@ -543,7 +569,7 @@ const feed = {
         if (selects.length === 0) {
             return [];
         }
-        const feedDatabase = [];
+        const feedDatabase: FeedDatabaseRow[] = [];
         const args = {
             '@limit': maxEntries,
             '@perTable': maxEntries,
@@ -552,7 +578,7 @@ const feed = {
         await sqliteService.execute(
             (dbRow) => {
                 const type = dbRow[4];
-                const row = {
+                const row: FeedDatabaseRow = {
                     rowId: dbRow[0],
                     created_at: dbRow[1],
                     userId: dbRow[2],
@@ -687,7 +713,7 @@ const feed = {
         if (selects.length === 0) {
             return [];
         }
-        const feedDatabase = [];
+        const feedDatabase: FeedDatabaseRow[] = [];
         const args = {
             '@instanceLike': `%${instanceId}%`,
             '@limit': maxEntries,
@@ -697,7 +723,7 @@ const feed = {
         await sqliteService.execute(
             (dbRow) => {
                 const type = dbRow[4];
-                const row = {
+                const row: FeedDatabaseRow = {
                     rowId: dbRow[0],
                     created_at: dbRow[1],
                     userId: dbRow[2],

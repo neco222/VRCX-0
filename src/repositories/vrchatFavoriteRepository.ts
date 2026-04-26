@@ -10,7 +10,54 @@ const FAVORITES_PAGE_SIZE = 300;
 const FAVORITE_GROUPS_PAGE_SIZE = 50;
 const FAVORITE_DETAIL_PAGE_SIZE = 300;
 
-async function executeGet(path, params = {}, { endpoint = '' } = {}) {
+type RequestOptions = {
+    endpoint?: string;
+};
+type RequestParams = Record<string, string | number | boolean | undefined>;
+type RequestPayload = Record<string, unknown>;
+
+interface FavoritePagingInput extends RequestOptions {
+    n?: number;
+    offset?: number;
+}
+
+interface FavoriteWorldsInput extends FavoritePagingInput {
+    ownerId?: string;
+    userId?: string;
+    tag?: string;
+}
+
+interface FavoriteAvatarsInput extends FavoritePagingInput {
+    tag?: string;
+}
+
+interface FavoriteGroupsInput extends FavoritePagingInput {
+    ownerId?: string;
+}
+
+interface FavoriteMutationInput extends RequestOptions {
+    type?: unknown;
+    favoriteId?: unknown;
+    tags?: unknown;
+}
+
+interface DeleteFavoriteInput extends RequestOptions {
+    objectId?: unknown;
+}
+
+interface FavoriteGroupMutationInput extends RequestOptions {
+    ownerId?: unknown;
+    type?: unknown;
+    group?: unknown;
+    displayName?: unknown;
+    visibility?: unknown;
+}
+
+async function executeGet(
+    path: string,
+    params: RequestParams = {},
+    { endpoint = '' }: RequestOptions = {}
+) {
     return executeVrchatRequest(path, {
         endpoint,
         method: 'GET',
@@ -19,7 +66,11 @@ async function executeGet(path, params = {}, { endpoint = '' } = {}) {
     });
 }
 
-async function executePost(path, payload = {}, { endpoint = '' } = {}) {
+async function executePost(
+    path: string,
+    payload: RequestPayload = {},
+    { endpoint = '' }: RequestOptions = {}
+) {
     return executeVrchatRequest(path, {
         endpoint,
         method: 'POST',
@@ -28,7 +79,11 @@ async function executePost(path, payload = {}, { endpoint = '' } = {}) {
     });
 }
 
-async function executePut(path, payload = {}, { endpoint = '' } = {}) {
+async function executePut(
+    path: string,
+    payload: RequestPayload = {},
+    { endpoint = '' }: RequestOptions = {}
+) {
     return executeVrchatRequest(path, {
         endpoint,
         method: 'PUT',
@@ -37,7 +92,7 @@ async function executePut(path, payload = {}, { endpoint = '' } = {}) {
     });
 }
 
-async function executeDelete(path, { endpoint = '' } = {}) {
+async function executeDelete(path: string, { endpoint = '' }: RequestOptions = {}) {
     return executeVrchatRequest(path, {
         endpoint,
         method: 'DELETE',
@@ -46,7 +101,10 @@ async function executeDelete(path, { endpoint = '' } = {}) {
     });
 }
 
-async function getFavoriteLimits({ endpoint = '', force = false } = {}) {
+async function getFavoriteLimits({
+    endpoint = '',
+    force = false
+}: RequestOptions & { force?: boolean } = {}) {
     return fetchCachedData({
         queryKey: queryKeys.favoriteLimits(endpoint),
         policy: entityQueryPolicies.favoriteLimits,
@@ -59,7 +117,7 @@ async function getFavorites({
     endpoint = '',
     n = FAVORITES_PAGE_SIZE,
     offset = 0
-} = {}) {
+}: FavoritePagingInput = {}) {
     return executeGet(
         'favorites',
         {
@@ -70,7 +128,7 @@ async function getFavorites({
     );
 }
 
-async function getAllFavorites({ endpoint = '' } = {}) {
+async function getAllFavorites({ endpoint = '' }: RequestOptions = {}) {
     const favorites = [];
 
     for (let offset = 0; ; offset += FAVORITES_PAGE_SIZE) {
@@ -90,7 +148,12 @@ async function getAllFavorites({ endpoint = '' } = {}) {
     return favorites;
 }
 
-async function addFavorite({ endpoint = '', type, favoriteId, tags } = {}) {
+async function addFavorite({
+    endpoint = '',
+    type,
+    favoriteId,
+    tags
+}: FavoriteMutationInput = {}) {
     return executePost(
         'favorites',
         {
@@ -102,7 +165,10 @@ async function addFavorite({ endpoint = '', type, favoriteId, tags } = {}) {
     );
 }
 
-async function deleteFavorite({ endpoint = '', objectId } = {}) {
+async function deleteFavorite({
+    endpoint = '',
+    objectId
+}: DeleteFavoriteInput = {}) {
     const normalizedObjectId =
         typeof objectId === 'string'
             ? objectId.trim()
@@ -126,8 +192,8 @@ async function getFavoriteWorlds({
     ownerId = '',
     userId = '',
     tag = ''
-} = {}) {
-    const params = { n, offset };
+}: FavoriteWorldsInput = {}) {
+    const params: RequestParams = { n, offset };
     if (ownerId) {
         params.ownerId = ownerId;
     }
@@ -146,7 +212,7 @@ async function getAllFavoriteWorlds({
     ownerId = '',
     userId = '',
     tag = ''
-} = {}) {
+}: FavoriteWorldsInput = {}) {
     const worlds = [];
 
     for (let offset = 0; ; offset += FAVORITE_DETAIL_PAGE_SIZE) {
@@ -174,8 +240,8 @@ async function getFavoriteAvatars({
     n = FAVORITE_DETAIL_PAGE_SIZE,
     offset = 0,
     tag
-} = {}) {
-    const params = {
+}: FavoriteAvatarsInput = {}) {
+    const params: RequestParams = {
         n,
         offset
     };
@@ -187,7 +253,10 @@ async function getFavoriteAvatars({
     return executeGet('avatars/favorites', params, { endpoint });
 }
 
-async function getAllFavoriteAvatars({ endpoint = '', tags = [] } = {}) {
+async function getAllFavoriteAvatars({
+    endpoint = '',
+    tags = []
+}: RequestOptions & { tags?: unknown[] } = {}) {
     const avatars = [];
     const seenIds = new Set();
     const normalizedTags = Array.from(
@@ -235,8 +304,8 @@ async function getFavoriteGroups({
     n = FAVORITE_GROUPS_PAGE_SIZE,
     offset = 0,
     ownerId = ''
-} = {}) {
-    const params = { n, offset };
+}: FavoriteGroupsInput = {}) {
+    const params: RequestParams = { n, offset };
     if (ownerId) {
         params.ownerId = ownerId;
     }
@@ -244,7 +313,10 @@ async function getFavoriteGroups({
     return executeGet('favorite/groups', params, { endpoint });
 }
 
-async function getAllFavoriteGroups({ endpoint = '', ownerId = '' } = {}) {
+async function getAllFavoriteGroups({
+    endpoint = '',
+    ownerId = ''
+}: RequestOptions & { ownerId?: string } = {}) {
     const groups = [];
 
     for (let offset = 0; ; offset += FAVORITE_GROUPS_PAGE_SIZE) {
@@ -272,7 +344,7 @@ async function saveFavoriteGroup({
     group,
     displayName,
     visibility
-} = {}) {
+}: FavoriteGroupMutationInput = {}) {
     const normalizedOwnerId =
         typeof ownerId === 'string'
             ? ownerId.trim()
@@ -288,7 +360,7 @@ async function saveFavoriteGroup({
         );
     }
 
-    const payload = {
+    const payload: RequestPayload = {
         type: normalizedType,
         group: normalizedGroup
     };
@@ -311,7 +383,7 @@ async function clearFavoriteGroup({
     ownerId = '',
     type,
     group
-} = {}) {
+}: FavoriteGroupMutationInput = {}) {
     const normalizedOwnerId =
         typeof ownerId === 'string'
             ? ownerId.trim()

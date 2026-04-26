@@ -62,6 +62,14 @@ function normalizeSessionLimit(value, fallback = 25) {
     return Math.min(parsed, 1000);
 }
 
+function normalizeConfigInt(value, fallback) {
+    const parsed = Number.parseInt(String(value ?? ''), 10);
+    if (!Number.isFinite(parsed)) {
+        return fallback;
+    }
+    return parsed;
+}
+
 function dateToEpoch(value) {
     const epoch = Date.parse(value);
     return Number.isFinite(epoch) ? epoch : 0;
@@ -334,10 +342,12 @@ async function queryGameLog({
     filters = [],
     favoriteUserIds = []
 }) {
-    const [maxTableSize, searchLimit] = await Promise.all([
+    const [maxTableSizeValue, searchLimitValue] = await Promise.all([
         configRepository.getInt('maxTableSize_v2', 500),
         configRepository.getInt('searchLimit', 50000)
     ]);
+    const maxTableSize = normalizeConfigInt(maxTableSizeValue, 500);
+    const searchLimit = normalizeConfigInt(searchLimitValue, 50000);
 
     const normalizedFilters = normalizeFilterList(filters);
     const normalizedFavorites = Array.from(
@@ -375,10 +385,12 @@ async function queryLatestSessions({
     dateTo = '',
     limit = 25
 } = {}) {
-    const [maxTableSize, searchLimit] = await Promise.all([
+    const [maxTableSizeValue, searchLimitValue] = await Promise.all([
         configRepository.getInt('maxTableSize_v2', 500),
         configRepository.getInt('searchLimit', 50000)
     ]);
+    const maxTableSize = normalizeConfigInt(maxTableSizeValue, 500);
+    const searchLimit = normalizeConfigInt(searchLimitValue, 50000);
     const normalizedLimit = normalizeSessionLimit(limit);
     const normalizedFilters = normalizeFilterList(filters);
     const normalizedFavoriteSet = normalizeFavoriteSet(favoriteUserIds);

@@ -1,13 +1,46 @@
 import sqliteRepository from './sqliteRepository.js';
 import { normalizeUserTablePrefix } from './userSessionRepository.js';
 
-function normalizeEntityId(value) {
+interface SaveUserMemoInput {
+    userId?: unknown;
+    memo?: unknown;
+}
+
+interface SaveWorldMemoInput {
+    worldId?: unknown;
+    memo?: unknown;
+}
+
+interface SaveAvatarMemoInput {
+    avatarId?: unknown;
+    memo?: unknown;
+}
+
+interface UserMemoEntry {
+    userId: unknown;
+    editedAt: unknown;
+    memo: unknown;
+}
+
+interface WorldMemoEntry {
+    worldId: unknown;
+    editedAt: unknown;
+    memo: unknown;
+}
+
+interface AvatarMemoEntry {
+    avatarId: unknown;
+    editedAt: unknown;
+    memo: unknown;
+}
+
+function normalizeEntityId(value: unknown) {
     return typeof value === 'string'
         ? value.trim()
         : String(value ?? '').trim();
 }
 
-function createEmptyUserMemo(userId = '') {
+function createEmptyUserMemo(userId: unknown = '') {
     return {
         userId,
         editedAt: '',
@@ -15,7 +48,7 @@ function createEmptyUserMemo(userId = '') {
     };
 }
 
-function createEmptyWorldMemo(worldId = '') {
+function createEmptyWorldMemo(worldId: unknown = '') {
     return {
         worldId,
         editedAt: '',
@@ -23,7 +56,7 @@ function createEmptyWorldMemo(worldId = '') {
     };
 }
 
-function createEmptyAvatarMemo(avatarId = '') {
+function createEmptyAvatarMemo(avatarId: unknown = '') {
     return {
         avatarId,
         editedAt: '',
@@ -31,14 +64,14 @@ function createEmptyAvatarMemo(avatarId = '') {
     };
 }
 
-async function getUserMemo(userId) {
+async function getUserMemo(userId: unknown) {
     const normalizedUserId = normalizeEntityId(userId);
     if (!normalizedUserId) {
         return createEmptyUserMemo();
     }
 
-    let row = createEmptyUserMemo(normalizedUserId);
-    await sqliteRepository.execute(
+    let row: UserMemoEntry = createEmptyUserMemo(normalizedUserId);
+    await sqliteRepository.execute<unknown[]>(
         (dbRow) => {
             row = {
                 userId: dbRow[0],
@@ -55,8 +88,11 @@ async function getUserMemo(userId) {
 }
 
 async function getAllUserMemos() {
-    const rows = [];
-    await sqliteRepository.execute((dbRow) => {
+    const rows: Array<{
+        userId: unknown;
+        memo: unknown;
+    }> = [];
+    await sqliteRepository.execute<unknown[]>((dbRow) => {
         rows.push({
             userId: dbRow[0],
             memo: dbRow[1]
@@ -65,15 +101,20 @@ async function getAllUserMemos() {
     return rows;
 }
 
-async function getAllUserNotes(ownerUserId = '') {
+async function getAllUserNotes(ownerUserId: unknown = '') {
     const normalizedOwnerUserId = normalizeEntityId(ownerUserId);
     if (!normalizedOwnerUserId) {
         return [];
     }
 
     const userPrefix = normalizeUserTablePrefix(normalizedOwnerUserId);
-    const rows = [];
-    await sqliteRepository.execute((dbRow) => {
+    const rows: Array<{
+        userId: unknown;
+        displayName: unknown;
+        note: unknown;
+        createdAt: unknown;
+    }> = [];
+    await sqliteRepository.execute<unknown[]>((dbRow) => {
         rows.push({
             userId: dbRow[0],
             displayName: dbRow[1],
@@ -84,7 +125,7 @@ async function getAllUserNotes(ownerUserId = '') {
     return rows;
 }
 
-async function saveUserMemo({ userId, memo }) {
+async function saveUserMemo({ userId, memo }: SaveUserMemoInput) {
     const normalizedUserId = normalizeEntityId(userId);
     if (!normalizedUserId) {
         throw new Error('MemoRepository.saveUserMemo requires a user id.');
@@ -117,14 +158,14 @@ async function saveUserMemo({ userId, memo }) {
     return entry;
 }
 
-async function getWorldMemo(worldId) {
+async function getWorldMemo(worldId: unknown) {
     const normalizedWorldId = normalizeEntityId(worldId);
     if (!normalizedWorldId) {
         return createEmptyWorldMemo();
     }
 
-    let row = createEmptyWorldMemo(normalizedWorldId);
-    await sqliteRepository.execute(
+    let row: WorldMemoEntry = createEmptyWorldMemo(normalizedWorldId);
+    await sqliteRepository.execute<unknown[]>(
         (dbRow) => {
             row = {
                 worldId: dbRow[0],
@@ -140,7 +181,7 @@ async function getWorldMemo(worldId) {
     return row;
 }
 
-async function saveWorldMemo({ worldId, memo }) {
+async function saveWorldMemo({ worldId, memo }: SaveWorldMemoInput) {
     const normalizedWorldId = normalizeEntityId(worldId);
     if (!normalizedWorldId) {
         throw new Error('MemoRepository.saveWorldMemo requires a world id.');
@@ -173,14 +214,14 @@ async function saveWorldMemo({ worldId, memo }) {
     return entry;
 }
 
-async function getAvatarMemo(avatarId) {
+async function getAvatarMemo(avatarId: unknown) {
     const normalizedAvatarId = normalizeEntityId(avatarId);
     if (!normalizedAvatarId) {
         return createEmptyAvatarMemo();
     }
 
-    let row = createEmptyAvatarMemo(normalizedAvatarId);
-    await sqliteRepository.execute(
+    let row: AvatarMemoEntry = createEmptyAvatarMemo(normalizedAvatarId);
+    await sqliteRepository.execute<unknown[]>(
         (dbRow) => {
             row = {
                 avatarId: dbRow[0],
@@ -196,7 +237,7 @@ async function getAvatarMemo(avatarId) {
     return row;
 }
 
-async function saveAvatarMemo({ avatarId, memo }) {
+async function saveAvatarMemo({ avatarId, memo }: SaveAvatarMemoInput) {
     const normalizedAvatarId = normalizeEntityId(avatarId);
     if (!normalizedAvatarId) {
         throw new Error('MemoRepository.saveAvatarMemo requires an avatar id.');

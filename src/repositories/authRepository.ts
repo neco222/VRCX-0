@@ -2,7 +2,43 @@ import { asString, safeJsonStringify } from './baseRepository.js';
 import configRepository from './configRepository.js';
 import webRepository from './webRepository.js';
 
-function normalizeLoginParams(entry) {
+type GenericRecord = Record<string, unknown>;
+
+interface LoginParams {
+    username: string;
+    password: string;
+    endpoint: string;
+    websocket: string;
+}
+
+interface RawSavedCredentialRecord extends GenericRecord {
+    user?: GenericRecord;
+    loginParams?: GenericRecord;
+    loginParmas?: GenericRecord;
+    cookies?: unknown;
+}
+
+interface SavedCredentialRecord {
+    user: GenericRecord;
+    loginParams: LoginParams;
+    cookies?: unknown;
+}
+
+type SavedCredentialsMap = Record<string, SavedCredentialRecord>;
+
+interface RecordLoginSuccessInput {
+    user?: GenericRecord;
+    loginParams?: GenericRecord;
+    storedLoginParams?: GenericRecord | null;
+    saveCredentials?: boolean;
+}
+
+interface RecordLogoutOptions {
+    clearLastUserLoggedIn?: unknown;
+    cookies?: unknown;
+}
+
+function normalizeLoginParams(entry: RawSavedCredentialRecord): LoginParams {
     const rawLoginParams = entry?.loginParams ?? entry?.loginParmas ?? {};
 
     return {
@@ -13,45 +49,47 @@ function normalizeLoginParams(entry) {
     };
 }
 
-function normalizeSavedCredentialRecord(key, entry) {
+function normalizeSavedCredentialRecord(key: string, entry: unknown) {
     if (
         !entry ||
         typeof entry !== 'object' ||
-        !entry.user ||
-        typeof entry.user !== 'object'
+        !(entry as RawSavedCredentialRecord).user ||
+        typeof (entry as RawSavedCredentialRecord).user !== 'object'
     ) {
         return { edited: false, normalizedKey: null, value: null };
     }
 
-    const userId = asString(entry.user.id, key).trim();
+    const record = entry as RawSavedCredentialRecord;
+    const user = record.user as GenericRecord;
+    const userId = asString(user.id, key).trim();
     if (!userId) {
         return { edited: false, normalizedKey: null, value: null };
     }
 
-    const normalizedValue = {
-        user: entry.user,
-        loginParams: normalizeLoginParams(entry)
+    const normalizedValue: SavedCredentialRecord = {
+        user,
+        loginParams: normalizeLoginParams(record)
     };
 
     if (
-        entry.cookies !== undefined &&
-        entry.cookies !== null &&
-        entry.cookies !== ''
+        record.cookies !== undefined &&
+        record.cookies !== null &&
+        record.cookies !== ''
     ) {
-        normalizedValue.cookies = entry.cookies;
+        normalizedValue.cookies = record.cookies;
     }
 
     const hasEndpointField = Object.prototype.hasOwnProperty.call(
-        entry.loginParams ?? {},
+        record.loginParams ?? {},
         'endpoint'
     );
     const hasWebsocketField = Object.prototype.hasOwnProperty.call(
-        entry.loginParams ?? {},
+        record.loginParams ?? {},
         'websocket'
     );
     const edited =
         userId !== key ||
-        Boolean(entry.loginParmas) ||
+        Boolean(record.loginParmas) ||
         !hasEndpointField ||
         !hasWebsocketField;
 
@@ -62,7 +100,10 @@ function normalizeSavedCredentialRecord(key, entry) {
     };
 }
 
-function sortSavedCredentials(savedCredentials, lastUserLoggedIn) {
+function sortSavedCredentials(
+    savedCredentials: SavedCredentialsMap,
+    lastUserLoggedIn: unknown
+) {
     return Object.values(savedCredentials).sort((left, right) => {
         const leftIsLast = left.user?.id === lastUserLoggedIn;
         const rightIsLast = right.user?.id === lastUserLoggedIn;
@@ -88,6 +129,11 @@ function resolveAutoLoginStatus({
     savedCredentials,
     autoLoginDelayEnabled,
     autoLoginDelaySeconds
+}: {
+    lastUserLoggedIn: unknown;
+    savedCredentials: SavedCredentialsMap;
+    autoLoginDelayEnabled: unknown;
+    autoLoginDelaySeconds: number;
 }) {
     if (!lastUserLoggedIn) {
         return {
@@ -96,7 +142,7 @@ function resolveAutoLoginStatus({
         };
     }
 
-    const savedCredential = savedCredentials[lastUserLoggedIn];
+    const savedCredential = savedCredentials[String(lastUserLoggedIn)];
     if (!savedCredential) {
         return {
             status: 'missing-last-user',
@@ -134,10 +180,10 @@ async function getSavedCredentialsMap() {
     );
     const source =
         rawSavedCredentials && typeof rawSavedCredentials === 'object'
-            ? rawSavedCredentials
+            ? (rawSavedCredentials as Record<string, unknown>)
             : {};
 
-    const normalized = {};
+    const normalized: SavedCredentialsMap = {};
     let edited = false;
 
     for (const [key, value] of Object.entries(source)) {
@@ -158,7 +204,7 @@ async function getSavedCredentialsMap() {
     return normalized;
 }
 
-async function getSavedCredential(userId) {
+async function getSavedCredential(userId: string) {
     if (!userId) {
         return null;
     }
@@ -167,7 +213,7 @@ async function getSavedCredential(userId) {
     return savedCredentials[userId] ?? null;
 }
 
-async function deleteSavedCredential(userId) {
+async function deleteSavedCredential(userId: string) {
     const savedCredentials = await getSavedCredentialsMap();
     delete savedCredentials[userId];
     await configRepository.setObject('savedCredentials', savedCredentials);
@@ -183,7 +229,7 @@ async function deleteSavedCredential(userId) {
     return getSavedAuthSnapshot();
 }
 
-async function setCustomEndpointEnabled(value) {
+async function setCustomEndpointEnabled(value: unknown) {
     await configRepository.setBool('enableCustomEndpoint', Boolean(value));
     return getSavedAuthSnapshot();
 }
@@ -193,7 +239,7 @@ async function recordLoginSuccess({
     loginParams = {},
     storedLoginParams = null,
     saveCredentials = false
-}) {
+}: RecordLoginSuccessInput) {
     const userId = asString(user?.id, '').trim();
     if (!userId) {
         throw new Error('AuthRepository.recordLoginSuccess requires a user id');
@@ -228,8 +274,11 @@ async function recordLoginSuccess({
     return getSavedAuthSnapshot();
 }
 
-async function recordLogout(userOrUserId, options = {}) {
-    const user =
+async function recordLogout(
+    userOrUserId: GenericRecord | string | null,
+    options: RecordLogoutOptions = {}
+) {
+    const user: GenericRecord | null =
         userOrUserId && typeof userOrUserId === 'object' ? userOrUserId : null;
     const userId = asString(user?.id ?? userOrUserId, '').trim();
     const clearLastUserLoggedIn =
@@ -298,7 +347,7 @@ async function getSavedAuthSnapshot() {
         lastUserLoggedIn,
         savedCredentials,
         autoLoginDelayEnabled,
-        autoLoginDelaySeconds
+        autoLoginDelaySeconds: Number(autoLoginDelaySeconds) || 0
     });
 
     return {
