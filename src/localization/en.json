@@ -4062,6 +4062,8 @@
             "account_removed": "Account removed",
             "auto_login_success": "Automatically logged in",
             "auto_login_failed": "Failed to login automatically",
+            "session_expired": "VRChat session expired. Returning to sign-in.",
+            "session_restore_available": "If a saved account is available, VRCX-0 will try to sign in again automatically.",
             "offline": "You're offline",
             "login_network_issue_hint_title": "Having trouble signing in?",
             "login_network_issue_hint_description": "Several recent sign-in attempts failed. Click Open for the troubleshooting guide"

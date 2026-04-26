@@ -44,8 +44,60 @@ export interface VrchatRequestError extends Error {
     payload: unknown;
 }
 
+export type VrchatAuthFailureHandler = (
+    error: VrchatRequestError
+) => void | Promise<void>;
+
+let vrchatAuthFailureHandler: VrchatAuthFailureHandler | null = null;
+let vrchatAuthFailureHandlerRegistrationId = 0;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
     return Boolean(value && typeof value === 'object');
+}
+
+export function setVrchatAuthFailureHandler(
+    handler: VrchatAuthFailureHandler | null
+): () => void {
+    const registrationId = ++vrchatAuthFailureHandlerRegistrationId;
+    vrchatAuthFailureHandler =
+        typeof handler === 'function' ? handler : null;
+
+    return () => {
+        if (vrchatAuthFailureHandlerRegistrationId === registrationId) {
+            vrchatAuthFailureHandler = null;
+        }
+    };
+}
+
+export function isVrchatMissingCredentialsError(
+    error: unknown
+): error is VrchatRequestError {
+    return Boolean(
+        error &&
+            typeof error === 'object' &&
+            (error as Partial<VrchatRequestError>).status === 401 &&
+            typeof (error as Error).message === 'string' &&
+            (error as Error).message.includes('Missing Credentials')
+    );
+}
+
+function notifyVrchatAuthFailure(error: VrchatRequestError): void {
+    if (!isVrchatMissingCredentialsError(error) || !vrchatAuthFailureHandler) {
+        return;
+    }
+
+    try {
+        void Promise.resolve(vrchatAuthFailureHandler(error)).catch(
+            (handlerError) => {
+                console.warn(
+                    'VRChat auth failure handler failed:',
+                    handlerError
+                );
+            }
+        );
+    } catch (handlerError) {
+        console.warn('VRChat auth failure handler failed:', handlerError);
+    }
 }
 
 function shouldSkipQueryValue(
@@ -209,8 +261,15 @@ export async function executeVrchatRequest<TJson = unknown>(
         const message = unwrapErrorMessage(json, response.status, {
             fallbackMessage
         });
+        const requestError = createRequestError(
+            message,
+            response.status,
+            path,
+            json
+        );
+        notifyVrchatAuthFailure(requestError);
         if (decorateError) {
-            throw createRequestError(message, response.status, path, json);
+            throw requestError;
         }
         throw new Error(message);
     }

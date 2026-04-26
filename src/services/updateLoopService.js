@@ -1,3 +1,4 @@
+import { isVrchatMissingCredentialsError } from '@/repositories/vrchatRequest.js';
 import { useRuntimeStore } from '@/state/runtimeStore.js';
 
 import {
@@ -10,6 +11,7 @@ import {
     isHostCapabilityAvailable
 } from './hostCapabilityService.js';
 import { showSQLiteErrorDialog } from './sqliteErrorDialogService.js';
+import i18n from './i18nService.js';
 
 let updateLoopTimer = null;
 let stopped = true;
@@ -50,6 +52,17 @@ async function tickRuntimeLoop() {
                     : 'Background maintenance is active. Game log tail sync is unavailable in this host.'
             );
     } catch (error) {
+        if (isVrchatMissingCredentialsError(error)) {
+            useRuntimeStore
+                .getState()
+                .setStartupTask(
+                    'updateLoop',
+                    'pending',
+                    await i18n.t('message.auth.session_expired')
+                );
+            return;
+        }
+
         await showSQLiteErrorDialog(error);
         useRuntimeStore
             .getState()

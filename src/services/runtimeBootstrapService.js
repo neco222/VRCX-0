@@ -18,6 +18,7 @@ import {
 } from './realtimeTransportService.js';
 import { getTimeUnitLabels, setI18nLanguage } from './i18nService.js';
 import { initializeReactRuntime } from './startupService.js';
+import { startRuntimeAuthFailureRecovery } from './authSessionRecoveryService.js';
 import { applyThemeMode } from './themeService.js';
 import { startRuntimeUpdateLoop } from './updateLoopService.js';
 import { startVrcStatusPolling } from './vrcStatusService.js';
@@ -83,7 +84,7 @@ function cleanupReactRuntimeServices() {
 }
 
 function createReactRuntimeStartPromise() {
-    const cleanups = [];
+    const cleanups = [startRuntimeAuthFailureRecovery()];
 
     return initializeReactRuntime()
         .then(() => bindBackendEvents())
@@ -103,6 +104,9 @@ function createReactRuntimeStartPromise() {
             }
         })
         .catch((error) => {
+            for (const entry of cleanups) {
+                entry?.();
+            }
             reactRuntimeStartPromise = null;
             reactRuntimeCleanup = null;
             if (reactRuntimeConsumerCount > 0) {

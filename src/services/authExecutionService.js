@@ -96,7 +96,7 @@ function getCurrentUserDisplayName(user) {
     return user?.displayName || user?.username || user?.id || '';
 }
 
-function setSignedOutSessionState() {
+export function setSignedOutSessionState() {
     useSessionStore.getState().setSessionState({
         isLoggedIn: false,
         isFriendsLoaded: false,
@@ -114,7 +114,7 @@ function setAuthenticatingSessionState() {
     });
 }
 
-function resetCurrentUserRuntimeAuth() {
+export function resetCurrentUserRuntimeAuth() {
     stopRealtimeTransport();
     void clearEntityQueryCache();
     avatarProfileRepository.clearAvatarNameCache();
