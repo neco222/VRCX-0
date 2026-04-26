@@ -253,7 +253,11 @@ function translateAccessType(
     }
     if (accessTypeName === 'groupPublic' || accessTypeName === 'groupPlus') {
         const groupKey = keyMap['group'];
-        return t(groupKey) + ' ' + t(key);
+        const groupLabel = t(groupKey);
+        const subtypeLabel = t(key);
+        return subtypeLabel.startsWith(groupLabel)
+            ? subtypeLabel
+            : `${groupLabel} ${subtypeLabel}`;
     }
     return t(key);
 }

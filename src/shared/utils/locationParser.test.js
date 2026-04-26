@@ -96,20 +96,35 @@ describe('locationParser', () => {
         ).toBe('World group(Group Name)');
     });
 
-    it('translates group access labels with the group prefix', () => {
-        const t = (key) => `t:${key}`;
+    it('translates group access labels with the group prefix when needed', () => {
+        const translations = {
+            'access.group': 'Group',
+            'access.group_plus': 'Plus',
+            'access.public': 'Public'
+        };
+        const t = (key) => translations[key] || key;
         const keyMap = {
             group: 'access.group',
             groupPlus: 'access.group_plus',
             public: 'access.public'
         };
 
-        expect(translateAccessType('groupPlus', t, keyMap)).toBe(
-            't:access.group t:access.group_plus'
-        );
-        expect(translateAccessType('public', t, keyMap)).toBe(
-            't:access.public'
-        );
+        expect(translateAccessType('groupPlus', t, keyMap)).toBe('Group Plus');
+        expect(translateAccessType('public', t, keyMap)).toBe('Public');
         expect(translateAccessType('invite+', t, keyMap)).toBe('invite+');
+    });
+
+    it('keeps full translated group subtype labels as-is', () => {
+        const translations = {
+            'access.group': 'Group',
+            'access.group_plus': 'Group+'
+        };
+        const t = (key) => translations[key] || key;
+        const keyMap = {
+            group: 'access.group',
+            groupPlus: 'access.group_plus'
+        };
+
+        expect(translateAccessType('groupPlus', t, keyMap)).toBe('Group+');
     });
 });

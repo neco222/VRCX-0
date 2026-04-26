@@ -188,6 +188,14 @@ function createGroupInstanceFallback(groupId) {
     return groupId ? { id: groupId, groupId, name: groupId } : null;
 }
 
+function resolveGroupInstanceName(group, groupId = '') {
+    const name = String(group?.name || group?.displayName || '').trim();
+    if (!name || name === groupId) {
+        return '';
+    }
+    return name;
+}
+
 function hasCompleteGroupInstanceGroup(instance) {
     const group = getGroupInstanceGroup(instance);
     return Boolean(
@@ -218,7 +226,17 @@ function mergeGroupInstanceGroup(existingGroup, fetchedGroup) {
             existingGroup.id ||
             fetchedGroup.groupId ||
             fetchedGroup.id,
-        name: existingGroup.name || fetchedGroup.name,
+        name:
+            resolveGroupInstanceName(
+                existingGroup,
+                existingGroup.groupId || existingGroup.id
+            ) ||
+            resolveGroupInstanceName(
+                fetchedGroup,
+                fetchedGroup.groupId || fetchedGroup.id
+            ) ||
+            existingGroup.name ||
+            fetchedGroup.name,
         iconUrl: existingGroup.iconUrl || fetchedGroup.iconUrl,
         icon: existingGroup.icon || fetchedGroup.icon,
         thumbnailUrl: existingGroup.thumbnailUrl || fetchedGroup.thumbnailUrl,
@@ -276,7 +294,8 @@ async function hydrateGroupInstances(instances, endpoint) {
     return (instances || []).map((instance) => {
         const groupId = normalizeGroupInstanceGroupId(instance);
         const group = mergeGroupInstanceGroup(
-            getGroupInstanceGroup(instance) || createGroupInstanceFallback(groupId),
+            getGroupInstanceGroup(instance) ||
+                createGroupInstanceFallback(groupId),
             groupsById.get(groupId)
         );
         return group ? { ...instance, group } : instance;

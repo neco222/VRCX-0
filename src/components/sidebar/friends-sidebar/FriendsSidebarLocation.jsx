@@ -75,6 +75,19 @@ function friendLocationHint(displaySource) {
     );
 }
 
+function friendGroupHint(displaySource) {
+    return (
+        displaySource?.groupName ||
+        displaySource?.$groupName ||
+        displaySource?.$location?.groupName ||
+        displaySource?.$location?.group?.name ||
+        displaySource?.$location?.group?.displayName ||
+        displaySource?.group?.name ||
+        displaySource?.group?.displayName ||
+        ''
+    );
+}
+
 export function resolveFriendRowLocationState({
     friend,
     isCurrentUser = false,
@@ -138,7 +151,8 @@ export function resolveFriendRowLocationState({
             displayLocation,
             displayTraveling
         ),
-        metadataHint: friendLocationHint(displaySource)
+        metadataHint: friendLocationHint(displaySource),
+        metadataGroupHint: friendGroupHint(displaySource)
     };
 }
 
@@ -354,6 +368,7 @@ export function buildSidebarLocationMetadataEntry(row) {
         key: row.key,
         locationInfo: parseLocation(locationState.metadataCurrentLocation),
         currentLocation: locationState.metadataCurrentLocation,
-        hint: locationState.metadataHint
+        hint: locationState.metadataHint,
+        groupHint: locationState.metadataGroupHint
     };
 }

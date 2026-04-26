@@ -216,19 +216,37 @@ async function getGroupProfile({
             ? entityQueryPolicies.groupDialog
             : entityQueryPolicies.group,
         force,
-        queryFn: async () => {
-            const response = await executeGet(
-                `groups/${encodeURIComponent(normalizedGroupId)}`,
-                {
-                    includeRoles: includeRoles ? 'true' : 'false'
-                },
-                { endpoint }
-            );
-            return response.json;
-        }
+        queryFn: () =>
+            fetchGroupProfile({
+                groupId: normalizedGroupId,
+                endpoint,
+                includeRoles
+            })
     });
 
-    return normalize(json);
+    return json;
+}
+
+async function fetchGroupProfile({
+    groupId,
+    endpoint = '',
+    includeRoles = true
+}) {
+    const normalizedGroupId = normalizeEntityId(groupId);
+    if (!normalizedGroupId) {
+        throw new Error(
+            'GroupProfileRepository.fetchGroupProfile requires a group id.'
+        );
+    }
+
+    const response = await executeGet(
+        `groups/${encodeURIComponent(normalizedGroupId)}`,
+        {
+            includeRoles: includeRoles ? 'true' : 'false'
+        },
+        { endpoint }
+    );
+    return normalize(response.json);
 }
 
 async function getUserGroups({ userId, endpoint = '' }) {
@@ -836,6 +854,7 @@ const groupProfileRepository = Object.freeze({
     executePost,
     executePut,
     executeDelete,
+    fetchGroupProfile,
     getGroupProfile,
     getUserGroups,
     getGroupPosts,

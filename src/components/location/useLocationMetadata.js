@@ -278,7 +278,8 @@ function resolveEntryMetadata(
         normalizeString(entry.locationInfo?.instanceName);
     const groupName =
         groupProfileName(groupProfilesById.get(entry.groupId)) ||
-        hintedGroupName;
+        hintedGroupName ||
+        entry.groupId;
     const localWorldName = normalizeWorldNameHint(
         localWorldNamesById.get(entry.worldId),
         entry.locationInfo,
@@ -382,7 +383,7 @@ export function useLocationMetadataBatch(entries = [], { endpoint = '' } = {}) {
         queries: groupIds.map((groupId) => ({
             queryKey: queryKeys.group(groupId, false, currentEndpoint),
             queryFn: () =>
-                groupProfileRepository.getGroupProfile({
+                groupProfileRepository.fetchGroupProfile({
                     groupId,
                     endpoint: currentEndpoint,
                     includeRoles: false

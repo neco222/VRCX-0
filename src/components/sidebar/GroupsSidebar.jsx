@@ -301,6 +301,7 @@ function GroupInstanceRow({ instance, currentUserId, friendsMap }) {
                                     <Location
                                         location={location}
                                         hint={worldHint}
+                                        grouphint={name}
                                         link={false}
                                         asButton={false}
                                         showGroupLink={false}

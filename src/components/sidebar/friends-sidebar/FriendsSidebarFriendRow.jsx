@@ -155,6 +155,7 @@ export function FriendRow({
                                         traveling={displayTraveling}
                                         hint={metadataHint}
                                         link
+                                        showGroupLink
                                         metadata={locationMetadata}
                                         t={t}
                                         showInstanceIdInLocation={
