@@ -15,6 +15,9 @@ import {
     DropdownMenuGroup,
     DropdownMenuItem,
     DropdownMenuSeparator,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
     DropdownMenuTrigger
 } from '@/ui/shadcn/dropdown-menu';
 import { Spinner } from '@/ui/shadcn/spinner';
@@ -323,6 +326,24 @@ function EntityActionSeparator() {
     return <DropdownMenuSeparator />;
 }
 
+function EntityActionSub({ children, icon: Icon, label, disabled = false }) {
+    return (
+        <DropdownMenuSub>
+            <DropdownMenuSubTrigger disabled={disabled}>
+                {Icon ? <Icon /> : null}
+                <span className="min-w-0 flex-1">{label}</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent
+                side="right"
+                align="start"
+                className="min-w-56"
+            >
+                <DropdownMenuGroup>{children}</DropdownMenuGroup>
+            </DropdownMenuSubContent>
+        </DropdownMenuSub>
+    );
+}
+
 function EntityRawJson({ value, valueFactory }) {
     const { t } = useTranslation();
 
@@ -438,6 +459,7 @@ export {
     EntityActionDropdown,
     EntityActionItem,
     EntityActionSeparator,
+    EntityActionSub,
     EntityBlank,
     EntityDialogHeader,
     EntityDialogScaffold,

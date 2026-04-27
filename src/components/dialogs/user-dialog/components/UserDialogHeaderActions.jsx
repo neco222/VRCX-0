@@ -1,16 +1,28 @@
 import {
     BanIcon,
-    CheckIcon,
-    MailIcon,
-    MapPinIcon,
-    MessageSquareIcon,
-    MousePointerIcon,
+    BugIcon,
+    EyeIcon,
+    EyeOffIcon,
+    HandIcon,
+    HistoryIcon,
+    MailPlusIcon,
+    MailQuestionIcon,
+    MessageSquarePlusIcon,
+    MessageSquareTextIcon,
+    MessageSquareXIcon,
+    MousePointerClickIcon,
+    NotebookPenIcon,
     PencilIcon,
     RefreshCwIcon,
+    RotateCcwIcon,
     SettingsIcon,
+    ShieldIcon,
     UserIcon,
-    UserMinusIcon,
-    UsersIcon,
+    UserCheckIcon,
+    UserPlusIcon,
+    UserRoundMinusIcon,
+    UserXIcon,
+    UsersRoundIcon,
     VolumeXIcon,
     XIcon
 } from 'lucide-react';
@@ -20,7 +32,8 @@ import { FavoriteActionMenu } from '@/components/favorites/FavoriteActionMenu.js
 import {
     EntityActionDropdown,
     EntityActionItem,
-    EntityActionSeparator
+    EntityActionSeparator,
+    EntityActionSub
 } from '../../EntityDialogScaffold.jsx';
 
 export function UserDialogHeaderActions({
@@ -63,6 +76,8 @@ export function UserDialogHeaderActions({
 }) {
     const isBusy = loadStatus === 'running' || actionStatus !== 'idle';
     const actionsDisabled = actionStatus !== 'idle';
+    const hasAvatarOverride =
+        avatarOverrideState.hideAvatar || avatarOverrideState.showAvatar;
 
     return (
         <>
@@ -76,7 +91,7 @@ export function UserDialogHeaderActions({
             ) : null}
             <EntityActionDropdown
                 busy={isBusy}
-                dangerous={moderationState.block || moderationState.mute}
+                dangerous={moderationState.block}
                 indicator={
                     friendRequestState.incoming || friendRequestState.outgoing
                 }
@@ -88,7 +103,7 @@ export function UserDialogHeaderActions({
                 >
                     {t('common.actions.refresh')}
                 </EntityActionItem>
-                <EntityActionItem icon={UserIcon} onSelect={onEditMemo}>
+                <EntityActionItem icon={NotebookPenIcon} onSelect={onEditMemo}>
                     {t('dialog.user.actions.edit_note_memo')}
                 </EntityActionItem>
                 {currentAvatarTarget ? (
@@ -105,6 +120,15 @@ export function UserDialogHeaderActions({
                         onSelect={onOpenFallbackAvatar}
                     >
                         {t('dialog.user.actions.show_fallback_avatar')}
+                    </EntityActionItem>
+                ) : null}
+                {!isCurrentUser ? (
+                    <EntityActionItem
+                        icon={HistoryIcon}
+                        disabled={!previousInstances.length}
+                        onSelect={onShowInstanceHistory}
+                    >
+                        {t('dialog.user.actions.show_previous_instances')}
                     </EntityActionItem>
                 ) : null}
                 {isCurrentUser ? (
@@ -132,14 +156,14 @@ export function UserDialogHeaderActions({
                         {!isFriend && friendRequestState.incoming ? (
                             <>
                                 <EntityActionItem
-                                    icon={CheckIcon}
+                                    icon={UserCheckIcon}
                                     disabled={actionsDisabled}
                                     onSelect={() => onFriendRequest('accept')}
                                 >
                                     {t('dialog.user.actions.accept_friend_request')}
                                 </EntityActionItem>
                                 <EntityActionItem
-                                    icon={XIcon}
+                                    icon={UserXIcon}
                                     destructive
                                     disabled={actionsDisabled}
                                     onSelect={() => onFriendRequest('decline')}
@@ -157,7 +181,7 @@ export function UserDialogHeaderActions({
                             </EntityActionItem>
                         ) : !isFriend ? (
                             <EntityActionItem
-                                icon={UserIcon}
+                                icon={UserPlusIcon}
                                 shortcut={recentDialogShortcut(
                                     'Send Friend Request'
                                 )}
@@ -170,7 +194,7 @@ export function UserDialogHeaderActions({
                         {isFriend ? (
                             <>
                                 <EntityActionItem
-                                    icon={MessageSquareIcon}
+                                    icon={MailPlusIcon}
                                     shortcut={recentDialogShortcut('Invite')}
                                     disabled={
                                         actionsDisabled ||
@@ -181,7 +205,7 @@ export function UserDialogHeaderActions({
                                     {t('dialog.user.actions.invite')}
                                 </EntityActionItem>
                                 <EntityActionItem
-                                    icon={MessageSquareIcon}
+                                    icon={MessageSquarePlusIcon}
                                     shortcut={recentDialogShortcut(
                                         'Invite Message'
                                     )}
@@ -194,7 +218,7 @@ export function UserDialogHeaderActions({
                                     {t('dialog.invite_message.header')}
                                 </EntityActionItem>
                                 <EntityActionItem
-                                    icon={MailIcon}
+                                    icon={MailQuestionIcon}
                                     shortcut={recentDialogShortcut(
                                         'Request Invite'
                                     )}
@@ -204,7 +228,7 @@ export function UserDialogHeaderActions({
                                     {t('dialog.user.actions.request_invite')}
                                 </EntityActionItem>
                                 <EntityActionItem
-                                    icon={MailIcon}
+                                    icon={MessageSquareTextIcon}
                                     shortcut={recentDialogShortcut(
                                         'Request Invite Message'
                                     )}
@@ -214,7 +238,7 @@ export function UserDialogHeaderActions({
                                     {t('dialog.invite_request_message.header')}
                                 </EntityActionItem>
                                 <EntityActionItem
-                                    icon={MousePointerIcon}
+                                    icon={MousePointerClickIcon}
                                     disabled={
                                         actionsDisabled ||
                                         !currentUserBoopingEnabled
@@ -223,134 +247,163 @@ export function UserDialogHeaderActions({
                                 >
                                     {t('dialog.user.actions.send_boop')}
                                 </EntityActionItem>
-                                <EntityActionItem
-                                    icon={UserMinusIcon}
-                                    destructive
-                                    disabled={actionsDisabled}
-                                    onSelect={onUnfriend}
-                                >
-                                    {t('dialog.user.actions.unfriend')}
-                                </EntityActionItem>
                             </>
                         ) : null}
-                        <EntityActionItem
-                            icon={UsersIcon}
-                            disabled={actionsDisabled}
-                            onSelect={() => void onInviteToGroup()}
-                        >
-                            {t('dialog.user.actions.invite_to_group')}
-                        </EntityActionItem>
-                        <EntityActionItem
-                            icon={SettingsIcon}
-                            disabled={actionsDisabled}
-                            onSelect={onGroupModeration}
-                        >
-                            {t('dialog.user.actions.group_moderation')}
-                        </EntityActionItem>
                         <EntityActionSeparator />
-                        <EntityActionItem
-                            icon={MapPinIcon}
-                            disabled={!previousInstances.length}
-                            onSelect={onShowInstanceHistory}
-                        >
-                            {t('dialog.user.actions.show_previous_instances')}
-                        </EntityActionItem>
-                        <EntityActionItem
-                            icon={BanIcon}
-                            destructive={moderationState.block}
-                            disabled={
-                                actionsDisabled ||
-                                (!moderationState.block &&
-                                    Boolean(profile.$isModerator))
-                            }
-                            onSelect={() =>
-                                onModeration('block', !moderationState.block)
-                            }
-                        >
-                            {t(
-                                moderationState.block
-                                    ? 'dialog.user.actions.moderation_unblock'
-                                    : 'dialog.user.actions.moderation_block'
-                            )}
-                        </EntityActionItem>
-                        <EntityActionItem
-                            icon={VolumeXIcon}
-                            destructive={moderationState.mute}
-                            disabled={
-                                actionsDisabled ||
-                                (!moderationState.mute &&
-                                    Boolean(profile.$isModerator))
-                            }
-                            onSelect={() =>
-                                onModeration('mute', !moderationState.mute)
-                            }
-                        >
-                            {t(
-                                moderationState.mute
-                                    ? 'dialog.user.actions.moderation_unmute'
-                                    : 'dialog.user.actions.moderation_mute'
-                            )}
-                        </EntityActionItem>
-                        <EntityActionItem
-                            icon={UserIcon}
-                            destructive={avatarOverrideState.hideAvatar}
+                        <EntityActionSub
+                            icon={UsersRoundIcon}
+                            label={t('dialog.user.actions.group_actions')}
                             disabled={actionsDisabled}
-                            onSelect={() => onAvatarOverride?.('hideAvatar')}
                         >
-                            {t(
-                                avatarOverrideState.hideAvatar
-                                    ? 'dialog.user.actions.reset_hidden_avatar'
-                                    : 'dialog.user.actions.moderation_hide_avatar'
-                            )}
-                        </EntityActionItem>
-                        <EntityActionItem
-                            icon={UserIcon}
-                            destructive={avatarOverrideState.showAvatar}
+                            <EntityActionItem
+                                icon={UsersRoundIcon}
+                                disabled={actionsDisabled}
+                                onSelect={() => void onInviteToGroup()}
+                            >
+                                {t('dialog.user.actions.invite_to_group')}
+                            </EntityActionItem>
+                            <EntityActionItem
+                                icon={SettingsIcon}
+                                disabled={actionsDisabled}
+                                onSelect={onGroupModeration}
+                            >
+                                {t('dialog.user.actions.group_moderation')}
+                            </EntityActionItem>
+                        </EntityActionSub>
+                        <EntityActionSub
+                            icon={ShieldIcon}
+                            label={t('dialog.user.actions.moderation_actions')}
                             disabled={actionsDisabled}
-                            onSelect={() => onAvatarOverride?.('showAvatar')}
                         >
-                            {t(
-                                avatarOverrideState.showAvatar
-                                    ? 'dialog.user.actions.reset_shown_avatar'
-                                    : 'dialog.user.actions.moderation_show_avatar'
+                            <EntityActionItem
+                                icon={BanIcon}
+                                destructive={!moderationState.block}
+                                disabled={
+                                    actionsDisabled ||
+                                    (!moderationState.block &&
+                                        Boolean(profile.$isModerator))
+                                }
+                                onSelect={() =>
+                                    onModeration(
+                                        'block',
+                                        !moderationState.block
+                                    )
+                                }
+                            >
+                                {t(
+                                    moderationState.block
+                                        ? 'dialog.user.actions.moderation_unblock'
+                                        : 'dialog.user.actions.moderation_block'
+                                )}
+                            </EntityActionItem>
+                            <EntityActionItem
+                                icon={VolumeXIcon}
+                                disabled={
+                                    actionsDisabled ||
+                                    (!moderationState.mute &&
+                                        Boolean(profile.$isModerator))
+                                }
+                                onSelect={() =>
+                                    onModeration(
+                                        'mute',
+                                        !moderationState.mute
+                                    )
+                                }
+                            >
+                                {t(
+                                    moderationState.mute
+                                        ? 'dialog.user.actions.moderation_unmute'
+                                        : 'dialog.user.actions.moderation_mute'
+                                )}
+                            </EntityActionItem>
+                            {hasAvatarOverride ? (
+                                <EntityActionItem
+                                    icon={RotateCcwIcon}
+                                    disabled={actionsDisabled}
+                                    onSelect={() =>
+                                        onAvatarOverride?.(
+                                            avatarOverrideState.hideAvatar
+                                                ? 'hideAvatar'
+                                                : 'showAvatar'
+                                        )
+                                    }
+                                >
+                                    {t(
+                                        'dialog.user.actions.reset_avatar_visibility'
+                                    )}
+                                </EntityActionItem>
+                            ) : (
+                                <>
+                                    <EntityActionItem
+                                        icon={EyeOffIcon}
+                                        disabled={actionsDisabled}
+                                        onSelect={() =>
+                                            onAvatarOverride?.('hideAvatar')
+                                        }
+                                    >
+                                        {t(
+                                            'dialog.user.actions.moderation_hide_avatar'
+                                        )}
+                                    </EntityActionItem>
+                                    <EntityActionItem
+                                        icon={EyeIcon}
+                                        disabled={actionsDisabled}
+                                        onSelect={() =>
+                                            onAvatarOverride?.('showAvatar')
+                                        }
+                                    >
+                                        {t(
+                                            'dialog.user.actions.moderation_show_avatar'
+                                        )}
+                                    </EntityActionItem>
+                                </>
                             )}
-                        </EntityActionItem>
+                            <EntityActionItem
+                                icon={HandIcon}
+                                disabled={actionsDisabled}
+                                onSelect={() =>
+                                    onExtendedModeration?.(
+                                        'interactOff',
+                                        !extendedModerationState.interactOff
+                                    )
+                                }
+                            >
+                                {t(
+                                    extendedModerationState.interactOff
+                                        ? 'dialog.user.actions.moderation_enable_avatar_interaction'
+                                        : 'dialog.user.actions.moderation_disable_avatar_interaction'
+                                )}
+                            </EntityActionItem>
+                            <EntityActionItem
+                                icon={MessageSquareXIcon}
+                                disabled={actionsDisabled}
+                                onSelect={() =>
+                                    onExtendedModeration?.(
+                                        'muteChat',
+                                        !extendedModerationState.muteChat
+                                    )
+                                }
+                            >
+                                {t(
+                                    extendedModerationState.muteChat
+                                        ? 'dialog.user.actions.moderation_enable_chatbox'
+                                        : 'dialog.user.actions.moderation_disable_chatbox'
+                                )}
+                            </EntityActionItem>
+                        </EntityActionSub>
+                        <EntityActionSeparator />
+                        {isFriend ? (
+                            <EntityActionItem
+                                icon={UserRoundMinusIcon}
+                                destructive
+                                disabled={actionsDisabled}
+                                onSelect={onUnfriend}
+                            >
+                                {t('dialog.user.actions.unfriend')}
+                            </EntityActionItem>
+                        ) : null}
                         <EntityActionItem
-                            icon={BanIcon}
-                            destructive={extendedModerationState.interactOff}
-                            disabled={actionsDisabled}
-                            onSelect={() =>
-                                onExtendedModeration?.(
-                                    'interactOff',
-                                    !extendedModerationState.interactOff
-                                )
-                            }
-                        >
-                            {t(
-                                extendedModerationState.interactOff
-                                    ? 'dialog.user.actions.moderation_enable_avatar_interaction'
-                                    : 'dialog.user.actions.moderation_disable_avatar_interaction'
-                            )}
-                        </EntityActionItem>
-                        <EntityActionItem
-                            icon={VolumeXIcon}
-                            destructive={extendedModerationState.muteChat}
-                            disabled={actionsDisabled}
-                            onSelect={() =>
-                                onExtendedModeration?.(
-                                    'muteChat',
-                                    !extendedModerationState.muteChat
-                                )
-                            }
-                        >
-                            {t(
-                                extendedModerationState.muteChat
-                                    ? 'dialog.user.actions.moderation_enable_chatbox'
-                                    : 'dialog.user.actions.moderation_disable_chatbox'
-                            )}
-                        </EntityActionItem>
-                        <EntityActionItem
-                            icon={BanIcon}
+                            icon={BugIcon}
                             destructive
                             disabled={actionsDisabled}
                             onSelect={onReportHacking}
