@@ -1,5 +1,5 @@
 import { HeartIcon } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { useTranslation } from 'react-i18next';
@@ -23,6 +23,9 @@ import {
 } from '@/ui/shadcn/dropdown-menu';
 import { Spinner } from '@/ui/shadcn/spinner';
 
+const EMPTY_GROUPS = Object.freeze([]);
+const EMPTY_FAVORITES = Object.freeze({});
+
 function normalizeEntityId(value) {
     return typeof value === 'string'
         ? value.trim()
@@ -39,26 +42,20 @@ function resolveGroups(kind, state) {
     if (kind === 'world') {
         return state.favoriteWorldGroups;
     }
-    return [];
+    return EMPTY_GROUPS;
 }
 
 function resolveLocalGroups(kind, state) {
     if (kind === 'friend') {
-        return state.localFriendFavoriteGroups.length
-            ? state.localFriendFavoriteGroups
-            : Object.keys(state.localFriendFavorites || {});
+        return state.localFriendFavoriteGroups;
     }
     if (kind === 'avatar') {
-        return state.localAvatarFavoriteGroups.length
-            ? state.localAvatarFavoriteGroups
-            : Object.keys(state.localAvatarFavorites || {});
+        return state.localAvatarFavoriteGroups;
     }
     if (kind === 'world') {
-        return state.localWorldFavoriteGroups.length
-            ? state.localWorldFavoriteGroups
-            : Object.keys(state.localWorldFavorites || {});
+        return state.localWorldFavoriteGroups;
     }
-    return [];
+    return EMPTY_GROUPS;
 }
 
 function resolveLocalFavorites(kind, state) {
@@ -71,7 +68,7 @@ function resolveLocalFavorites(kind, state) {
     if (kind === 'world') {
         return state.localWorldFavorites || {};
     }
-    return {};
+    return EMPTY_FAVORITES;
 }
 
 function formatGroupLabel(group) {
@@ -116,11 +113,18 @@ export function FavoriteActionMenu({
     );
     const confirm = useModalStore((state) => state.confirm);
     const groups = useFavoriteStore((state) => resolveGroups(kind, state));
-    const localGroups = useFavoriteStore((state) =>
+    const storedLocalGroups = useFavoriteStore((state) =>
         resolveLocalGroups(kind, state)
     );
     const localFavorites = useFavoriteStore((state) =>
         resolveLocalFavorites(kind, state)
+    );
+    const localGroups = useMemo(
+        () =>
+            storedLocalGroups.length
+                ? storedLocalGroups
+                : Object.keys(localFavorites),
+        [storedLocalGroups, localFavorites]
     );
     const remoteFavorite = useFavoriteStore(
         (state) => state.remoteFavoritesByObjectId[normalizedEntityId] || null
