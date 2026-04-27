@@ -8,6 +8,49 @@ import { userProfileRepository } from '@/repositories/index.js';
 
 import { normalizeUserId } from './userProfileFields.js';
 
+function resolveProfileUserId(profile) {
+    return normalizeUserId(
+        profile?.id ||
+            profile?.userId ||
+            profile?.user_id ||
+            profile?.targetUserId ||
+            profile?.target_user_id
+    );
+}
+
+function normalizeTargetSnapshot(
+    snapshot,
+    targetUserId,
+    { allowMissingId = true } = {}
+) {
+    if (!snapshot) {
+        return null;
+    }
+
+    const nextProfile = userProfileRepository.normalize(snapshot);
+    const snapshotUserId = resolveProfileUserId(nextProfile);
+    if (snapshotUserId && snapshotUserId !== targetUserId) {
+        return null;
+    }
+    if (!snapshotUserId && targetUserId && allowMissingId) {
+        return {
+            ...nextProfile,
+            id: targetUserId
+        };
+    }
+    return nextProfile;
+}
+
+function profileMatchesTarget(profile, targetUserId) {
+    return Boolean(
+        profile && targetUserId && resolveProfileUserId(profile) === targetUserId
+    );
+}
+
+function previousTargetProfile(profile, targetUserId) {
+    return profileMatchesTarget(profile, targetUserId) ? profile : null;
+}
+
 export function useUserDialogProfileResource({
     currentEndpoint,
     currentUserSnapshot,
@@ -18,23 +61,41 @@ export function useUserDialogProfileResource({
     normalizedUserId,
     updateEntityDialogMetadata
 }) {
-    const localSnapshotRef = useRef(localSnapshot);
-    localSnapshotRef.current = localSnapshot;
+    const normalizedLocalSnapshot = useMemo(
+        () => normalizeTargetSnapshot(localSnapshot, normalizedUserId),
+        [localSnapshot, normalizedUserId]
+    );
+    const currentUserPresenceSnapshot = useMemo(
+        () =>
+            normalizeTargetSnapshot(currentUserSnapshot, normalizedUserId, {
+                allowMissingId: false
+            }),
+        [currentUserSnapshot, normalizedUserId]
+    );
+    const localSnapshotRef = useRef(normalizedLocalSnapshot);
+    localSnapshotRef.current = normalizedLocalSnapshot;
     const [baseProfile, setBaseProfile] = useState(() =>
-        localSnapshot ? userProfileRepository.normalize(localSnapshot) : null
+        normalizedLocalSnapshot
+    );
+    const activeBaseProfile = useMemo(
+        () =>
+            profileMatchesTarget(baseProfile, normalizedUserId)
+                ? baseProfile
+                : normalizedLocalSnapshot,
+        [baseProfile, normalizedLocalSnapshot, normalizedUserId]
     );
     const profile = useMemo(
         () =>
             isTargetCurrentUser
-                ? buildCurrentUserPresenceView(baseProfile, {
-                      currentUserSnapshot,
+                ? buildCurrentUserPresenceView(activeBaseProfile, {
+                      currentUserSnapshot: currentUserPresenceSnapshot,
                       gameState,
                       gameLogDisabled
                   })
-                : baseProfile,
+                : activeBaseProfile,
         [
-            baseProfile,
-            currentUserSnapshot,
+            activeBaseProfile,
+            currentUserPresenceSnapshot,
             gameState?.currentDestination,
             gameState?.currentLocation,
             gameState?.currentWorldId,
@@ -52,29 +113,31 @@ export function useUserDialogProfileResource({
         userId: normalizedUserId,
         endpoint: currentEndpoint
     });
+    activeUserTargetRef.current.userId = normalizedUserId;
+    activeUserTargetRef.current.endpoint = currentEndpoint;
+
+    const effectiveLoadStatus =
+        normalizedUserId && !profile && loadStatus !== 'error'
+            ? 'running'
+            : loadStatus;
 
     useEffect(() => {
-        activeUserTargetRef.current = {
-            userId: normalizedUserId,
-            endpoint: currentEndpoint
-        };
-    }, [currentEndpoint, normalizedUserId]);
-
-    useEffect(() => {
-        if (localSnapshot) {
-            const nextSnapshot = userProfileRepository.normalize(localSnapshot);
+        if (normalizedLocalSnapshot) {
             setBaseProfile((currentProfile) =>
                 isTargetCurrentUser
                     ? mergeCurrentUserPresenceFields(
-                          nextSnapshot,
-                          currentProfile
+                          normalizedLocalSnapshot,
+                          previousTargetProfile(
+                              currentProfile,
+                              normalizedUserId
+                          )
                       )
-                    : nextSnapshot
+                    : normalizedLocalSnapshot
             );
         } else if (!normalizedUserId) {
             setBaseProfile(null);
         }
-    }, [isTargetCurrentUser, localSnapshot, normalizedUserId]);
+    }, [isTargetCurrentUser, normalizedLocalSnapshot, normalizedUserId]);
 
     useEffect(() => {
         const title = normalizeUserId(
@@ -108,13 +171,13 @@ export function useUserDialogProfileResource({
         }
 
         const snapshot = localSnapshotRef.current;
-        const nextSnapshot = snapshot
-            ? userProfileRepository.normalize(snapshot)
-            : null;
         setBaseProfile((currentProfile) =>
-            isTargetCurrentUser && nextSnapshot
-                ? mergeCurrentUserPresenceFields(nextSnapshot, currentProfile)
-                : nextSnapshot
+            isTargetCurrentUser && snapshot
+                ? mergeCurrentUserPresenceFields(
+                      snapshot,
+                      previousTargetProfile(currentProfile, normalizedUserId)
+                  )
+                : snapshot
         );
         setLoadStatus('running');
         setDetail('');
@@ -135,7 +198,10 @@ export function useUserDialogProfileResource({
                     isTargetCurrentUser
                         ? mergeCurrentUserPresenceFields(
                               nextProfile,
-                              currentProfile
+                              previousTargetProfile(
+                                  currentProfile,
+                                  normalizedUserId
+                              )
                           )
                         : nextProfile
                 );
@@ -148,15 +214,16 @@ export function useUserDialogProfileResource({
 
                 const fallbackSnapshot = localSnapshotRef.current;
                 if (fallbackSnapshot) {
-                    const nextFallback =
-                        userProfileRepository.normalize(fallbackSnapshot);
                     setBaseProfile((currentProfile) =>
                         isTargetCurrentUser
                             ? mergeCurrentUserPresenceFields(
-                                  nextFallback,
-                                  currentProfile
+                                  fallbackSnapshot,
+                                  previousTargetProfile(
+                                      currentProfile,
+                                      normalizedUserId
+                                  )
                               )
-                            : nextFallback
+                            : fallbackSnapshot
                     );
                     setLoadStatus('ready');
                     setDetail(
@@ -192,9 +259,9 @@ export function useUserDialogProfileResource({
 
     return {
         activeUserTargetRef,
-        baseProfile,
+        baseProfile: activeBaseProfile,
         detail,
-        loadStatus,
+        loadStatus: effectiveLoadStatus,
         profile,
         refreshProfile,
         reloadToken,

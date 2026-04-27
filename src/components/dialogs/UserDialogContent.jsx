@@ -18,7 +18,10 @@ import {
     resolvePresenceLocation
 } from './user-dialog/userDialogContentHelpers.js';
 import { UserDialogContentDialogs } from './user-dialog/components/UserDialogContentDialogs.jsx';
-import { UserDialogEmptyState } from './user-dialog/components/UserDialogContentStates.jsx';
+import {
+    UserDialogEmptyState,
+    UserDialogProfileSkeleton
+} from './user-dialog/components/UserDialogContentStates.jsx';
 import { dialogTargetKey } from './user-dialog/userDialogCache.js';
 import {
     buildFavoriteIdSet,
@@ -35,6 +38,30 @@ import { useUserDialogProfileResource } from './user-dialog/useUserDialogProfile
 import { useUserDialogSelfActions } from './user-dialog/useUserDialogSelfActions.js';
 import { useUserDialogSupplementalData } from './user-dialog/useUserDialogSupplementalData.js';
 import { UserDialogTabbedView } from './UserDialogTabbedView.jsx';
+
+const userDialogSkeletonDelayMs = 160;
+
+function useDelayedUserDialogSkeleton(loading, identity) {
+    const [visible, setVisible] = useState(false);
+
+    useEffect(() => {
+        if (!loading) {
+            setVisible(false);
+            return undefined;
+        }
+
+        setVisible(false);
+        const timer = setTimeout(() => {
+            setVisible(true);
+        }, userDialogSkeletonDelayMs);
+
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [identity, loading]);
+
+    return visible;
+}
 
 export function UserDialogContent({ userId, seedData = null, openNonce = 0 }) {
     const { t } = useTranslation();
@@ -156,6 +183,12 @@ export function UserDialogContent({ userId, seedData = null, openNonce = 0 }) {
         normalizedUserId,
         updateEntityDialogMetadata
     });
+    const targetIdentity = `${currentEndpoint || ''}:${normalizedUserId || ''}:${openNonce}`;
+    const profileIsLoading = loadStatus === 'running' && !profile;
+    const showProfileSkeleton = useDelayedUserDialogSkeleton(
+        profileIsLoading,
+        targetIdentity
+    );
 
     const currentGameLocation = normalizeUserId(gameState?.currentLocation);
     const currentGameDestination = normalizeUserId(
@@ -319,12 +352,11 @@ export function UserDialogContent({ userId, seedData = null, openNonce = 0 }) {
         userSessionRepository
     });
 
-    if (loadStatus === 'running' && !profile) {
+    if (profileIsLoading) {
         return (
-            <UserDialogEmptyState
-                loading
-                title={t('dialog.user.generated.loading_user_profile')}
-                description={t('dialog.user.generated.fetching_the_current_vrchat_user_snapshot_for_this_dialog')}
+            <UserDialogProfileSkeleton
+                label={t('dialog.user.generated.loading_user_profile')}
+                visible={showProfileSkeleton}
             />
         );
     }

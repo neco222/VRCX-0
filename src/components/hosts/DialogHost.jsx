@@ -113,6 +113,9 @@ export function DialogHost() {
                 ) : null}
                 {isUserDialog ? (
                     <UserDialogContent
+                        key={`user:${activeDialog?.entityId ?? ''}:${
+                            activeDialog?.openNonce ?? 0
+                        }`}
                         userId={activeDialog?.entityId}
                         seedData={dialogPayload?.seedData ?? null}
                         openNonce={activeDialog?.openNonce ?? 0}

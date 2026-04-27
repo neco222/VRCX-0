@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { gameLogRepository, userProfileRepository } from '@/repositories/index.js';
 
@@ -9,6 +9,7 @@ import {
 import {
     cachePreviousInstances,
     cacheUserStats,
+    DEFAULT_USER_STATS,
     readCachedPreviousInstances,
     readCachedUserStats
 } from './userDialogCache.js';
@@ -39,22 +40,96 @@ export function useUserDialogSupplementalData({
     reloadToken,
     targetKey
 }) {
-    const [previousInstances, setPreviousInstances] = useState(() =>
-        readCachedPreviousInstances(targetKey)
+    const [previousInstancesState, setPreviousInstancesState] = useState(() => ({
+        targetKey,
+        rows: readCachedPreviousInstances(targetKey)
+    }));
+    const [userStatsState, setUserStatsState] = useState(() => ({
+        targetKey,
+        stats: readCachedUserStats(targetKey)
+    }));
+    const [representedGroupState, setRepresentedGroupState] = useState(() => ({
+        endpoint: currentEndpoint,
+        group: null,
+        status: normalizedUserId ? 'running' : 'idle',
+        userId: normalizedUserId
+    }));
+    const visiblePreviousInstances =
+        previousInstancesState.targetKey === targetKey
+            ? previousInstancesState.rows
+            : [];
+    const visibleUserStats =
+        userStatsState.targetKey === targetKey
+            ? userStatsState.stats
+            : DEFAULT_USER_STATS;
+    const representedGroupMatchesTarget =
+        representedGroupState.userId === normalizedUserId &&
+        representedGroupState.endpoint === currentEndpoint;
+    const visibleRepresentedGroup = representedGroupMatchesTarget
+        ? representedGroupState.group
+        : null;
+    const visibleRepresentedGroupStatus = representedGroupMatchesTarget
+        ? representedGroupState.status
+        : normalizedUserId
+          ? 'running'
+          : 'idle';
+
+    const setPreviousInstances = useCallback(
+        (nextValue) => {
+            setPreviousInstancesState((currentState) => {
+                const currentRows =
+                    currentState.targetKey === targetKey
+                        ? currentState.rows
+                        : [];
+                const nextRows =
+                    typeof nextValue === 'function'
+                        ? nextValue(currentRows)
+                        : nextValue;
+                const normalizedRows = Array.isArray(nextRows)
+                    ? nextRows
+                    : [];
+                cachePreviousInstances(targetKey, normalizedRows);
+                return {
+                    targetKey,
+                    rows: normalizedRows
+                };
+            });
+        },
+        [targetKey]
     );
-    const [userStats, setUserStats] = useState(() =>
-        readCachedUserStats(targetKey)
+
+    const setUserStatsForTarget = useCallback(
+        (nextValue) => {
+            setUserStatsState((currentState) => {
+                const currentStats =
+                    currentState.targetKey === targetKey
+                        ? currentState.stats
+                        : readCachedUserStats(targetKey);
+                const nextStats =
+                    typeof nextValue === 'function'
+                        ? nextValue(currentStats)
+                        : nextValue;
+                const normalizedStats = nextStats || DEFAULT_USER_STATS;
+                cacheUserStats(targetKey, normalizedStats);
+                return {
+                    targetKey,
+                    stats: normalizedStats
+                };
+            });
+        },
+        [targetKey]
     );
-    const [representedGroup, setRepresentedGroup] = useState(null);
-    const [representedGroupStatus, setRepresentedGroupStatus] =
-        useState('idle');
 
     useEffect(() => {
         let active = true;
 
         if (!normalizedUserId) {
-            setRepresentedGroup(null);
-            setRepresentedGroupStatus('idle');
+            setRepresentedGroupState({
+                endpoint: currentEndpoint,
+                group: null,
+                status: 'idle',
+                userId: ''
+            });
             return () => {
                 active = false;
             };
@@ -62,8 +137,12 @@ export function useUserDialogSupplementalData({
 
         const targetUserId = normalizedUserId;
         const targetEndpoint = currentEndpoint;
-        setRepresentedGroup(null);
-        setRepresentedGroupStatus('running');
+        setRepresentedGroupState({
+            endpoint: targetEndpoint,
+            group: null,
+            status: 'running',
+            userId: targetUserId
+        });
 
         userProfileRepository
             .getRepresentedGroup({
@@ -79,8 +158,12 @@ export function useUserDialogSupplementalData({
                 ) {
                     return;
                 }
-                setRepresentedGroup(group);
-                setRepresentedGroupStatus('ready');
+                setRepresentedGroupState({
+                    endpoint: targetEndpoint,
+                    group,
+                    status: 'ready',
+                    userId: targetUserId
+                });
             })
             .catch(() => {
                 if (
@@ -90,8 +173,12 @@ export function useUserDialogSupplementalData({
                 ) {
                     return;
                 }
-                setRepresentedGroup(null);
-                setRepresentedGroupStatus('error');
+                setRepresentedGroupState({
+                    endpoint: targetEndpoint,
+                    group: null,
+                    status: 'error',
+                    userId: targetUserId
+                });
             });
 
         return () => {
@@ -101,7 +188,10 @@ export function useUserDialogSupplementalData({
 
     useEffect(() => {
         let active = true;
-        setPreviousInstances(readCachedPreviousInstances(targetKey));
+        setPreviousInstancesState({
+            targetKey,
+            rows: readCachedPreviousInstances(targetKey)
+        });
 
         if (!profile?.id) {
             return () => {
@@ -121,7 +211,10 @@ export function useUserDialogSupplementalData({
                     rows instanceof Set ? Array.from(rows.values()) : [];
                 const nextInstances = values.reverse();
                 cachePreviousInstances(targetKey, nextInstances);
-                setPreviousInstances(nextInstances);
+                setPreviousInstancesState({
+                    targetKey,
+                    rows: nextInstances
+                });
             })
             .catch(() => {
                 // Keep the last visible rows while a refresh fails.
@@ -141,7 +234,10 @@ export function useUserDialogSupplementalData({
 
     useEffect(() => {
         let active = true;
-        setUserStats(readCachedUserStats(targetKey));
+        setUserStatsState({
+            targetKey,
+            stats: readCachedUserStats(targetKey)
+        });
 
         if (!profile?.id) {
             return () => {
@@ -192,12 +288,11 @@ export function useUserDialogSupplementalData({
                     joinCount: Number(stats?.joinCount) || 0,
                     previousDisplayNames
                 };
-                setUserStats((current) => {
+                setUserStatsForTarget((current) => {
                     const mergedStats = {
                         ...current,
                         ...nextStats
                     };
-                    cacheUserStats(targetKey, mergedStats);
                     return mergedStats;
                 });
             })
@@ -219,6 +314,7 @@ export function useUserDialogSupplementalData({
         profile?.username,
         openNonce,
         reloadToken,
+        setUserStatsForTarget,
         targetKey
     ]);
 
@@ -245,12 +341,11 @@ export function useUserDialogSupplementalData({
                     return;
                 }
                 const mutualFriendCount = normalizeMutualFriendCount(counts);
-                setUserStats((current) => {
+                setUserStatsForTarget((current) => {
                     const nextStats = {
                         ...current,
                         mutualFriendCount
                     };
-                    cacheUserStats(targetKey, nextStats);
                     return nextStats;
                 });
             })
@@ -267,14 +362,15 @@ export function useUserDialogSupplementalData({
         isTargetCurrentUser,
         profile?.id,
         reloadToken,
+        setUserStatsForTarget,
         targetKey
     ]);
 
     return {
-        previousInstances,
-        representedGroup,
-        representedGroupStatus,
+        previousInstances: visiblePreviousInstances,
+        representedGroup: visibleRepresentedGroup,
+        representedGroupStatus: visibleRepresentedGroupStatus,
         setPreviousInstances,
-        userStats
+        userStats: visibleUserStats
     };
 }
