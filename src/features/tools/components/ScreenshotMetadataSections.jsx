@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { KeyboardShortcut } from '@/components/keyboard/KeyboardShortcut.jsx';
 import { Badge } from '@/ui/shadcn/badge';
 import { Button } from '@/ui/shadcn/button';
 import {
@@ -168,6 +169,9 @@ export function ScreenshotMetadataToolbar({
                             }
                         }}
                     />
+                    <InputGroupAddon align="inline-end">
+                        <KeyboardShortcut keys="Enter" />
+                    </InputGroupAddon>
                 </InputGroup>
                 <Select value={searchType} onValueChange={onSearchTypeChange}>
                     <SelectTrigger className="w-full lg:w-52">
@@ -363,6 +367,7 @@ export function ScreenshotMetadataPreviewCard({
                         >
                             <ArrowLeftIcon data-icon="inline-start" />
                             {t('view.tools.generated.prev')}
+                            <KeyboardShortcut keys={['Alt', 'ArrowLeft']} />
                         </Button>
                         <Button
                             variant="outline"
@@ -370,6 +375,7 @@ export function ScreenshotMetadataPreviewCard({
                             onClick={onNavigateNext}
                         >
                             {t('table.pagination.next')}
+                            <KeyboardShortcut keys={['Alt', 'ArrowRight']} />
                             <ArrowRightIcon data-icon="inline-end" />
                         </Button>
                     </div>

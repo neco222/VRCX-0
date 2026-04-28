@@ -3,10 +3,8 @@ import {
     CompassIcon,
     CopyIcon,
     MinusIcon,
-    PanelLeftCloseIcon,
-    PanelLeftOpenIcon,
-    PanelRightCloseIcon,
-    PanelRightOpenIcon,
+    PanelLeftIcon,
+    PanelRightIcon,
     SearchIcon,
     SquareIcon,
     XIcon
@@ -252,12 +250,6 @@ export function AppTitleBar() {
         titleBarActionsVisible && notificationLayout !== 'table';
     const rightSidebarActionVisible =
         titleBarActionsVisible && shouldShowSidePanel(location.pathname);
-    const RightSidebarIcon = rightSidebarOpen
-        ? PanelRightCloseIcon
-        : PanelRightOpenIcon;
-    const LeftSidebarIcon = sidebarOpen
-        ? PanelLeftCloseIcon
-        : PanelLeftOpenIcon;
     const leftSidebarLabel = sidebarOpen
         ? t('nav_tooltip.collapse_menu')
         : t('nav_tooltip.expand_menu');
@@ -448,7 +440,7 @@ export function AppTitleBar() {
                                     )
                                 }
                             >
-                                <LeftSidebarIcon data-icon="icon" />
+                                <PanelLeftIcon data-icon="icon" />
                             </TitleBarButton>
                         ) : null}
                         {rightSidebarActionVisible ? (
@@ -456,7 +448,7 @@ export function AppTitleBar() {
                                 label={rightSidebarLabel}
                                 onClick={() => toggleRightSidebar()}
                             >
-                                <RightSidebarIcon data-icon="icon" />
+                                <PanelRightIcon data-icon="icon" />
                             </TitleBarButton>
                         ) : null}
                     </div>

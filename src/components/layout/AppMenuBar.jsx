@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { useTranslation } from 'react-i18next';
+import { KeyboardShortcut } from '@/components/keyboard/KeyboardShortcut.jsx';
 import { OpenSourceNoticeDialog } from '@/features/settings/components/OpenSourceNoticeDialog.jsx';
 import { openExternalLink } from '@/lib/entityMedia.js';
 import { backend } from '@/platform/index.js';
@@ -87,7 +88,12 @@ export function AppMenuBar({
     const setSystemHostOpen = useRuntimeStore(
         (state) => state.setSystemHostOpen
     );
+    const hostPlatform = useRuntimeStore(
+        (state) => state.hostCapabilities.platform
+    );
     const currentZoom = normalizeZoomLevel(zoomLevel);
+    const quickSearchShortcutKeys =
+        hostPlatform === 'macos' ? ['Meta', 'K'] : ['Ctrl', 'K'];
 
     async function applyZoomLevel(nextZoom) {
         try {
@@ -163,7 +169,11 @@ export function AppMenuBar({
                             <MenuItem onSelect={() => onOpenQuickSearch?.()}>
                                 {t('app_menu.quick_search')}
                                 <MenubarShortcut className="tracking-normal">
-                                    {t('app_menu.generated.ctrl_k')}
+                                    <KeyboardShortcut
+                                        keys={quickSearchShortcutKeys}
+                                        className="gap-0.5"
+                                        kbdClassName="h-4 min-w-4 px-1 text-[10px] leading-4"
+                                    />
                                 </MenubarShortcut>
                             </MenuItem>
                             <MenuItem

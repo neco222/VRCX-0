@@ -2,8 +2,7 @@ import {
     HeartIcon,
     LogOutIcon,
     MoonIcon,
-    PanelLeftCloseIcon,
-    PanelLeftOpenIcon,
+    PanelLeftIcon,
     PlusIcon,
     SettingsIcon,
     SunIcon
@@ -332,11 +331,7 @@ function AppNavFooter({
                             void onToggleSidebar();
                         }}
                     >
-                        {sidebarOpen ? (
-                            <PanelLeftCloseIcon />
-                        ) : (
-                            <PanelLeftOpenIcon />
-                        )}
+                        <PanelLeftIcon />
                         <span>
                             {sidebarOpen
                                 ? t('nav_tooltip.collapse_menu')

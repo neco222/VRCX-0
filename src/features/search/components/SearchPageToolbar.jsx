@@ -1,5 +1,6 @@
 import { Trash2Icon, XIcon } from 'lucide-react';
 
+import { KeyboardShortcut } from '@/components/keyboard/KeyboardShortcut.jsx';
 import { cn } from '@/lib/utils.js';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
@@ -36,7 +37,10 @@ export function SearchPageToolbar({
                     <Input
                         value={searchText}
                         placeholder={searchPlaceholder}
-                        className={cn('min-w-0 flex-1', searchText && 'pr-8')}
+                        className={cn(
+                            'min-w-0 flex-1',
+                            searchText ? 'pr-8' : 'pr-16'
+                        )}
                         onChange={(event) =>
                             onSearchTextChange(event.target.value)
                         }
@@ -58,7 +62,12 @@ export function SearchPageToolbar({
                         >
                             <XIcon data-icon="inline-start" />
                         </Button>
-                    ) : null}
+                    ) : (
+                        <KeyboardShortcut
+                            keys="Enter"
+                            className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2"
+                        />
+                    )}
                 </div>
                 <Tooltip>
                     <TooltipTrigger asChild>

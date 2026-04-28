@@ -1,6 +1,7 @@
 import { ArrowLeftIcon, ArrowRightIcon } from 'lucide-react';
 
 import { useTranslation } from 'react-i18next';
+import { KeyboardShortcut } from '@/components/keyboard/KeyboardShortcut.jsx';
 import { Button } from '@/ui/shadcn/button';
 import {
     Pagination,
@@ -35,6 +36,7 @@ export function SearchPagination({
                     >
                         <ArrowLeftIcon data-icon="inline-start" />
                         {t('table.pagination.previous')}
+                        <KeyboardShortcut keys={['Alt', 'ArrowLeft']} />
                     </Button>
                 </PaginationItem>
                 <PaginationItem>
@@ -47,6 +49,7 @@ export function SearchPagination({
                         onClick={onNext}
                     >
                         {t('table.pagination.next')}
+                        <KeyboardShortcut keys={['Alt', 'ArrowRight']} />
                         <ArrowRightIcon data-icon="inline-end" />
                     </Button>
                 </PaginationItem>
