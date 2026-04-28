@@ -1,10 +1,18 @@
-import { GLOBAL_TABLE_STATEMENTS } from './localDatabaseSchema.js';
+import {
+    GLOBAL_TABLE_STATEMENTS,
+    V17_GLOBAL_INDEX_STATEMENTS
+} from './localDatabaseSchema.js';
 import sqliteRepository from './sqliteRepository.js';
 import { normalizeUserTablePrefix } from './userSessionRepository.js';
+
+const DATABASE_VERSION_WITH_V17_INDEXES = 17;
 
 async function initGlobalTables() {
     for (const sql of GLOBAL_TABLE_STATEMENTS) {
         await sqliteRepository.executeNonQuery(sql);
+    }
+    if ((await getStoredDatabaseVersion()) >= DATABASE_VERSION_WITH_V17_INDEXES) {
+        await addV17GlobalPerformanceIndexes();
     }
 }
 
@@ -14,6 +22,18 @@ async function vacuum() {
 
 async function optimize() {
     await sqliteRepository.executeNonQuery('PRAGMA optimize');
+}
+
+async function getStoredDatabaseVersion() {
+    let version = 0;
+    try {
+        await sqliteRepository.execute((row) => {
+            version = Number.parseInt(row[0] ?? 0, 10) || 0;
+        }, "SELECT value FROM configs WHERE key = 'config:vrcx_databaseversion' LIMIT 1");
+    } catch {
+        return 0;
+    }
+    return version;
 }
 
 async function countSql(sql) {
@@ -239,7 +259,7 @@ async function updateTableForAvatarHistory() {
     }
 }
 
-async function addPerformanceIndexes() {
+async function addLegacyPerformanceIndexes() {
     await sqliteRepository.executeNonQuery(
         'CREATE INDEX IF NOT EXISTS idx_gamelog_location_world_created ON gamelog_location (world_id, created_at)'
     );
@@ -265,11 +285,71 @@ async function addPerformanceIndexes() {
     }
 }
 
+async function addV17GlobalPerformanceIndexes() {
+    for (const sql of V17_GLOBAL_INDEX_STATEMENTS) {
+        await sqliteRepository.executeNonQuery(sql);
+    }
+}
+
+async function addNotificationPerformanceIndexes() {
+    const notificationTables = await selectTableNames(
+        "name GLOB '*_notifications'"
+    );
+    for (const tableName of notificationTables) {
+        const safeTableName = safeIdentifier(tableName, 'Table name');
+        const indexName = safeIdentifier(
+            `${safeTableName}_created_id_idx`,
+            'Index name'
+        );
+        await sqliteRepository.executeNonQuery(
+            `CREATE INDEX IF NOT EXISTS ${indexName} ON ${safeTableName} (created_at DESC, id DESC)`
+        );
+    }
+
+    const notificationV2Tables = await selectTableNames(
+        "name GLOB '*_notifications_v2'"
+    );
+    for (const tableName of notificationV2Tables) {
+        const safeTableName = safeIdentifier(tableName, 'Table name');
+        const createdIndexName = safeIdentifier(
+            `${safeTableName}_created_id_idx`,
+            'Index name'
+        );
+        const seenIndexName = safeIdentifier(
+            `${safeTableName}_seen_created_id_idx`,
+            'Index name'
+        );
+        const typeIndexName = safeIdentifier(
+            `${safeTableName}_type_created_id_idx`,
+            'Index name'
+        );
+        await sqliteRepository.executeNonQuery(
+            `CREATE INDEX IF NOT EXISTS ${createdIndexName} ON ${safeTableName} (created_at DESC, id DESC)`
+        );
+        await sqliteRepository.executeNonQuery(
+            `CREATE INDEX IF NOT EXISTS ${seenIndexName} ON ${safeTableName} (seen, created_at DESC, id DESC)`
+        );
+        await sqliteRepository.executeNonQuery(
+            `CREATE INDEX IF NOT EXISTS ${typeIndexName} ON ${safeTableName} (type, created_at DESC, id DESC)`
+        );
+    }
+}
+
+async function addV17PerformanceIndexes() {
+    await addV17GlobalPerformanceIndexes();
+    await addNotificationPerformanceIndexes();
+}
+
+async function addPerformanceIndexes() {
+    await addLegacyPerformanceIndexes();
+    await addV17PerformanceIndexes();
+}
+
 async function upgradeDatabaseVersion() {
     await updateTableForGroupNames();
     await addFriendLogFriendNumber();
     await updateTableForAvatarHistory();
-    await addPerformanceIndexes();
+    await addLegacyPerformanceIndexes();
 }
 
 async function cleanLegendFromFriendLog() {
@@ -449,6 +529,7 @@ async function fixBrokenGameLogDisplayNames() {
 const databaseMaintenanceRepository = Object.freeze({
     addFriendLogFriendNumber,
     addPerformanceIndexes,
+    addV17PerformanceIndexes,
     cleanLegendFromFriendLog,
     fixBrokenGameLogDisplayNames,
     fixBrokenGroupChange,
@@ -475,6 +556,7 @@ const databaseMaintenanceRepository = Object.freeze({
 export {
     addFriendLogFriendNumber,
     addPerformanceIndexes,
+    addV17PerformanceIndexes,
     cleanLegendFromFriendLog,
     fixBrokenGameLogDisplayNames,
     fixBrokenGroupChange,

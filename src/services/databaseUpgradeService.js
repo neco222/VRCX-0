@@ -13,7 +13,8 @@ import i18n from '@/services/i18nService.js';
 
 import { showSQLiteErrorDialog } from './sqliteErrorDialogService.js';
 
-const DATABASE_VERSION = 16;
+const LEGACY_SCHEMA_VERSION = 16;
+const DATABASE_VERSION = 17;
 
 function setUpgradeState(patch) {
     useRuntimeStore.getState().setDatabaseUpgradeState(patch);
@@ -73,6 +74,20 @@ async function writeUpgradeDatabaseVersion() {
     );
 }
 
+async function runLegacyDatabaseMaintenance() {
+    await databaseMaintenanceRepository.cleanLegendFromFriendLog();
+    await databaseMaintenanceRepository.fixGameLogTraveling();
+    await databaseMaintenanceRepository.fixNegativeGPS();
+    await databaseMaintenanceRepository.fixBrokenLeaveEntries();
+    await databaseMaintenanceRepository.fixBrokenGroupInvites();
+    await databaseMaintenanceRepository.fixBrokenNotifications();
+    await databaseMaintenanceRepository.fixBrokenGroupChange();
+    await databaseMaintenanceRepository.fixCancelFriendRequestTypo();
+    await databaseMaintenanceRepository.fixBrokenGameLogDisplayNames();
+    await databaseMaintenanceRepository.upgradeDatabaseVersion();
+    await databaseMaintenanceRepository.vacuum();
+}
+
 async function runFullDatabaseUpgrade() {
     let upgradeStarted = false;
     let upgradeCommitted = false;
@@ -114,17 +129,12 @@ async function runFullDatabaseUpgrade() {
         await backend.sqlite.BeginUpgrade(currentVersion, DATABASE_VERSION);
         upgradeStarted = true;
 
-        await databaseMaintenanceRepository.cleanLegendFromFriendLog();
-        await databaseMaintenanceRepository.fixGameLogTraveling();
-        await databaseMaintenanceRepository.fixNegativeGPS();
-        await databaseMaintenanceRepository.fixBrokenLeaveEntries();
-        await databaseMaintenanceRepository.fixBrokenGroupInvites();
-        await databaseMaintenanceRepository.fixBrokenNotifications();
-        await databaseMaintenanceRepository.fixBrokenGroupChange();
-        await databaseMaintenanceRepository.fixCancelFriendRequestTypo();
-        await databaseMaintenanceRepository.fixBrokenGameLogDisplayNames();
-        await databaseMaintenanceRepository.upgradeDatabaseVersion();
-        await databaseMaintenanceRepository.vacuum();
+        if (currentVersion < LEGACY_SCHEMA_VERSION) {
+            await runLegacyDatabaseMaintenance();
+        }
+        if (currentVersion < DATABASE_VERSION) {
+            await databaseMaintenanceRepository.addV17PerformanceIndexes();
+        }
         await databaseMaintenanceRepository.optimize();
         await writeUpgradeDatabaseVersion();
         await backend.sqlite.CommitUpgrade();

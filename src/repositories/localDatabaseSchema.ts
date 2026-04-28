@@ -84,7 +84,11 @@ function buildInitUserTableStatements(userPrefix: string): string[] {
         `CREATE TABLE IF NOT EXISTS ${userPrefix}_friend_log_history (id INTEGER PRIMARY KEY, created_at TEXT, type TEXT, user_id TEXT, display_name TEXT, previous_display_name TEXT, trust_level TEXT, previous_trust_level TEXT, friend_number INTEGER)`,
         `CREATE INDEX IF NOT EXISTS ${userPrefix}_friend_log_history_user_id_idx ON ${userPrefix}_friend_log_history (user_id)`,
         `CREATE TABLE IF NOT EXISTS ${userPrefix}_notifications (id TEXT PRIMARY KEY, created_at TEXT, type TEXT, sender_user_id TEXT, sender_username TEXT, receiver_user_id TEXT, message TEXT, world_id TEXT, world_name TEXT, image_url TEXT, invite_message TEXT, request_message TEXT, response_message TEXT, expired INTEGER)`,
+        `CREATE INDEX IF NOT EXISTS ${userPrefix}_notifications_created_id_idx ON ${userPrefix}_notifications (created_at DESC, id DESC)`,
         `CREATE TABLE IF NOT EXISTS ${userPrefix}_notifications_v2 (id TEXT PRIMARY KEY, created_at TEXT, updated_at TEXT, expires_at TEXT, type TEXT, link TEXT, link_text TEXT, message TEXT, title TEXT, image_url TEXT, seen INTEGER, sender_user_id TEXT, sender_username TEXT, data TEXT, responses TEXT, details TEXT)`,
+        `CREATE INDEX IF NOT EXISTS ${userPrefix}_notifications_v2_created_id_idx ON ${userPrefix}_notifications_v2 (created_at DESC, id DESC)`,
+        `CREATE INDEX IF NOT EXISTS ${userPrefix}_notifications_v2_seen_created_id_idx ON ${userPrefix}_notifications_v2 (seen, created_at DESC, id DESC)`,
+        `CREATE INDEX IF NOT EXISTS ${userPrefix}_notifications_v2_type_created_id_idx ON ${userPrefix}_notifications_v2 (type, created_at DESC, id DESC)`,
         `CREATE TABLE IF NOT EXISTS ${userPrefix}_moderation (user_id TEXT PRIMARY KEY, updated_at TEXT, display_name TEXT, block INTEGER, mute INTEGER)`,
         `CREATE TABLE IF NOT EXISTS ${userPrefix}_avatar_history (avatar_id TEXT PRIMARY KEY, created_at TEXT, time INTEGER)`,
         `CREATE TABLE IF NOT EXISTS ${userPrefix}_notes (user_id TEXT PRIMARY KEY, display_name TEXT, note TEXT, created_at TEXT)`,
@@ -118,8 +122,18 @@ const GLOBAL_TABLE_STATEMENTS = Object.freeze([
     `CREATE TABLE IF NOT EXISTS avatar_tags (avatar_id TEXT NOT NULL, tag TEXT NOT NULL, color TEXT, PRIMARY KEY (avatar_id, tag))`
 ]) satisfies readonly string[];
 
+const V17_GLOBAL_INDEX_STATEMENTS = Object.freeze([
+    `CREATE INDEX IF NOT EXISTS idx_gamelog_location_location_id ON gamelog_location (location, id)`,
+    `CREATE INDEX IF NOT EXISTS idx_gamelog_jl_location_id ON gamelog_join_leave (location, id)`,
+    `CREATE INDEX IF NOT EXISTS idx_gamelog_portal_spawn_location_created ON gamelog_portal_spawn (location, created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_gamelog_video_play_location_created ON gamelog_video_play (location, created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_gamelog_resource_load_location_created ON gamelog_resource_load (location, created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_gamelog_jl_left_created ON gamelog_join_leave (created_at) WHERE type = 'OnPlayerLeft'`
+]) satisfies readonly string[];
+
 export {
     GLOBAL_TABLE_STATEMENTS,
+    V17_GLOBAL_INDEX_STATEMENTS,
     buildInitUserTableStatements,
     buildUserTableName,
     normalizeUserTablePrefix

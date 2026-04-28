@@ -187,6 +187,37 @@ function matchesFilters(notification: NotificationRecord, filters: unknown): boo
     );
 }
 
+function normalizeNotificationFilters(filters: unknown): string[] {
+    return Array.isArray(filters)
+        ? filters.map((value) => String(value || '').trim()).filter(Boolean)
+        : [];
+}
+
+function normalizeNotificationLimit(value: unknown, fallback: number): number {
+    const limit = Number.parseInt(String(value ?? ''), 10);
+    return Number.isFinite(limit) && limit > 0 ? limit : fallback;
+}
+
+function buildTypeFilterSql(filters: string[]) {
+    if (!filters.length) {
+        return {
+            whereSql: '',
+            args: {} as Record<string, string>
+        };
+    }
+
+    const args: Record<string, string> = {};
+    const placeholders = filters.map((filter, index) => {
+        const key = `@type_${index}`;
+        args[key] = filter;
+        return key;
+    });
+    return {
+        whereSql: ` WHERE type IN (${placeholders.join(', ')})`,
+        args
+    };
+}
+
 async function executeApi(
     path: string,
     {
@@ -217,28 +248,56 @@ async function queryNotifications({
 
     await userSessionRepository.ensureUserTables(normalizedUserId);
     const userPrefix = normalizeUserTablePrefix(normalizedUserId);
+    const normalizedSearch = String(search || '').trim();
+    const normalizedFilters = normalizeNotificationFilters(filters);
     const [maxTableSize, searchLimit] = await Promise.all([
         configRepository.getInt('maxTableSize_v2', 500),
         configRepository.getInt('searchLimit', 50000)
     ]);
-    const limit =
-        search || (Array.isArray(filters) && filters.length)
-            ? Number(searchLimit)
-            : Number(maxTableSize);
+    const isSearchOrFiltered =
+        Boolean(normalizedSearch) || normalizedFilters.length > 0;
+    const limit = isSearchOrFiltered
+        ? normalizeNotificationLimit(searchLimit, 50000)
+        : normalizeNotificationLimit(maxTableSize, 500);
+    const perTableLimit = isSearchOrFiltered ? limit : limit * 2;
+    const { whereSql, args: typeFilterArgs } =
+        buildTypeFilterSql(normalizedFilters);
+    const queryArgs = {
+        ...typeFilterArgs,
+        '@limit': perTableLimit
+    };
+    const unseenQueryArgs = {
+        '@now': new Date().toJSON()
+    };
 
-    const [v1Rows, v2Rows] = await Promise.all([
+    const isDefaultList = !normalizedSearch && normalizedFilters.length === 0;
+    const [v1Rows, v2Rows, unseenV2Rows] = await Promise.all([
         sqliteRepository.query(
-            `SELECT * FROM ${userPrefix}_notifications ORDER BY created_at DESC`
+            `SELECT * FROM ${userPrefix}_notifications${whereSql} ORDER BY created_at DESC, id DESC LIMIT @limit`,
+            queryArgs
         ),
         sqliteRepository.query(
-            `SELECT * FROM ${userPrefix}_notifications_v2 ORDER BY created_at DESC`
-        )
+            `SELECT * FROM ${userPrefix}_notifications_v2${whereSql} ORDER BY created_at DESC, id DESC LIMIT @limit`,
+            queryArgs
+        ),
+        isDefaultList
+            ? sqliteRepository.query(
+                  `SELECT * FROM ${userPrefix}_notifications_v2
+                   WHERE seen = 0
+                   AND (expires_at IS NULL OR expires_at = '' OR expires_at > @now)
+                   ORDER BY created_at DESC, id DESC`,
+                  unseenQueryArgs
+              )
+            : Promise.resolve([])
     ]);
 
     const deduped = new Map<string, NotificationRecord>();
     for (const notification of [
         ...(Array.isArray(v1Rows) ? v1Rows.map(normalizeV1Notification) : []),
-        ...(Array.isArray(v2Rows) ? v2Rows.map(normalizeV2Notification) : [])
+        ...(Array.isArray(v2Rows) ? v2Rows.map(normalizeV2Notification) : []),
+        ...(Array.isArray(unseenV2Rows)
+            ? unseenV2Rows.map(normalizeV2Notification)
+            : [])
     ]) {
         if (!notification.id) {
             continue;
@@ -254,8 +313,8 @@ async function queryNotifications({
 
     return Array.from(deduped.values())
         .filter((notification) => notification.id)
-        .filter((notification) => matchesFilters(notification, filters))
-        .filter((notification) => matchesSearch(notification, search))
+        .filter((notification) => matchesFilters(notification, normalizedFilters))
+        .filter((notification) => matchesSearch(notification, normalizedSearch))
         .sort((left, right) => {
             const leftTime = new Date(left.createdAt || 0).valueOf() || 0;
             const rightTime = new Date(right.createdAt || 0).valueOf() || 0;
