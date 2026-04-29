@@ -432,13 +432,13 @@ export const SidePanel = forwardRef(function SidePanel(
                 </div>
                 <TabsContent
                     value="friends"
-                    className="mt-2 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+                    className="mt-1 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
                 >
                     <FriendsSidebar prefs={prefs} />
                 </TabsContent>
                 <TabsContent
                     value="groups"
-                    className="mt-2 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+                    className="mt-1 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
                 >
                     <GroupsSidebar />
                 </TabsContent>
