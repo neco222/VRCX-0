@@ -342,6 +342,11 @@ export function FriendLocationCard({
         resolvedDensityConfig.statusLineClamp
     );
     const showStatusDot = !tone.dotClassName.includes('hidden');
+    const showLocationInfo =
+        displayInstanceInfo &&
+        (Boolean(locationValue) ||
+            (Boolean(locationLabel) &&
+                normalizeStatusText(locationLabel) !== 'offline'));
     async function copyCardText(value, label) {
         const text = String(value || '').trim();
         if (!text) {
@@ -413,7 +418,7 @@ export function FriendLocationCard({
             asButton={false}
         />
     ) : (
-        locationLabel || 'Offline'
+        locationLabel
     );
 
     return (
@@ -448,7 +453,7 @@ export function FriendLocationCard({
                                 >
                                     {friend?.displayName || ''}
                                 </CardTitle>
-                                {displayInstanceInfo ? (
+                                {showLocationInfo ? (
                                     <div
                                         className="text-muted-foreground min-w-0 text-left text-xs leading-4"
                                         onClick={(event) =>
@@ -484,7 +489,7 @@ export function FriendLocationCard({
                             </CardHeader>
 
                             <CardContent className="flex min-h-0 flex-1 flex-col gap-[var(--friend-card-inner-gap)] overflow-hidden px-[var(--friend-card-padding)]">
-                                {displayInstanceInfo ? (
+                                {showLocationInfo ? (
                                     <div
                                         className="text-muted-foreground w-full min-w-0 text-left"
                                         onClick={(event) =>
