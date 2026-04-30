@@ -158,6 +158,8 @@ pub fn run() {
             api::app::window::app__do_funny,
             api::app::window::app__set_tray_icon_notification,
             api::app::window::app__restart_application,
+            api::app::updater::app__check_tauri_update,
+            api::app::updater::app__download_and_install_tauri_update,
             api::app::legacy_migration::app__check_legacy_vrcx_available,
             api::app::legacy_migration::app__get_legacy_vrcx_migration_status,
             api::app::legacy_migration::app__request_legacy_migration,

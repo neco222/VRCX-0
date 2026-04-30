@@ -162,12 +162,9 @@ export function UpdaterDialog({ open, onOpenChange }) {
                             setBranch(sanitizeBranch(value))
                         }
                     >
-                        <TabsList className="grid w-full grid-cols-3">
+                        <TabsList className="grid w-full grid-cols-2">
                             <TabsTrigger value="Stable">
                                 {t('dialog.vrcx_updater.branch_stable')}
-                            </TabsTrigger>
-                            <TabsTrigger value="Beta">
-                                {t('dialog.vrcx_updater.branch_beta')}
                             </TabsTrigger>
                             <TabsTrigger value="Alpha">
                                 {t('dialog.vrcx_updater.branch_alpha')}

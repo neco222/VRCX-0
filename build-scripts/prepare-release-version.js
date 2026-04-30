@@ -31,21 +31,17 @@ function readArg(argName, fallback = '') {
     return fallback;
 }
 
-function readBaseVersion() {
-    const tauriConfig = JSON.parse(fs.readFileSync(tauriConfigPath, 'utf8'));
-    return String(tauriConfig.version || '').trim();
+function hasFlag(argName) {
+    return process.argv.includes(`--${argName}`);
 }
 
 async function buildReleaseMeta() {
-    const channel = readArg('channel', 'stable');
     const { createReleaseVersionMeta } = await import(
         pathToFileURL(releaseVersionCorePath).href
     );
 
     return createReleaseVersionMeta({
-        baseVersion: readBaseVersion(),
-        channel,
-        number: readArg(`${String(channel).toLowerCase()}-number`, '1')
+        version: readArg('version')
     });
 }
 
@@ -100,7 +96,9 @@ function writeOutputs(meta) {
 
 buildReleaseMeta()
     .then((meta) => {
-        syncVersionToManifests(meta.build_version);
+        if (!hasFlag('dry-run')) {
+            syncVersionToManifests(meta.build_version);
+        }
         writeOutputs(meta);
     })
     .catch((error) => {

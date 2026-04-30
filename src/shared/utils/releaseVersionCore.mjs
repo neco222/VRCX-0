@@ -1,27 +1,23 @@
 const RELEASE_CHANNELS = Object.freeze({
     STABLE: 'Stable',
-    BETA: 'Beta',
     ALPHA: 'Alpha'
 });
 
-const MAX_RELEASE_NUMBER = 999;
+const MAX_MAJOR_VERSION = 99;
+const MAX_MINOR_VERSION = 999;
+const MAX_ALPHA_NUMBER = 999;
 const RELEASE_VERSION_PATTERN =
-    /^v?(?<year>[1-9][0-9]{3})\.(?<month>0[1-9]|1[0-2])(?:\.(?<patch>[1-9][0-9]{0,2}))?(?:-(?<channel>alpha|beta)\.(?<number>[1-9][0-9]{0,2}))?$/;
-const BUILD_VERSION_PATTERN =
-    /^(?<year>[1-9][0-9]{3})\.(?<month>[1-9]|1[0-2])\.(?<patch>0|[1-9][0-9]{0,2})(?:-(?<channel>alpha|beta)\.(?<number>[1-9][0-9]{0,2}))?$/;
+    /^v?(?<major>[1-9][0-9]*)\.(?<minor>0|[1-9][0-9]*)\.(?<patch>0)(?:-(?<channel>alpha)\.(?<number>[1-9][0-9]{0,2}))?$/;
 
 const CHANNEL_ORDER = {
     [RELEASE_CHANNELS.ALPHA]: 0,
-    [RELEASE_CHANNELS.BETA]: 1,
-    [RELEASE_CHANNELS.STABLE]: 2
+    [RELEASE_CHANNELS.STABLE]: 1
 };
 
 const CHANNEL_BY_INPUT = new Map([
     ['stable', RELEASE_CHANNELS.STABLE],
-    ['beta', RELEASE_CHANNELS.BETA],
     ['alpha', RELEASE_CHANNELS.ALPHA],
     [RELEASE_CHANNELS.STABLE, RELEASE_CHANNELS.STABLE],
-    [RELEASE_CHANNELS.BETA, RELEASE_CHANNELS.BETA],
     [RELEASE_CHANNELS.ALPHA, RELEASE_CHANNELS.ALPHA]
 ]);
 
@@ -29,73 +25,41 @@ function normalizeReleaseChannel(channel) {
     return CHANNEL_BY_INPUT.get(String(channel || '').trim()) || null;
 }
 
-function isReleaseNumber(value) {
-    return Number.isInteger(value) && value >= 1 && value <= MAX_RELEASE_NUMBER;
+function isBoundedInteger(value, max) {
+    return Number.isInteger(value) && value >= 1 && value <= max;
 }
 
-function parsePositiveReleaseNumber(value, label) {
-    const stringValue = String(value || '');
-    if (!/^[1-9][0-9]*$/.test(stringValue)) {
-        throw new Error(`Invalid ${label}: ${value}`);
-    }
-    const parsedValue = Number.parseInt(stringValue, 10);
-    if (!isReleaseNumber(parsedValue)) {
-        throw new Error(`Invalid ${label}: ${value}`);
-    }
-    return parsedValue;
-}
-
-function formatReleaseBaseVersion({ year, month, patchNumber }) {
-    return `${year}.${String(month).padStart(2, '0')}${
-        patchNumber ? `.${patchNumber}` : ''
-    }`;
-}
-
-function buildVersionInfo({ year, month, patchNumber, channel, number }) {
+function buildVersionInfo({ major, minor, channel, number = null }) {
     const normalizedChannel =
         normalizeReleaseChannel(channel) || RELEASE_CHANNELS.STABLE;
     const alphaNumber =
         normalizedChannel === RELEASE_CHANNELS.ALPHA ? number : null;
-    const betaNumber =
-        normalizedChannel === RELEASE_CHANNELS.BETA ? number : null;
-    const canonicalVersion = `${year}.${month}.${patchNumber}${
-        alphaNumber
-            ? `-alpha.${alphaNumber}`
-            : betaNumber
-              ? `-beta.${betaNumber}`
-              : ''
+    const canonicalVersion = `${major}.${minor}.0${
+        alphaNumber ? `-alpha.${alphaNumber}` : ''
     }`;
-    const displayBaseVersion = formatReleaseBaseVersion({
-        year,
-        month,
-        patchNumber
-    });
-    const displayVersion = alphaNumber
-        ? `${displayBaseVersion}-alpha.${alphaNumber}`
-        : `${displayBaseVersion}${betaNumber ? `-beta.${betaNumber}` : ''}`;
 
     return {
-        year,
-        month,
-        patchNumber,
-        betaNumber,
+        major,
+        minor,
+        patchNumber: 0,
+        betaNumber: null,
         alphaNumber,
         channel: normalizedChannel,
         buildVersion: canonicalVersion,
-        canonicalVersion: displayVersion,
-        displayVersion
+        canonicalVersion,
+        displayVersion: canonicalVersion
     };
 }
 
 /**
  * @param {string} version
  * @returns {null | {
- *   year: number,
- *   month: number,
- *   patchNumber: number,
- *   betaNumber: number | null,
+ *   major: number,
+ *   minor: number,
+ *   patchNumber: 0,
+ *   betaNumber: null,
  *   alphaNumber: number | null,
- *   channel: 'Stable' | 'Beta' | 'Alpha',
+ *   channel: 'Stable' | 'Alpha',
  *   canonicalVersion: string,
  *   buildVersion: string,
  *   displayVersion: string
@@ -103,95 +67,55 @@ function buildVersionInfo({ year, month, patchNumber, channel, number }) {
  */
 function parseReleaseVersion(version) {
     const normalizedVersion = String(version || '').trim();
-    const match =
-        RELEASE_VERSION_PATTERN.exec(normalizedVersion) ||
-        BUILD_VERSION_PATTERN.exec(normalizedVersion);
+    const match = RELEASE_VERSION_PATTERN.exec(normalizedVersion);
     if (!match?.groups) {
         return null;
     }
 
-    const year = Number.parseInt(match.groups.year, 10);
-    const month = Number.parseInt(match.groups.month, 10);
-    const patchNumber = match.groups.patch
-        ? Number.parseInt(match.groups.patch, 10)
-        : 0;
-    const releaseNumber = match.groups.number
+    const major = Number.parseInt(match.groups.major, 10);
+    const minor = Number.parseInt(match.groups.minor, 10);
+    const alphaNumber = match.groups.number
         ? Number.parseInt(match.groups.number, 10)
         : null;
     const channel = normalizeReleaseChannel(match.groups.channel);
 
     if (
-        Number.isNaN(year) ||
-        Number.isNaN(month) ||
-        Number.isNaN(patchNumber) ||
-        (match.groups.number && !isReleaseNumber(releaseNumber)) ||
-        (channel && patchNumber !== 0)
+        !isBoundedInteger(major, MAX_MAJOR_VERSION) ||
+        !Number.isInteger(minor) ||
+        minor < 0 ||
+        minor > MAX_MINOR_VERSION ||
+        (match.groups.channel && channel !== RELEASE_CHANNELS.ALPHA) ||
+        (match.groups.number &&
+            !isBoundedInteger(alphaNumber, MAX_ALPHA_NUMBER))
     ) {
         return null;
     }
 
     return buildVersionInfo({
-        year,
-        month,
-        patchNumber,
+        major,
+        minor,
         channel: channel || RELEASE_CHANNELS.STABLE,
-        number: releaseNumber
+        number: alphaNumber
     });
 }
 
-function createReleaseVersionMeta({ baseVersion, channel, number }) {
-    const baseParsed = parseReleaseVersion(baseVersion);
-    const normalizedChannel = normalizeReleaseChannel(channel);
-    if (!baseParsed) {
-        throw new Error(`Invalid base version: ${baseVersion}`);
+function createReleaseVersionMeta({ version }) {
+    const parsedVersion = parseReleaseVersion(version);
+    if (!parsedVersion) {
+        throw new Error(`Invalid release version: ${version}`);
     }
-    if (!normalizedChannel) {
-        throw new Error(`Invalid channel: ${channel}`);
-    }
-
-    const base = buildVersionInfo({
-        year: baseParsed.year,
-        month: baseParsed.month,
-        patchNumber: baseParsed.patchNumber,
-        channel: RELEASE_CHANNELS.STABLE
-    });
-
-    if (normalizedChannel === RELEASE_CHANNELS.STABLE) {
-        return {
-            base_version: base.canonicalVersion,
-            build_version: base.buildVersion,
-            display_version: base.displayVersion,
-            channel: RELEASE_CHANNELS.STABLE,
-            prerelease: 'false',
-            tag: `v${base.canonicalVersion}`
-        };
-    }
-
-    if (base.patchNumber !== 0) {
-        throw new Error(
-            `${String(channel).toLowerCase()} releases must use a base patch version of 0: ${base.canonicalVersion}`
-        );
-    }
-
-    const releaseNumber = parsePositiveReleaseNumber(
-        number || '1',
-        `${String(channel).toLowerCase()}_number`
-    );
-    const release = buildVersionInfo({
-        year: base.year,
-        month: base.month,
-        patchNumber: base.patchNumber,
-        channel: normalizedChannel,
-        number: releaseNumber
-    });
 
     return {
-        base_version: base.canonicalVersion,
-        build_version: release.buildVersion,
-        display_version: release.displayVersion,
-        channel: normalizedChannel,
-        prerelease: 'true',
-        tag: `v${release.canonicalVersion}`
+        base_version: `${parsedVersion.major}.${parsedVersion.minor}.0`,
+        build_version: parsedVersion.buildVersion,
+        display_version: parsedVersion.displayVersion,
+        channel: parsedVersion.channel,
+        channel_id: parsedVersion.channel.toLowerCase(),
+        prerelease:
+            parsedVersion.channel === RELEASE_CHANNELS.ALPHA
+                ? 'true'
+                : 'false',
+        tag: `v${parsedVersion.canonicalVersion}`
     };
 }
 
@@ -230,9 +154,8 @@ function compareReleaseVersions(left, right) {
     }
 
     const versionDelta =
-        parsedLeft.year - parsedRight.year ||
-        parsedLeft.month - parsedRight.month ||
-        parsedLeft.patchNumber - parsedRight.patchNumber;
+        parsedLeft.major - parsedRight.major ||
+        parsedLeft.minor - parsedRight.minor;
     if (versionDelta !== 0) {
         return versionDelta;
     }
@@ -244,10 +167,7 @@ function compareReleaseVersions(left, right) {
         );
     }
 
-    return (
-        (parsedLeft.alphaNumber || parsedLeft.betaNumber || 0) -
-        (parsedRight.alphaNumber || parsedRight.betaNumber || 0)
-    );
+    return (parsedLeft.alphaNumber || 0) - (parsedRight.alphaNumber || 0);
 }
 
 export {

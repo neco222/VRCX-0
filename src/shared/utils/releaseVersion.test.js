@@ -7,86 +7,67 @@ import {
 } from './releaseVersion.js';
 
 describe('releaseVersion utilities', () => {
-    it('parses current release tags into canonical display data', () => {
-        expect(parseReleaseVersion('v2026.04')).toEqual({
-            year: 2026,
-            month: 4,
+    it('parses stable and alpha SemVer release tags', () => {
+        expect(parseReleaseVersion('v1.0.0')).toEqual({
+            major: 1,
+            minor: 0,
             patchNumber: 0,
             betaNumber: null,
             alphaNumber: null,
             channel: 'Stable',
-            buildVersion: '2026.4.0',
-            canonicalVersion: '2026.04',
-            displayVersion: '2026.04'
+            buildVersion: '1.0.0',
+            canonicalVersion: '1.0.0',
+            displayVersion: '1.0.0'
         });
-        expect(parseReleaseVersion('v2026.04.1')).toMatchObject({
-            patchNumber: 1,
-            buildVersion: '2026.4.1',
-            canonicalVersion: '2026.04.1',
-            displayVersion: '2026.04.1'
-        });
-        expect(parseReleaseVersion('2026.04-beta.12')).toMatchObject({
-            patchNumber: 0,
-            betaNumber: 12,
-            channel: 'Beta',
-            buildVersion: '2026.4.0-beta.12',
-            canonicalVersion: '2026.04-beta.12',
-            displayVersion: '2026.04-beta.12'
-        });
-        expect(parseReleaseVersion('v2026.04-alpha.12')).toMatchObject({
+        expect(parseReleaseVersion('1.1.0-alpha.12')).toMatchObject({
+            major: 1,
+            minor: 1,
             patchNumber: 0,
             alphaNumber: 12,
             channel: 'Alpha',
-            buildVersion: '2026.4.0-alpha.12',
-            canonicalVersion: '2026.04-alpha.12',
-            displayVersion: '2026.04-alpha.12'
+            buildVersion: '1.1.0-alpha.12',
+            canonicalVersion: '1.1.0-alpha.12',
+            displayVersion: '1.1.0-alpha.12'
         });
     });
 
     it('formats internal build versions for app display', () => {
-        expect(parseReleaseVersion('2026.4.0-alpha.12')).toMatchObject({
-            alphaNumber: 12,
-            buildVersion: '2026.4.0-alpha.12',
-            canonicalVersion: '2026.04-alpha.12',
-            displayVersion: '2026.04-alpha.12'
-        });
-        expect(formatReleaseDisplayVersion('2026.4.1')).toBe('2026.04.1');
+        expect(formatReleaseDisplayVersion('1.1.0-alpha.12')).toBe(
+            '1.1.0-alpha.12'
+        );
+        expect(formatReleaseDisplayVersion('1.0.0')).toBe('1.0.0');
     });
 
-    it('rejects malformed or out-of-range versions without rewriting them for display', () => {
+    it('rejects beta, non-zero patch, old date versions, and malformed values', () => {
+        expect(parseReleaseVersion('v1.1.1')).toBeNull();
+        expect(parseReleaseVersion('v1.1.0-beta.1')).toBeNull();
+        expect(parseReleaseVersion('v1.1.0-alpha.0')).toBeNull();
+        expect(parseReleaseVersion('v1.1.0-alpha.1000')).toBeNull();
+        expect(parseReleaseVersion('v01.1.0')).toBeNull();
+        expect(parseReleaseVersion('v1.01.0')).toBeNull();
         expect(parseReleaseVersion('v2026.4.0')).toBeNull();
-        expect(parseReleaseVersion('v2026.04.0')).toBeNull();
-        expect(parseReleaseVersion('v2026.04.1-beta.1')).toBeNull();
-        expect(parseReleaseVersion('v2026.04-alpha.1000')).toBeNull();
-        expect(parseReleaseVersion('v2026.04.alpha-2')).toBeNull();
-        expect(parseReleaseVersion('2026.13.1')).toBeNull();
-        expect(parseReleaseVersion('2026.4.-1')).toBeNull();
-        expect(parseReleaseVersion('2026.4-beta.0')).toBeNull();
-        expect(parseReleaseVersion('2026.4.0-alpha.0')).toBeNull();
+        expect(parseReleaseVersion('v2026.04')).toBeNull();
+        expect(parseReleaseVersion('nightly')).toBeNull();
         expect(formatReleaseDisplayVersion('nightly')).toBe('nightly');
     });
 
-    it('orders releases by year, month, patch, then channel stability', () => {
+    it('orders releases by major, minor, then channel stability', () => {
         const versions = [
-            '2026.04-beta.2',
-            '2026.04.1',
-            '2026.04',
-            '2026.04-alpha.2',
-            '2026.05-beta.1',
-            '2026.04-beta.1',
-            '2026.04-alpha.1',
-            'bad'
+            '1.1.0',
+            '1.2.0-alpha.1',
+            '1.1.0-alpha.2',
+            '1.0.0',
+            'bad',
+            '1.1.0-alpha.1'
         ];
 
         expect(versions.sort(compareReleaseVersions)).toEqual([
             'bad',
-            '2026.04-alpha.1',
-            '2026.04-alpha.2',
-            '2026.04-beta.1',
-            '2026.04-beta.2',
-            '2026.04',
-            '2026.04.1',
-            '2026.05-beta.1'
+            '1.0.0',
+            '1.1.0-alpha.1',
+            '1.1.0-alpha.2',
+            '1.1.0',
+            '1.2.0-alpha.1'
         ]);
     });
 });

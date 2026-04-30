@@ -3,36 +3,48 @@ name: Package
 on:
     workflow_dispatch:
         inputs:
-            channel:
-                description: 'Release channel'
+            version:
+                description: 'Release version, for example 1.0.0 or 1.1.0-alpha.1'
                 required: true
-                type: choice
-                options:
-                    - stable
-                    - beta
-                    - alpha
-                default: stable
-            beta_number:
-                description: 'Beta suffix number (1, 2, 3...)'
-                required: false
                 type: string
-                default: '1'
-            alpha_number:
-                description: 'Alpha suffix number (1, 2, 3...)'
-                required: false
-                type: string
-                default: '1'
+                default: '1.0.0'
 
 concurrency:
     group: ${{ github.ref }}-package
     cancel-in-progress: true
 
 permissions:
-    contents: read
+    contents: write
 
 jobs:
+    prepare:
+        name: Prepare release metadata
+        runs-on: ubuntu-24.04
+        outputs:
+            base_version: ${{ steps.version.outputs.base_version }}
+            build_version: ${{ steps.version.outputs.build_version }}
+            display_version: ${{ steps.version.outputs.display_version }}
+            channel: ${{ steps.version.outputs.channel }}
+            channel_id: ${{ steps.version.outputs.channel_id }}
+            prerelease: ${{ steps.version.outputs.prerelease }}
+            tag: ${{ steps.version.outputs.tag }}
+        steps:
+            - uses: actions/checkout@v6
+
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: 24.x
+
+            - id: version
+              name: Validate release version
+              run: |
+                  node build-scripts/prepare-release-version.js \
+                      --version "${{ inputs.version }}" \
+                      --dry-run
+
     package:
         name: ${{ matrix.label }}
+        needs: prepare
         runs-on: ${{ matrix.os }}
         defaults:
             run:
@@ -98,13 +110,10 @@ jobs:
 
             - run: npm ci
 
-            - id: version
-              name: Prepare release version
+            - name: Apply release version
               run: |
                   node build-scripts/prepare-release-version.js \
-                      --channel "${{ inputs.channel }}" \
-                      --beta-number "${{ inputs.beta_number }}" \
-                      --alpha-number "${{ inputs.alpha_number }}"
+                      --version "${{ inputs.version }}"
 
             - name: Inject Linux updater public key
               if: runner.os == 'Linux'
@@ -139,40 +148,41 @@ jobs:
                       exit 1
                   fi
                   node build-scripts/create-tauri-updater-manifest.js \
-                      --version "${{ steps.version.outputs.build_version }}" \
-                      --tag "${{ steps.version.outputs.tag }}" \
-                      --target "linux-x86_64-${{ inputs.channel }}" \
+                      --version "${{ needs.prepare.outputs.build_version }}" \
+                      --tag "${{ needs.prepare.outputs.tag }}" \
+                      --target "linux-x86_64-${{ needs.prepare.outputs.channel_id }}" \
                       --asset-name "$(basename "$appimage_path")" \
                       --signature-file "$signature_path" \
-                      --out "src-tauri/target/release/bundle/appimage/vrcx-0-updater-linux-x86_64-${{ inputs.channel }}.json"
+                      --out "src-tauri/target/release/bundle/appimage/vrcx-0-updater-linux-x86_64-${{ needs.prepare.outputs.channel_id }}.json"
 
             - uses: actions/upload-artifact@v7
-              if: runner.os != 'Linux'
               with:
-                  name: VRCX-0_${{ steps.version.outputs.display_version }}_${{ matrix.artifact_name }}
+                  name: release-${{ matrix.artifact_name }}
                   path: ${{ matrix.artifact_path }}
                   if-no-files-found: error
 
-            - name: Upload Linux AppImage artifact
-              if: runner.os == 'Linux'
-              uses: actions/upload-artifact@v7
+    publish-draft:
+        name: Upload draft release assets
+        needs:
+            - prepare
+            - package
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/download-artifact@v7
               with:
-                  name: VRCX-0_${{ steps.version.outputs.display_version }}_linux-appimage
-                  path: src-tauri/target/release/bundle/appimage/*.AppImage
-                  if-no-files-found: error
+                  path: release-assets
+                  merge-multiple: true
 
-            - name: Upload Linux AppImage signature artifact
-              if: runner.os == 'Linux'
-              uses: actions/upload-artifact@v7
-              with:
-                  name: VRCX-0_${{ steps.version.outputs.display_version }}_linux-appimage-sig
-                  path: src-tauri/target/release/bundle/appimage/*.AppImage.sig
-                  if-no-files-found: error
+            - name: List release assets
+              run: find release-assets -type f | sort
 
-            - name: Upload Linux updater manifest artifact
-              if: runner.os == 'Linux'
-              uses: actions/upload-artifact@v7
+            - uses: softprops/action-gh-release@v2
               with:
-                  name: VRCX-0_${{ steps.version.outputs.display_version }}_linux-updater-manifest
-                  path: src-tauri/target/release/bundle/appimage/vrcx-0-updater-linux-x86_64-${{ inputs.channel }}.json
-                  if-no-files-found: error
+                  tag_name: ${{ needs.prepare.outputs.tag }}
+                  name: VRCX-0 ${{ needs.prepare.outputs.display_version }}
+                  body: Draft release for VRCX-0 ${{ needs.prepare.outputs.display_version }}.
+                  draft: true
+                  prerelease: ${{ needs.prepare.outputs.prerelease }}
+                  files: release-assets/*
+                  fail_on_unmatched_files: true
+                  overwrite_files: true

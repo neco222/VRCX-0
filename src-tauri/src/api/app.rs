@@ -11,4 +11,5 @@ pub mod paths;
 pub mod registry;
 pub mod screenshots;
 pub mod shell;
+pub mod updater;
 pub mod window;
