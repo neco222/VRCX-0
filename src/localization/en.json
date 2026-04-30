@@ -4969,13 +4969,6 @@
             }
         }
     },
-    "lib": {
-        "entity_media": {
-            "generated_modal": {
-                "open_external_link": "Open External Link"
-            }
-        }
-    },
     "repository": {
         "sqlite_repository": {
             "generated_modal": {

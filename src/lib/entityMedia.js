@@ -6,11 +6,9 @@ import {
     openUserDialog,
     openWorldDialog
 } from '@/services/dialogService.js';
-import i18n from '@/services/i18nService.js';
 import { getColourFromUserID } from '@/shared/utils/colour.js';
 import { parseLocation } from '@/shared/utils/location.js';
 import { normalizeVrchatEndpointDomain } from '@/shared/vrchatEndpoint.js';
-import { useModalStore } from '@/state/modalStore.js';
 import { useRuntimeStore } from '@/state/runtimeStore.js';
 import { useShellStore } from '@/state/shellStore.js';
 
@@ -350,23 +348,14 @@ export async function openExternalLink(link) {
         return;
     }
 
-    const result = await useModalStore.getState().confirm({
-        title: i18n.t('lib.entity_media.generated_modal.open_external_link'),
-        description: normalizedLink,
-        confirmText: i18n.t('common.actions.open'),
-        cancelText: i18n.t('common.actions.copy')
-    });
-
-    if (!result.ok) {
-        if (result.reason === 'cancel') {
-            await copyTextToClipboard(normalizedLink);
-        }
-        return;
-    }
-
     try {
         await backend.app.OpenLink(normalizedLink);
     } catch {
-        window.open(normalizedLink, '_blank', 'noopener,noreferrer');
+        if (
+            normalizedLink.startsWith('http://') ||
+            normalizedLink.startsWith('https://')
+        ) {
+            window.open(normalizedLink, '_blank', 'noopener,noreferrer');
+        }
     }
 }
