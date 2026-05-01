@@ -7,6 +7,7 @@ import {
     gameLogRepository,
     groupProfileRepository
 } from '@/repositories/index.js';
+import { recordLocationHintsFromInstances } from '@/services/domainIngestionService.js';
 import { useDialogStore } from '@/state/dialogStore.js';
 import { useFriendRosterStore } from '@/state/friendRosterStore.js';
 import { useModalStore } from '@/state/modalStore.js';
@@ -213,6 +214,14 @@ export function GroupDialogContent({ groupId, seedData = null }) {
                     : Array.isArray(response.json?.instances)
                       ? response.json.instances
                       : [];
+                recordLocationHintsFromInstances({
+                    endpoint: currentEndpoint,
+                    instances: rows.map((row) => ({
+                        ...row,
+                        groupId: normalizedGroupId,
+                        groupName: group?.name || group?.displayName || ''
+                    }))
+                });
                 setRawActiveInstances(rows);
             })
             .catch(() => {
@@ -224,7 +233,13 @@ export function GroupDialogContent({ groupId, seedData = null }) {
         return () => {
             active = false;
         };
-    }, [currentEndpoint, currentUserId, normalizedGroupId]);
+    }, [
+        currentEndpoint,
+        currentUserId,
+        group?.displayName,
+        group?.name,
+        normalizedGroupId
+    ]);
 
     if (loadStatus === 'running' && !group) {
         return (

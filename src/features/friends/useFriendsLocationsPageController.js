@@ -2,6 +2,7 @@ import { useDeferredValue, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
+import { useCurrentInstancePresence } from '@/domain/presence/useCurrentInstancePresence.js';
 import { useScrollViewportMetrics } from '@/lib/useScrollViewportMetrics.js';
 import {
     notificationRepository,
@@ -30,6 +31,8 @@ import { useFriendsLocationsPageActions } from './useFriendsLocationsPageActions
 import { useFriendsLocationsPageDerivedState } from './useFriendsLocationsPageDerivedState.js';
 import { useFriendsLocationsPageEffects } from './useFriendsLocationsPageEffects.js';
 import { useFriendsLocationsPreferences } from './useFriendsLocationsPreferences.js';
+
+const EMPTY_CURRENT_LOCATION_PLAYER_IDS = Object.freeze([]);
 export function useFriendsLocationsPageController({ embedded = false } = {}) {
     const { t } = useTranslation();
     const currentUserId = useRuntimeStore((state) => state.auth.currentUserId);
@@ -48,18 +51,24 @@ export function useFriendsLocationsPageController({ embedded = false } = {}) {
     const currentLocationPlayerIds = useRuntimeStore(
         (state) => state.gameState.currentLocationPlayerIds
     );
+    const domainCurrentInstancePresence = useCurrentInstancePresence();
     const isGameRunning = useRuntimeStore(
         (state) => state.gameState.isGameRunning
     );
+    const effectiveCurrentLocationPlayerIds =
+        currentLocationPlayerIds && currentLocationPlayerIds.length
+            ? currentLocationPlayerIds
+            : domainCurrentInstancePresence?.userIds ||
+              EMPTY_CURRENT_LOCATION_PLAYER_IDS;
     const gameState = useMemo(
         () => ({
             currentLocation: runtimeCurrentLocation,
             currentDestination: runtimeCurrentDestination,
-            currentLocationPlayerIds,
+            currentLocationPlayerIds: effectiveCurrentLocationPlayerIds,
             isGameRunning
         }),
         [
-            currentLocationPlayerIds,
+            effectiveCurrentLocationPlayerIds,
             isGameRunning,
             runtimeCurrentDestination,
             runtimeCurrentLocation

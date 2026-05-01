@@ -8,6 +8,10 @@ import {
     buildAvatarWearSnapshotUpdate,
     persistAvatarWearTransition
 } from './avatarWearTimeService.js';
+import {
+    recordCurrentUserSnapshot,
+    recordFriendPatch
+} from './domainIngestionService.js';
 import { applyCurrentUserLocationEvent } from './realtime-presence/currentUserLocationFallback.js';
 import { dispatchRealtimePresenceMessage } from './realtime-presence/dispatcher.js';
 import {
@@ -105,6 +109,10 @@ function syncCurrentUserFriendState(userId, stateBucket) {
     runtimeStore.setAuthBootstrap({
         currentUserSnapshot: nextSnapshot
     });
+    recordCurrentUserSnapshot(nextSnapshot, {
+        endpoint: runtimeStore.auth.currentUserEndpoint,
+        source: 'currentUser'
+    });
 }
 
 function removeCurrentUserFriend(userId) {
@@ -146,6 +154,12 @@ function applyFriendPatch(userId, patch, stateBucket) {
     }
 
     useFriendRosterStore.getState().applyFriendPatch({
+        userId: normalizedUserId,
+        patch,
+        stateBucket
+    });
+    recordFriendPatch({
+        endpoint: useRuntimeStore.getState().auth.currentUserEndpoint,
         userId: normalizedUserId,
         patch,
         stateBucket

@@ -28,6 +28,10 @@ import {
     persistAvatarWearTransition
 } from './avatarWearTimeService.js';
 import i18n from './i18nService.js';
+import {
+    recordCurrentUserSnapshot,
+    resetDomainFacts
+} from './domainIngestionService.js';
 import { stopRealtimeTransport } from './realtimeTransportService.js';
 import { bootstrapAuthenticatedSession } from './sessionBootstrapService.js';
 
@@ -126,6 +130,7 @@ export function resetCurrentUserRuntimeAuth() {
     avatarProfileRepository.clearAvatarNameCache();
     useFriendRosterStore.getState().resetRoster();
     useFavoriteStore.getState().resetFavorites();
+    resetDomainFacts();
     resetActivityCacheState();
     useRuntimeStore.getState().setAuthBootstrap({
         currentUserId: null,
@@ -145,6 +150,7 @@ function setCurrentUserRuntimeAuth(
     avatarProfileRepository.clearAvatarNameCache();
     useFriendRosterStore.getState().resetRoster();
     useFavoriteStore.getState().resetFavorites();
+    resetDomainFacts();
     const runtimeStore = useRuntimeStore.getState();
     const { snapshot: nextSnapshot, transition } =
         buildAvatarWearSnapshotUpdate({
@@ -161,6 +167,7 @@ function setCurrentUserRuntimeAuth(
         currentUserWebsocket: websocket,
         currentUserSnapshot: nextSnapshot ?? null
     });
+    recordCurrentUserSnapshot(nextSnapshot ?? null, { endpoint });
     persistAvatarWearTransition(transition);
 }
 

@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { convertFileUrlToImageUrl } from '@/lib/entityMedia.js';
+import { useKnownUserFact } from '@/domain/users/useKnownUser.js';
 import { userSessionRepository } from '@/repositories/index.js';
+import { recordKnownUser } from '@/services/domainIngestionService.js';
 import { subscribeRecentActions } from '@/services/recentActionService.js';
 import { useDialogStore } from '@/state/dialogStore.js';
 import { useFavoriteStore } from '@/state/favoriteStore.js';
@@ -125,10 +127,13 @@ export function UserDialogContent({ userId, seedData = null, openNonce = 0 }) {
     );
     const hideUserNotes = usePreferencesStore((state) => state.hideUserNotes);
     const hideUserMemos = usePreferencesStore((state) => state.hideUserMemos);
+    const knownTargetUser = useKnownUserFact(normalizedUserId, {
+        endpoint: currentEndpoint
+    });
 
     const localSnapshot = isTargetCurrentUser
         ? currentUserSnapshot
-        : friendsById[normalizedUserId] || seedData || null;
+        : knownTargetUser || friendsById[normalizedUserId] || seedData || null;
     const targetKey = dialogTargetKey(currentEndpoint, normalizedUserId);
     const gameState = useMemo(
         () => ({
@@ -275,6 +280,24 @@ export function UserDialogContent({ userId, seedData = null, openNonce = 0 }) {
     const isFriend = Boolean(
         profileUserId && (friendsById[profileUserId] || profile?.isFriend)
     );
+    useEffect(() => {
+        if (seedData && typeof seedData === 'object') {
+            recordKnownUser(seedData, {
+                endpoint: currentEndpoint,
+                source: 'seed'
+            });
+        }
+    }, [currentEndpoint, seedData]);
+    useEffect(() => {
+        if (profile?.id) {
+            recordKnownUser(profile, {
+                endpoint: currentEndpoint,
+                source: isCurrentUser ? 'currentUser' : 'profile',
+                isCurrentUser,
+                isFriend
+            });
+        }
+    }, [currentEndpoint, isCurrentUser, isFriend, profile]);
     const friendRequestState = resolveFriendRequestState(profile);
     const platform = resolvePlatformMeta(
         profile?.$platform || profile?.platform || profile?.last_platform

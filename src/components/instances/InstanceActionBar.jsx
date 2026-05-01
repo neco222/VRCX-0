@@ -19,6 +19,7 @@ import {
 import { formatDateFilter } from '@/lib/dateTime.js';
 import { cn } from '@/lib/utils.js';
 import { instanceRepository } from '@/repositories/index.js';
+import { recordLocationHintsFromInstances } from '@/services/domainIngestionService.js';
 import { selfInviteToInstance } from '@/services/launchService.js';
 import { useLaunchStore } from '@/state/launchStore.js';
 import { useModalStore } from '@/state/modalStore.js';
@@ -349,6 +350,10 @@ export function InstanceActionBar({
             }
             if (override) {
                 setInstanceInfo(override);
+                recordLocationHintsFromInstances({
+                    endpoint: requestEndpoint,
+                    instances: [override]
+                });
             } else {
                 const response = await instanceRepository.getInstance({
                     worldId: actionTarget.parsedInstanceLocation.worldId,
@@ -362,6 +367,10 @@ export function InstanceActionBar({
                     return;
                 }
                 setInstanceInfo(response.json);
+                recordLocationHintsFromInstances({
+                    endpoint: requestEndpoint,
+                    instances: [response.json]
+                });
             }
             toast.success(t('dialog.instance.generated.instance_refreshed'));
         } catch (error) {
@@ -411,6 +420,10 @@ export function InstanceActionBar({
             }
             if (response.json) {
                 setInstanceInfo(response.json);
+                recordLocationHintsFromInstances({
+                    endpoint: requestEndpoint,
+                    instances: [response.json]
+                });
             }
             toast.success(t('dialog.instance.generated.instance_closed'));
         } catch (error) {

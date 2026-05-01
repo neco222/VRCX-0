@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
 import { PageScaffold } from '@/components/layout/PageScaffold.jsx';
+import { useCurrentInstancePresence } from '@/domain/presence/useCurrentInstancePresence.js';
 import { userFacingErrorMessage } from '@/lib/errorDisplay.js';
 import { backend } from '@/platform/index.js';
 import {
@@ -14,6 +15,10 @@ import {
     vrchatModerationRepository
 } from '@/repositories/index.js';
 import { openUserDialog } from '@/services/dialogService.js';
+import {
+    recordGameRuntimePresence,
+    recordLocationHintsFromInstances
+} from '@/services/domainIngestionService.js';
 import { parseLocation } from '@/shared/utils/locationParser.js';
 import { useFavoriteStore } from '@/state/favoriteStore.js';
 import { useFriendRosterStore } from '@/state/friendRosterStore.js';
@@ -176,6 +181,7 @@ export function PlayerListPage({ embedded = false } = {}) {
     const runtimePlayerRows = useRuntimeStore(
         (state) => state.gameState.currentLocationPlayers
     );
+    const domainCurrentInstancePresence = useCurrentInstancePresence();
     const friendsById = useFriendRosterStore((state) => state.friendsById);
     const remoteFavoriteFriendIds = useFavoriteStore(
         (state) => state.favoriteFriendIds
@@ -371,6 +377,7 @@ export function PlayerListPage({ embedded = false } = {}) {
                 let players = Array.isArray(result.players)
                     ? result.players
                     : [];
+                let instancePayload = null;
                 if (!players.length && parsed.worldId && parsed.instanceId) {
                     const response = await instanceRepository
                         .getInstance({
@@ -383,13 +390,14 @@ export function PlayerListPage({ embedded = false } = {}) {
                     if (!active) {
                         return;
                     }
+                    instancePayload = response?.json || null;
                     players = normalizeApiInstanceUsers(
-                        response?.json?.users,
-                        response?.json?.players,
-                        response?.json?.playerList,
-                        response?.json?.userList,
-                        response?.json?.userIds,
-                        response?.json?.usersById
+                        instancePayload?.users,
+                        instancePayload?.players,
+                        instancePayload?.playerList,
+                        instancePayload?.userList,
+                        instancePayload?.userIds,
+                        instancePayload?.usersById
                     );
                 }
 
@@ -406,6 +414,30 @@ export function PlayerListPage({ embedded = false } = {}) {
                     nextContext.worldName =
                         nextContext.worldName || logLocationSnapshot.worldName;
                 }
+                recordLocationHintsFromInstances({
+                    endpoint: currentUserEndpoint,
+                    instances: [
+                        {
+                            ...(instancePayload || {}),
+                            location: nextContext.location || playerListLocation,
+                            worldId: parsed.worldId || nextContext.worldId,
+                            instanceId: parsed.instanceId,
+                            worldName: nextContext.worldName,
+                            users: players,
+                            players
+                        }
+                    ]
+                });
+                recordGameRuntimePresence({
+                    endpoint: currentUserEndpoint,
+                    currentUserId,
+                    currentUserSnapshot,
+                    currentLocation: nextContext.location || playerListLocation,
+                    currentLocationStartedAt:
+                        nextContext.createdAt || playerListStartedAt,
+                    currentLocationPlayers: players,
+                    currentWorldName: nextContext.worldName
+                });
                 setContext(nextContext);
                 setPlayerRows(players);
                 setLoadStatus('ready');
@@ -439,10 +471,15 @@ export function PlayerListPage({ embedded = false } = {}) {
         addGameLogEventCount,
         currentUserEndpoint,
         currentUserId,
+        currentUserSnapshot,
         gameLogTailSyncedAt,
         gameLogDisabled,
         isGameRunning,
+        logLocationSnapshot?.createdAt,
+        logLocationSnapshot?.location,
+        logLocationSnapshot?.worldName,
         playerListLocation,
+        playerListStartedAt,
         playerListWorldId
     ]);
 
@@ -452,9 +489,15 @@ export function PlayerListPage({ embedded = false } = {}) {
     );
 
     const playerSourceRows = useMemo(() => {
+        const domainRuntimeRows = domainCurrentInstancePresence
+            ? Object.values(domainCurrentInstancePresence.playersById || {})
+            : [];
         return buildPlayerSourceRows({
             playerRows,
-            runtimePlayerRows,
+            runtimePlayerRows:
+                runtimePlayerRows && runtimePlayerRows.length
+                    ? runtimePlayerRows
+                    : domainRuntimeRows,
             currentUserId,
             currentUserSnapshot,
             isGameRunning,
@@ -467,6 +510,7 @@ export function PlayerListPage({ embedded = false } = {}) {
         context.location,
         currentUserId,
         currentUserSnapshot,
+        domainCurrentInstancePresence,
         isGameRunning,
         playerListLocation,
         playerListStartedAt,

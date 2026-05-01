@@ -11,6 +11,10 @@ import { useFriendRosterStore } from '@/state/friendRosterStore.js';
 import { useRuntimeStore } from '@/state/runtimeStore.js';
 import { useSessionStore } from '@/state/sessionStore.js';
 
+import {
+    recordFriendPatch,
+    recordFriendRosterFacts
+} from './domainIngestionService.js';
 import { syncStartupServicesTask } from './startupServicesStatus.js';
 
 const activeBootstraps = new Map();
@@ -87,6 +91,17 @@ export function syncFriendRosterStateFromCurrentUserSnapshot(
         })),
         detail
     );
+    for (const [userId, stateBucket] of stateById.entries()) {
+        recordFriendPatch({
+            endpoint: useRuntimeStore.getState().auth.currentUserEndpoint,
+            userId,
+            stateBucket,
+            patch: {
+                id: userId,
+                state: stateBucket
+            }
+        });
+    }
     return true;
 }
 
@@ -377,6 +392,10 @@ async function runFriendBootstrap({
         activeIds,
         offlineIds,
         detail
+    });
+    recordFriendRosterFacts({
+        endpoint,
+        friendsById
     });
     useSessionStore.getState().setFriendsLoaded(true);
     syncStartupServicesTask([detail]);

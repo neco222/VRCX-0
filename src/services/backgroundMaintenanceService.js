@@ -32,6 +32,10 @@ import {
     buildAvatarWearSnapshotUpdate,
     persistAvatarWearTransition
 } from './avatarWearTimeService.js';
+import {
+    recordCurrentUserSnapshot,
+    recordLocationHintsFromInstances
+} from './domainIngestionService.js';
 import { refreshDiscordPresence as updateDiscordPresence } from './discordPresenceService.js';
 import { bootstrapFavorites } from './favoriteBootstrapService.js';
 import {
@@ -353,6 +357,7 @@ export async function refreshCurrentUser() {
         currentUserWebsocket,
         currentUserSnapshot: nextSnapshot
     });
+    recordCurrentUserSnapshot(nextSnapshot, { endpoint: currentUserEndpoint });
     persistAvatarWearTransition(transition);
     syncFriendRosterStateFromCurrentUserSnapshot(
         nextSnapshot,
@@ -449,6 +454,10 @@ async function refreshGroupUserInstances() {
             fetchedAt,
             lastLoadedAt: new Date().toISOString(),
             error: ''
+        });
+        recordLocationHintsFromInstances({
+            endpoint: auth.currentUserEndpoint,
+            instances: hydratedInstances
         });
     } catch (error) {
         runtimeStore.setGroupInstancesState({

@@ -11,6 +11,7 @@ import {
     getCurrentUserSnapshot,
     setCurrentUserSnapshot
 } from './helpers.js';
+import { recordGameRuntimePresence } from '../domainIngestionService.js';
 
 function patchCurrentUserSnapshotFromGameState(runtimeStore) {
     const currentSnapshot = getCurrentUserSnapshot(runtimeStore);
@@ -73,6 +74,16 @@ async function updateRealtimeLocationFallback(location) {
         currentLocationPlayers: [],
         lastGameLogAt: createdAt,
         lastGameLogType: 'location'
+    });
+    const latestRuntime = useRuntimeStore.getState();
+    recordGameRuntimePresence({
+        endpoint: latestRuntime.auth.currentUserEndpoint,
+        currentUserId: latestRuntime.auth.currentUserId,
+        currentUserSnapshot: latestRuntime.auth.currentUserSnapshot,
+        currentLocation: normalizedLocation,
+        currentLocationStartedAt: createdAt,
+        currentLocationPlayers: [],
+        currentWorldName: worldName || ''
     });
 
     const latestLocations = await gameLogRepository.lookupGameLogDatabase(

@@ -8,6 +8,8 @@ import {
     worldProfileRepository
 } from '@/repositories/index.js';
 import { parseLocation, resolveRegion } from '@/shared/utils/location.js';
+import { instanceLocationKey } from '@/domain/presence/instancePresence.js';
+import { useLocationHintStore } from '@/state/locationHintStore.js';
 import { useRuntimeStore } from '@/state/runtimeStore.js';
 
 const WORLD_ID_PATTERN =
@@ -231,6 +233,20 @@ function resolveEntryCachedInstance(entry, cachedInstances) {
     ]);
 }
 
+function resolveEntryLocationHint(entry, locationHintsByKey, currentEndpoint) {
+    const locationKey = instanceLocationKey(
+        entry.locationTag || entry.currentLocation || entry.locationValue
+    );
+    if (!locationKey) {
+        return null;
+    }
+    return (
+        locationHintsByKey?.[`${currentEndpoint || 'default'}::${locationKey}`] ||
+        locationHintsByKey?.[`default::${locationKey}`] ||
+        null
+    );
+}
+
 function resolveEntryWorldNameHint(entry) {
     return (
         normalizeWorldNameHint(
@@ -252,51 +268,72 @@ function resolveEntryMetadata(
         cachedInstances,
         currentEndpoint,
         groupProfilesById,
+        locationHintsByKey,
         localWorldNamesById,
         worldProfilesById
     }
 ) {
     const cachedInstance = resolveEntryCachedInstance(entry, cachedInstances);
+    const locationHint = resolveEntryLocationHint(
+        entry,
+        locationHintsByKey,
+        currentEndpoint
+    );
     const worldNameHint = resolveEntryWorldNameHint(entry);
     const cachedWorldName = normalizeWorldNameHint(
         readInstanceWorldName(cachedInstance),
         entry.locationInfo,
         entry.currentLocation
     );
-    const hintedGroupName =
-        normalizeGroupNameHint(entry.groupHint, entry.groupId) ||
+    const queryGroupName = groupProfileName(groupProfilesById.get(entry.groupId));
+    const cachedGroupName =
         normalizeGroupNameHint(
             readInstanceGroupName(cachedInstance),
             entry.groupId
-        );
+        ) ||
+        normalizeGroupNameHint(locationHint?.groupName, entry.groupId);
     const resolvedInstanceName =
         readInstanceDisplayName(cachedInstance) ||
         normalizeString(entry.instanceName) ||
         normalizeString(entry.locationInfo?.instanceName);
     const groupName =
-        groupProfileName(groupProfilesById.get(entry.groupId)) ||
-        hintedGroupName ||
+        normalizeGroupNameHint(entry.groupHint, entry.groupId) ||
+        queryGroupName ||
+        cachedGroupName ||
         entry.groupId;
+    const queryWorldName = normalizeWorldNameHint(
+        worldProfilesById.get(entry.worldId)?.name,
+        entry.locationInfo,
+        entry.currentLocation
+    );
+    const hintedWorldName = normalizeWorldNameHint(
+        locationHint?.worldName,
+        entry.locationInfo,
+        entry.currentLocation
+    );
     const localWorldName = normalizeWorldNameHint(
         localWorldNamesById.get(entry.worldId),
         entry.locationInfo,
         entry.currentLocation
     );
     const worldName =
-        normalizeWorldNameHint(
-            worldProfilesById.get(entry.worldId)?.name,
-            entry.locationInfo,
-            entry.currentLocation
-        ) ||
+        worldNameHint ||
+        queryWorldName ||
         cachedWorldName ||
-        localWorldName ||
-        worldNameHint;
+        hintedWorldName ||
+        localWorldName;
 
     return {
         currentEndpoint,
-        region: resolveRegion(entry.locationInfo || {}),
-        instanceName: resolvedInstanceName,
-        isClosed: Boolean(cachedInstance && isInstanceClosed(cachedInstance)),
+        region:
+            resolveRegion(entry.locationInfo || {}) ||
+            normalizeString(locationHint?.region),
+        instanceName:
+            resolvedInstanceName || normalizeString(locationHint?.instanceName),
+        isClosed: Boolean(
+            (cachedInstance && isInstanceClosed(cachedInstance)) ||
+                locationHint?.isClosed
+        ),
         groupName,
         worldName,
         worldNameHint
@@ -329,6 +366,9 @@ export function useLocationMetadataBatch(entries = [], { endpoint = '' } = {}) {
     const currentEndpoint = endpoint || storeEndpoint;
     const groupInstancesState = useRuntimeStore(
         (state) => state.groupInstances
+    );
+    const locationHintsByKey = useLocationHintStore(
+        (state) => state.hintsByKey
     );
     const groupInstances =
         groupInstancesState.endpoint === currentEndpoint
@@ -477,6 +517,7 @@ export function useLocationMetadataBatch(entries = [], { endpoint = '' } = {}) {
                     cachedInstances,
                     currentEndpoint,
                     groupProfilesById,
+                    locationHintsByKey,
                     localWorldNamesById,
                     worldProfilesById
                 })
@@ -487,6 +528,7 @@ export function useLocationMetadataBatch(entries = [], { endpoint = '' } = {}) {
         cachedInstances,
         currentEndpoint,
         groupProfilesById,
+        locationHintsByKey,
         localWorldNamesById,
         normalizedEntries,
         worldProfilesById

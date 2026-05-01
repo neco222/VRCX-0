@@ -41,6 +41,7 @@ import {
     persistVideoEntry,
     resetRuntimeNowPlayingState
 } from './game-log-ingest/videoPersistence.js';
+import { recordGameRuntimePresence } from './domainIngestionService.js';
 import { isHostCapabilityAvailable } from './hostCapabilityService.js';
 
 const GAME_LOG_BATCH_LIMIT = 50;
@@ -80,6 +81,16 @@ function updateCurrentLocation({ location, worldName = '', createdAt = '' }) {
         currentLocationStartedAt: ingestState.currentLocationStartedAt,
         currentLocationPlayerIds: getCurrentLocationPlayerIds(),
         currentLocationPlayers: getCurrentLocationPlayers()
+    });
+    const domainRuntime = useRuntimeStore.getState();
+    recordGameRuntimePresence({
+        endpoint: domainRuntime.auth.currentUserEndpoint,
+        currentUserId: domainRuntime.auth.currentUserId,
+        currentUserSnapshot: domainRuntime.auth.currentUserSnapshot,
+        currentLocation: location,
+        currentLocationStartedAt: ingestState.currentLocationStartedAt,
+        currentLocationPlayers: getCurrentLocationPlayers(),
+        currentWorldName: worldName
     });
 }
 
@@ -165,6 +176,16 @@ async function persistGameLog(gameLog, options = {}) {
                 currentLocationPlayerIds: [],
                 currentLocationPlayers: []
             });
+            const domainRuntime = useRuntimeStore.getState();
+            recordGameRuntimePresence({
+                endpoint: domainRuntime.auth.currentUserEndpoint,
+                currentUserId: domainRuntime.auth.currentUserId,
+                currentUserSnapshot: domainRuntime.auth.currentUserSnapshot,
+                currentLocation: 'traveling',
+                currentDestination: destination,
+                currentLocationStartedAt: changedAt,
+                currentLocationPlayers: []
+            });
             break;
         }
         case 'location': {
@@ -201,6 +222,18 @@ async function persistGameLog(gameLog, options = {}) {
                 currentLocationPlayerIds: getCurrentLocationPlayerIds(),
                 currentLocationPlayers: getCurrentLocationPlayers()
             });
+            const domainRuntime = useRuntimeStore.getState();
+            recordGameRuntimePresence({
+                endpoint: domainRuntime.auth.currentUserEndpoint,
+                currentUserId: domainRuntime.auth.currentUserId,
+                currentUserSnapshot: domainRuntime.auth.currentUserSnapshot,
+                currentLocation: domainRuntime.gameState.currentLocation,
+                currentDestination: domainRuntime.gameState.currentDestination,
+                currentLocationStartedAt:
+                    domainRuntime.gameState.currentLocationStartedAt,
+                currentLocationPlayers: getCurrentLocationPlayers(),
+                currentWorldName: domainRuntime.gameState.currentWorldName
+            });
             entry = createJoinLeaveEntry(
                 'OnPlayerJoined',
                 gameLog.dt,
@@ -225,6 +258,18 @@ async function persistGameLog(gameLog, options = {}) {
             runtimeStore.setGameState({
                 currentLocationPlayerIds: getCurrentLocationPlayerIds(),
                 currentLocationPlayers: getCurrentLocationPlayers()
+            });
+            const domainRuntime = useRuntimeStore.getState();
+            recordGameRuntimePresence({
+                endpoint: domainRuntime.auth.currentUserEndpoint,
+                currentUserId: domainRuntime.auth.currentUserId,
+                currentUserSnapshot: domainRuntime.auth.currentUserSnapshot,
+                currentLocation: domainRuntime.gameState.currentLocation,
+                currentDestination: domainRuntime.gameState.currentDestination,
+                currentLocationStartedAt:
+                    domainRuntime.gameState.currentLocationStartedAt,
+                currentLocationPlayers: getCurrentLocationPlayers(),
+                currentWorldName: domainRuntime.gameState.currentWorldName
             });
             entry = createJoinLeaveEntry(
                 'OnPlayerLeft',

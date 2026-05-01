@@ -14,6 +14,11 @@ import {
     playerListRepository,
     userProfileRepository
 } from '@/repositories/index.js';
+import {
+    recordGameRuntimePresence,
+    recordKnownUsers,
+    recordLocationHintsFromInstances
+} from '@/services/domainIngestionService.js';
 import { checkCanInvite } from '@/shared/utils/invite.js';
 import { parseLocation } from '@/shared/utils/location.js';
 
@@ -155,9 +160,6 @@ export function useUserDialogLocationPanel({
 }) {
     const normalizedCurrentUserId = normalizeUserId(currentUserId);
     const currentGameLocation = normalizeUserId(gameState?.currentLocation);
-    const currentGameDestination = normalizeUserId(
-        gameState?.currentDestination
-    );
     const currentSnapshotLocation = normalizeUserId(
         currentUserSnapshot?.$locationTag || currentUserSnapshot?.location
     );
@@ -201,12 +203,7 @@ export function useUserDialogLocationPanel({
             };
         }
 
-        const currentLocation =
-            currentGameLocation === 'traveling'
-                ? currentGameDestination
-                : currentGameLocation ||
-                  currentGameDestination ||
-                  currentSnapshotLocation;
+        const currentLocation = currentGameLocation || currentSnapshotLocation;
         const currentLocationMatches = isSameLocationTag(
             currentLocation,
             activeLocation
@@ -338,6 +335,11 @@ export function useUserDialogLocationPanel({
                         playerSnapshotResult.status === 'fulfilled'
                             ? playerSnapshotResult.value
                             : null;
+                    const snapshotPlayers = Array.isArray(
+                        playerSnapshot?.players
+                    )
+                        ? playerSnapshot.players
+                        : [];
                     const instanceOwnerId = resolveOwnerId(
                         instance,
                         parsedLocation.userId,
@@ -367,6 +369,53 @@ export function useUserDialogLocationPanel({
 
                         ownerUser = ownerPayloadFromInstance.ownerUser;
                         ownerGroup = ownerPayloadFromInstance.ownerGroup;
+                    }
+
+                    recordLocationHintsFromInstances({
+                        endpoint: currentEndpoint,
+                        instances: [
+                            {
+                                ...locationMetadata,
+                                ...(instance || {}),
+                                location: activeLocation,
+                                worldId: parsedLocation.worldId,
+                                instanceId: parsedLocation.instanceId,
+                                users:
+                                    instance?.users ||
+                                    locationMetadata.users ||
+                                    locationMetadata.friends,
+                                players:
+                                    instance?.players ||
+                                    (snapshotPlayers.length
+                                        ? snapshotPlayers
+                                        : null) ||
+                                    locationMetadata.players,
+                                usersById: instance?.usersById,
+                                userIds: instance?.userIds
+                            }
+                        ]
+                    });
+                    recordKnownUsers(snapshotPlayers, {
+                        endpoint: currentEndpoint,
+                        source: 'playerSnapshot'
+                    });
+                    if (currentLocationMatches) {
+                        recordGameRuntimePresence({
+                            endpoint: currentEndpoint,
+                            currentUserId: normalizedCurrentUserId,
+                            currentUserSnapshot,
+                            currentLocation: snapshotLocation,
+                            currentLocationStartedAt:
+                                gameState?.currentLocationStartedAt ||
+                                playerSnapshot?.context?.createdAt ||
+                                '',
+                            currentLocationPlayers: snapshotPlayers,
+                            currentWorldName:
+                                playerSnapshot?.context?.worldName ||
+                                instance?.worldName ||
+                                locationMetadata.worldName ||
+                                ''
+                        });
                     }
 
                     pushLocationUserSource(
@@ -483,11 +532,11 @@ export function useUserDialogLocationPanel({
         };
     }, [
         currentEndpoint,
-        currentGameDestination,
         currentGameLocation,
         currentSnapshotLocation,
         currentUserSnapshot,
         friendsById,
+        gameState?.currentLocationStartedAt,
         locationRefreshToken,
         normalizedCurrentUserId,
         profile,
@@ -521,7 +570,14 @@ export function useUserDialogLocationPanel({
                 if (!active) {
                     return;
                 }
-                setCurrentInviteInstance(response?.json || null);
+                const instance = response?.json || null;
+                recordLocationHintsFromInstances({
+                    endpoint: currentEndpoint,
+                    instances: instance
+                        ? [{ ...instance, location: currentInviteLocation }]
+                        : []
+                });
+                setCurrentInviteInstance(instance);
                 setCurrentInviteInstanceStatus('ready');
             })
             .catch(() => {

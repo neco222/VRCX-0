@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useLocationMetadataBatch } from '@/components/location/useLocationMetadata.js';
 import { useVirtualSidebarRows } from '@/components/sidebar/useVirtualSidebarRows.js';
+import { useCurrentInstancePresence } from '@/domain/presence/useCurrentInstancePresence.js';
 import { subscribeRecentActions } from '@/services/recentActionService.js';
 import { checkCanInvite } from '@/shared/utils/invite.js';
 import { useFavoriteStore } from '@/state/favoriteStore.js';
@@ -30,6 +31,8 @@ import { buildFriendsSidebarVirtualRows } from './friends-sidebar/friendsSidebar
 import { FriendsSidebarVirtualRow } from './friends-sidebar/FriendsSidebarVirtualRows.jsx';
 import { useFriendsSidebarActions } from './friends-sidebar/useFriendsSidebarActions.js';
 import { useFriendsSidebarPreferences } from './friends-sidebar/useFriendsSidebarPreferences.js';
+
+const EMPTY_CURRENT_LOCATION_PLAYER_IDS = Object.freeze([]);
 export function FriendsSidebar({ prefs }) {
     const { t } = useTranslation();
     const themeMode = useShellStore((state) => state.themeMode);
@@ -50,18 +53,24 @@ export function FriendsSidebar({ prefs }) {
     const currentLocationPlayerIds = useRuntimeStore(
         (state) => state.gameState.currentLocationPlayerIds
     );
+    const domainCurrentInstancePresence = useCurrentInstancePresence();
     const isGameRunning = useRuntimeStore(
         (state) => state.gameState.isGameRunning
     );
+    const effectiveCurrentLocationPlayerIds =
+        currentLocationPlayerIds && currentLocationPlayerIds.length
+            ? currentLocationPlayerIds
+            : domainCurrentInstancePresence?.userIds ||
+              EMPTY_CURRENT_LOCATION_PLAYER_IDS;
     const gameState = useMemo(
         () => ({
             currentLocation: runtimeCurrentLocation,
             currentDestination: runtimeCurrentDestination,
-            currentLocationPlayerIds,
+            currentLocationPlayerIds: effectiveCurrentLocationPlayerIds,
             isGameRunning
         }),
         [
-            currentLocationPlayerIds,
+            effectiveCurrentLocationPlayerIds,
             isGameRunning,
             runtimeCurrentDestination,
             runtimeCurrentLocation
@@ -127,12 +136,12 @@ export function FriendsSidebar({ prefs }) {
         () => ({
             location: currentLocation,
             friendList: new Set(
-                Array.isArray(currentLocationPlayerIds)
-                    ? currentLocationPlayerIds
+                Array.isArray(effectiveCurrentLocationPlayerIds)
+                    ? effectiveCurrentLocationPlayerIds
                     : []
             )
         }),
-        [currentLocation, currentLocationPlayerIds]
+        [currentLocation, effectiveCurrentLocationPlayerIds]
     );
     const friendsMap = useMemo(
         () => new Map(Object.entries(friendsById || {})),

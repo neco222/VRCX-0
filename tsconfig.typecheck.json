@@ -8,8 +8,10 @@
         "noEmit": true
     },
     "include": [
+        "src/domain/**/*.ts",
         "src/platform/**/*.ts",
         "src/repositories/**/*.ts",
+        "src/services/domainIngestionService.ts",
         "src/shared/constants/**/*.ts",
         "src/state/**/*.ts",
         "src/shared/utils/**/*.ts"

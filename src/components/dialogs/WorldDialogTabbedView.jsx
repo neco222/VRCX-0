@@ -14,6 +14,10 @@ import {
     userProfileRepository
 } from '@/repositories/index.js';
 import { openUserDialog } from '@/services/dialogService.js';
+import {
+    recordGameRuntimePresence,
+    recordLocationHintsFromInstances
+} from '@/services/domainIngestionService.js';
 import { parseLocation } from '@/shared/utils/location.js';
 import { replaceVrcPackageUrl } from '@/shared/utils/urlUtils.js';
 import { useFriendRosterStore } from '@/state/friendRosterStore.js';
@@ -200,11 +204,14 @@ export function WorldDialogTabbedView({
     const currentEndpoint = useRuntimeStore(
         (state) => state.auth.currentUserEndpoint
     );
+    const currentUserSnapshot = useRuntimeStore(
+        (state) => state.auth.currentUserSnapshot
+    );
     const currentGameLocation = useRuntimeStore(
         (state) => state.gameState.currentLocation
     );
-    const currentGameDestination = useRuntimeStore(
-        (state) => state.gameState.currentDestination
+    const currentLocationStartedAt = useRuntimeStore(
+        (state) => state.gameState.currentLocationStartedAt
     );
     const friendsById = useFriendRosterStore((state) => state.friendsById);
     const [activeTab, setActiveTab] = useState(() => lastWorldDialogTab);
@@ -290,10 +297,7 @@ export function WorldDialogTabbedView({
             )
         };
     });
-    const currentResolvedLocation =
-        currentGameLocation === 'traveling'
-            ? currentGameDestination
-            : currentGameLocation;
+    const currentResolvedLocation = currentGameLocation;
     const { creatorGroupKey, displayInstanceRows } =
         buildWorldDialogDisplayInstanceRows({
             creatorGroupsById,
@@ -350,6 +354,20 @@ export function WorldDialogTabbedView({
             if (!active) {
                 return;
             }
+            recordLocationHintsFromInstances({
+                endpoint: currentEndpoint,
+                instances: entries
+                    .filter((entry) => entry?.instance)
+                    .map((entry) => {
+                        const parsedLocation = parseLocation(entry.location);
+                        return {
+                            ...entry.instance,
+                            location: entry.location,
+                            worldId: parsedLocation.worldId,
+                            instanceId: parsedLocation.instanceId
+                        };
+                    })
+            });
             setInstanceDetailsByLocation((current) => {
                 const next = {};
                 for (const location of targetLocations) {
@@ -468,6 +486,9 @@ export function WorldDialogTabbedView({
                 : Promise.resolve(null)
         ])
             .then(async ([instance, playerSnapshot]) => {
+                const snapshotPlayers = Array.isArray(playerSnapshot?.players)
+                    ? playerSnapshot.players
+                    : [];
                 const ownerId = firstText(
                     parsedLocation.userId,
                     instance?.ownerUserId,
@@ -543,6 +564,39 @@ export function WorldDialogTabbedView({
                 if (!active) {
                     return;
                 }
+                recordLocationHintsFromInstances({
+                    endpoint: currentEndpoint,
+                    instances: [
+                        {
+                            ...(instance || {}),
+                            location: normalizedWorldId,
+                            worldId: parsedLocation.worldId,
+                            instanceId: parsedLocation.instanceId,
+                            worldName: world?.name,
+                            users: instance?.users,
+                            players: instance?.players || snapshotPlayers,
+                            usersById: instance?.usersById,
+                            userIds: instance?.userIds
+                        }
+                    ]
+                });
+                if (isCurrentLiveInstance) {
+                    recordGameRuntimePresence({
+                        endpoint: currentEndpoint,
+                        currentUserId,
+                        currentUserSnapshot,
+                        currentLocation: normalizedWorldId,
+                        currentLocationStartedAt:
+                            currentLocationStartedAt ||
+                            playerSnapshot?.context?.createdAt ||
+                            '',
+                        currentLocationPlayers: snapshotPlayers,
+                        currentWorldName:
+                            playerSnapshot?.context?.worldName ||
+                            world?.name ||
+                            ''
+                    });
+                }
                 setCurrentInstanceDetails({
                     location: normalizedWorldId,
                     instance,
@@ -569,9 +623,12 @@ export function WorldDialogTabbedView({
     }, [
         currentEndpoint,
         currentResolvedLocation,
+        currentLocationStartedAt,
         currentUserId,
+        currentUserSnapshot,
         isInstanceLocation,
-        normalizedWorldId
+        normalizedWorldId,
+        world?.name
     ]);
 
     const worldUrl = world.id
