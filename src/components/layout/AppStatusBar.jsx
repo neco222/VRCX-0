@@ -159,10 +159,6 @@ function formatStatusDate(value) {
 export function AppStatusBar() {
     const { t } = useTranslation();
     const appStartedAtRef = useRef(Date.now());
-    const transportMessageCountRef = useRef(0);
-    const messageHistoryRef = useRef(new Array(60).fill(0));
-    const [nowMs, setNowMs] = useState(Date.now());
-    const [messagesPerMinute, setMessagesPerMinute] = useState(0);
     const [visibility, setVisibility] = useState(DEFAULT_VISIBILITY);
     const [clocks, setClocks] = useState(() => createDefaultClocks());
     const [clockCount, setClockCount] = useState(1);
@@ -171,9 +167,6 @@ export function AppStatusBar() {
         false,
         false
     ]);
-    const transportMessageCount = useRuntimeStore(
-        (state) => state.transport.messageCount
-    );
     const websocketConnected = useRuntimeStore(
         (state) => state.transport.websocketConnected
     );
@@ -231,10 +224,9 @@ export function AppStatusBar() {
     );
     const runtimeTransport = useMemo(
         () => ({
-            messageCount: transportMessageCount,
             websocketConnected
         }),
-        [transportMessageCount, websocketConnected]
+        [websocketConnected]
     );
     const runtimeGameState = useMemo(
         () => ({
@@ -282,27 +274,8 @@ export function AppStatusBar() {
     const currentLocationStartedTimestamp = Date.parse(
         currentLocationStartedAt || ''
     );
-    const gameDuration =
-        isGameRunning && gameStartedAt
-            ? formatDuration(nowMs - gameStartedAt)
-            : '';
-    const currentLocationDuration =
-        isGameRunning && currentLocationStartedTimestamp
-            ? formatDuration(nowMs - currentLocationStartedTimestamp)
-            : '';
     const currentWorld = currentWorldName || currentWorldId || '';
-    const nowPlayingElapsed = nowPlaying.startedAt
-        ? Math.max(
-              0,
-              Math.floor((nowMs - Date.parse(nowPlaying.startedAt)) / 1000) +
-                  Number(nowPlaying.position || 0)
-          )
-        : Number(nowPlaying.position || 0);
-    const nowPlayingProgress = nowPlaying.length
-        ? `${formatDuration(nowPlayingElapsed * 1000)} / ${formatDuration(Number(nowPlaying.length) * 1000)}`
-        : '';
     const currentZoomLevel = normalizeZoomLevel(zoomLevel);
-    const appUptime = formatAppUptime(nowMs - appStartedAtRef.current);
     const timezoneOptions = TIMEZONE_OPTIONS;
 
     useEffect(() => {
@@ -361,31 +334,6 @@ export function AppStatusBar() {
         return () => {
             active = false;
         };
-    }, []);
-
-    useEffect(() => {
-        transportMessageCountRef.current = transportMessageCount;
-    }, [transportMessageCount]);
-
-    useEffect(() => {
-        const timer = window.setInterval(() => {
-            const nextCount = transportMessageCountRef.current;
-            const delta = Math.max(
-                0,
-                nextCount - (messageHistoryRef.current.lastCount ?? nextCount)
-            );
-            messageHistoryRef.current.lastCount = nextCount;
-            messageHistoryRef.current.push(delta);
-            while (messageHistoryRef.current.length > 60) {
-                messageHistoryRef.current.shift();
-            }
-            setMessagesPerMinute(
-                messageHistoryRef.current.reduce((sum, item) => sum + item, 0)
-            );
-            setNowMs(Date.now());
-        }, 1000);
-
-        return () => window.clearInterval(timer);
     }, []);
 
     function persistVisibility(nextVisibility) {
@@ -524,7 +472,12 @@ export function AppStatusBar() {
             <ContextMenuTrigger asChild>
                 <StatusBarFooter
                     t={t}
-                    helpers={{ formatClock, formatStatusDate }}
+                    helpers={{
+                        formatClock,
+                        formatDuration,
+                        formatStatusDate,
+                        formatAppUptime
+                    }}
                     handlers={{
                         onOpenMediaLink: () => {
                             void backend.app
@@ -564,17 +517,14 @@ export function AppStatusBar() {
                         onUpdateClockTimezone: updateClockTimezone
                     }}
                     state={{
-                        appUptime,
+                        appStartedAt: appStartedAtRef.current,
                         clockPopoverOpen,
-                        currentLocationDuration,
+                        currentLocationStartedTimestamp,
                         currentWorld,
-                        gameDuration,
+                        gameStartedAt,
                         isGameRunning,
                         isSteamVRRunning,
-                        messagesPerMinute,
-                        nowMs,
                         nowPlaying,
-                        nowPlayingProgress,
                         proxyServer,
                         runtimeGameState,
                         runtimeTransport,

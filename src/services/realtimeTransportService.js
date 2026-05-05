@@ -37,35 +37,9 @@ function getTransportUrl(domain, token) {
     return `${normalizeWebsocketDomain(domain)}/?auth=${encodeURIComponent(token)}`;
 }
 
-function getByteLength(data) {
-    if (typeof data === 'string') {
-        return data.length;
-    }
-
-    if (data instanceof ArrayBuffer) {
-        return data.byteLength;
-    }
-
-    return 0;
-}
-
-function getMessageType(data) {
-    if (typeof data !== 'string') {
-        return 'binary';
-    }
-
-    try {
-        const json = JSON.parse(data);
-        return typeof json?.type === 'string' ? json.type : 'unknown';
-    } catch {
-        return 'unknown';
-    }
-}
-
 function parseTransportMessage(data) {
     if (typeof data !== 'string') {
         return {
-            messageType: getMessageType(data),
             json: null
         };
     }
@@ -81,12 +55,10 @@ function parseTransportMessage(data) {
         }
 
         return {
-            messageType: typeof json?.type === 'string' ? json.type : 'unknown',
             json
         };
     } catch {
         return {
-            messageType: 'unknown',
             json: null
         };
     }
@@ -205,12 +177,6 @@ function attachSocketHandlers(
         }
 
         const parsedMessage = parseTransportMessage(data);
-        useRuntimeStore
-            .getState()
-            .recordTransportMessage(
-                parsedMessage.messageType,
-                getByteLength(data)
-            );
 
         if (typeof data === 'string') {
             if (lastSocketMessage === data) {
@@ -276,11 +242,7 @@ async function connectRealtimeTransport({ announceIpc, preserveMetrics }) {
         useRuntimeStore.getState().setTransportState({
             websocketConnected: false,
             websocketDomain: normalizeWebsocketDomain(context.websocket),
-            messageCount: 0,
-            bytesReceived: 0,
             reconnectCount: 0,
-            lastMessageType: '',
-            lastMessageAt: null,
             lastConnectedAt: null,
             lastDisconnectedAt: null,
             ipcAnnounced: false,
@@ -418,11 +380,7 @@ export function stopRealtimeTransport({
         useRuntimeStore.getState().setTransportState({
             websocketConnected: false,
             websocketDomain: '',
-            messageCount: 0,
-            bytesReceived: 0,
             reconnectCount: 0,
-            lastMessageType: '',
-            lastMessageAt: null,
             lastConnectedAt: null,
             lastDisconnectedAt: new Date().toISOString(),
             ipcAnnounced: false,

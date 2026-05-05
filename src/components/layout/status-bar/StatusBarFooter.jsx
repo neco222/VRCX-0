@@ -1,5 +1,5 @@
 import { ClockIcon, NetworkIcon } from 'lucide-react';
-import { forwardRef } from 'react';
+import { forwardRef, useEffect, useState } from 'react';
 
 import { cn } from '@/lib/utils.js';
 import { Button } from '@/ui/shadcn/button';
@@ -16,22 +16,108 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/shadcn/tooltip';
 
 import { StatusDot, StatusSegment } from './StatusBarParts.jsx';
 
+let tickerNowMs = Date.now();
+let tickerTimer = null;
+const tickerListeners = new Set();
+
+function emitTicker() {
+    tickerNowMs = Date.now();
+    for (const listener of tickerListeners) {
+        listener(tickerNowMs);
+    }
+}
+
+function subscribeStatusTicker(listener) {
+    tickerListeners.add(listener);
+    if (tickerTimer === null) {
+        tickerTimer = window.setInterval(emitTicker, 1000);
+    }
+
+    return () => {
+        tickerListeners.delete(listener);
+        if (tickerListeners.size === 0 && tickerTimer !== null) {
+            window.clearInterval(tickerTimer);
+            tickerTimer = null;
+        }
+    };
+}
+
+function useStatusNowMs(active = true) {
+    const [nowMs, setNowMs] = useState(() => tickerNowMs);
+
+    useEffect(() => {
+        if (!active) {
+            return undefined;
+        }
+        setNowMs(tickerNowMs);
+        return subscribeStatusTicker(setNowMs);
+    }, [active]);
+
+    return nowMs;
+}
+
+function DurationValue({ active, formatter, startAtMs }) {
+    const normalizedStartAt = Number(startAtMs);
+    const enabled =
+        active &&
+        Number.isFinite(normalizedStartAt) &&
+        normalizedStartAt > 0;
+    const nowMs = useStatusNowMs(enabled);
+
+    if (!enabled) {
+        return '-';
+    }
+
+    return formatter(nowMs - normalizedStartAt);
+}
+
+function AppUptimeValue({ formatter, startedAtMs }) {
+    const nowMs = useStatusNowMs(true);
+    return formatter(nowMs - startedAtMs);
+}
+
+function ClockValue({ formatter, offset }) {
+    const nowMs = useStatusNowMs(true);
+    return formatter(nowMs, offset);
+}
+
+function NowPlayingProgress({ formatter, nowPlaying }) {
+    const hasLength = Boolean(nowPlaying.length);
+    const nowMs = useStatusNowMs(
+        hasLength && Boolean(nowPlaying.startedAt)
+    );
+    if (!hasLength) {
+        return null;
+    }
+
+    const elapsedSeconds = nowPlaying.startedAt
+        ? Math.max(
+              0,
+              Math.floor((nowMs - Date.parse(nowPlaying.startedAt)) / 1000) +
+                  Number(nowPlaying.position || 0)
+          )
+        : Number(nowPlaying.position || 0);
+
+    return (
+        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+            {`${formatter(elapsedSeconds * 1000)} / ${formatter(Number(nowPlaying.length) * 1000)}`}
+        </span>
+    );
+}
+
 export const StatusBarFooter = forwardRef(function StatusBarFooter(
     { className, helpers, handlers, state, t, ...props },
     ref
 ) {
     const {
-        appUptime,
+        appStartedAt,
         clockPopoverOpen,
-        currentLocationDuration,
+        currentLocationStartedTimestamp,
         currentWorld,
-        gameDuration,
+        gameStartedAt,
         isGameRunning,
         isSteamVRRunning,
-        messagesPerMinute,
-        nowMs,
         nowPlaying,
-        nowPlayingProgress,
         proxyServer,
         runtimeGameState,
         runtimeTransport,
@@ -41,7 +127,8 @@ export const StatusBarFooter = forwardRef(function StatusBarFooter(
         vrcStatus,
         zoomLabel
     } = state;
-    const { formatClock, formatStatusDate } = helpers;
+    const { formatClock, formatDuration, formatStatusDate, formatAppUptime } =
+        helpers;
     const {
         onOpenMediaLink,
         onOpenStatusPage,
@@ -95,7 +182,13 @@ export const StatusBarFooter = forwardRef(function StatusBarFooter(
                                                     'app_menu.generated.session_duration'
                                                 )}
                                             </span>
-                                            <span>{gameDuration || '-'}</span>
+                                            <span>
+                                                <DurationValue
+                                                    active={isGameRunning}
+                                                    formatter={formatDuration}
+                                                    startAtMs={gameStartedAt}
+                                                />
+                                            </span>
                                         </div>
                                         <div className="flex justify-between gap-4">
                                             <span className="text-muted-foreground">
@@ -104,7 +197,13 @@ export const StatusBarFooter = forwardRef(function StatusBarFooter(
                                                 )}
                                             </span>
                                             <span>
-                                                {currentLocationDuration || '-'}
+                                                <DurationValue
+                                                    active={isGameRunning}
+                                                    formatter={formatDuration}
+                                                    startAtMs={
+                                                        currentLocationStartedTimestamp
+                                                    }
+                                                />
                                             </span>
                                         </div>
                                         {currentWorld ? (
@@ -182,11 +281,6 @@ export const StatusBarFooter = forwardRef(function StatusBarFooter(
                                         ? t('status_bar.ws_connected')
                                         : t('status_bar.ws_disconnected')}
                                 </span>
-                                <span className="text-muted-foreground">
-                                    {t('status_bar.ws_avg_per_minute', {
-                                        count: messagesPerMinute
-                                    })}
-                                </span>
                             </TooltipContent>
                         </Tooltip>
                     ) : null}
@@ -199,11 +293,10 @@ export const StatusBarFooter = forwardRef(function StatusBarFooter(
                         value={nowPlaying.name || nowPlaying.url}
                         onClick={onOpenMediaLink}
                     >
-                        {nowPlayingProgress ? (
-                            <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                                {nowPlayingProgress}
-                            </span>
-                        ) : null}
+                        <NowPlayingProgress
+                            formatter={formatDuration}
+                            nowPlaying={nowPlaying}
+                        />
                     </StatusSegment>
                 </div>
 
@@ -228,7 +321,10 @@ export const StatusBarFooter = forwardRef(function StatusBarFooter(
                                               data-icon="inline-start"
                                               className="text-muted-foreground"
                                           />
-                                          {formatClock(nowMs, clock.offset)}
+                                          <ClockValue
+                                              formatter={formatClock}
+                                              offset={clock.offset}
+                                          />
                                       </Button>
                                   </PopoverTrigger>
                                   <PopoverContent
@@ -318,7 +414,10 @@ export const StatusBarFooter = forwardRef(function StatusBarFooter(
                                         {t('status_bar.app_uptime_short')}
                                     </span>
                                     <span className="tabular-nums">
-                                        {appUptime}
+                                        <AppUptimeValue
+                                            formatter={formatAppUptime}
+                                            startedAtMs={appStartedAt}
+                                        />
                                     </span>
                                 </div>
                             </TooltipTrigger>

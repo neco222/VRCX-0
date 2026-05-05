@@ -298,9 +298,6 @@ export async function handleIpcEvent(payload) {
         case 'OnOperationRequest':
         case 'VRCEvent':
         case 'Event7List':
-            useRuntimeStore
-                .getState()
-                .recordTransportMessage(data.type, JSON.stringify(data).length);
             break;
         default:
             console.log('IPC:', data);

@@ -20,11 +20,7 @@ function createTransportState() {
     return {
         websocketConnected: false,
         websocketDomain: '',
-        messageCount: 0,
-        bytesReceived: 0,
         reconnectCount: 0,
-        lastMessageType: '',
-        lastMessageAt: null,
         lastConnectedAt: null,
         lastDisconnectedAt: null,
         ipcAnnounced: false,
@@ -248,19 +244,6 @@ export const useRuntimeStore = create((set) => ({
             transport: {
                 ...state.transport,
                 ...patch
-            }
-        }));
-    },
-    recordTransportMessage(messageType, byteLength = 0) {
-        set((state) => ({
-            transport: {
-                ...state.transport,
-                messageCount: state.transport.messageCount + 1,
-                bytesReceived:
-                    state.transport.bytesReceived +
-                    Math.max(0, Number(byteLength) || 0),
-                lastMessageType: messageType || '',
-                lastMessageAt: new Date().toISOString()
             }
         }));
     },
