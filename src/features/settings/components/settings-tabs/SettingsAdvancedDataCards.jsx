@@ -1,4 +1,4 @@
-import { Trash2Icon } from 'lucide-react';
+import { DatabaseIcon, Trash2Icon } from 'lucide-react';
 
 import { Button } from '@/ui/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/shadcn/card';
@@ -25,6 +25,7 @@ export function SettingsAdvancedDataCards({
     onOpenPurgeDialog,
     onOpenLaunchOptions,
     onOpenRegistryBackup,
+    onMigrateLegacyVrcxData,
     onRefreshSqliteTableSizes,
     onRefreshOnlineVisits,
     onRefreshConfigTreeData,
@@ -132,6 +133,26 @@ export function SettingsAdvancedDataCards({
                         >
                             {t(
                                 'view.settings.advanced.advanced.sqlite_table_size.refresh'
+                            )}
+                        </Button>
+                    </Field>
+                    <Field
+                        label={t(
+                            'view.settings.advanced.advanced.database_cleanup.legacy_migration'
+                        )}
+                        description={t(
+                            'view.settings.advanced.advanced.database_cleanup.legacy_migration_description'
+                        )}
+                    >
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={onMigrateLegacyVrcxData}
+                        >
+                            <DatabaseIcon data-icon="inline-start" />
+                            {t(
+                                'view.settings.advanced.advanced.database_cleanup.legacy_migration'
                             )}
                         </Button>
                     </Field>

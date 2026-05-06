@@ -25,6 +25,12 @@ describe('tauri command mapping', () => {
         expect(toCommandName('app', 'GetLegacyVrcxMigrationStatus')).toBe(
             'app__get_legacy_vrcx_migration_status'
         );
+        expect(toCommandName('app', 'GetLegacyVrcxForceMigrationStatus')).toBe(
+            'app__get_legacy_vrcx_force_migration_status'
+        );
+        expect(toCommandName('app', 'RequestLegacyVrcxForceMigration')).toBe(
+            'app__request_legacy_vrcx_force_migration'
+        );
     });
 
     it('uses explicit named args for known command contracts', () => {
@@ -42,6 +48,12 @@ describe('tauri command mapping', () => {
         expect(toNamedArgs('app__get_host_capabilities', [])).toEqual({});
         expect(
             toNamedArgs('app__get_legacy_vrcx_migration_status', [])
+        ).toEqual({});
+        expect(
+            toNamedArgs('app__get_legacy_vrcx_force_migration_status', [])
+        ).toEqual({});
+        expect(
+            toNamedArgs('app__request_legacy_vrcx_force_migration', [])
         ).toEqual({});
         expect(
             toNamedArgs('asset_bundle__check_vrchat_cache', [

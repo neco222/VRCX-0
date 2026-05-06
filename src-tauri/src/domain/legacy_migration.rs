@@ -77,6 +77,8 @@ fn copy_legacy_vrcx_data(paths: &AppPaths, source: &LegacyVrcxSource) -> Result<
 
     if let Some(config_path) = source.config_path.as_ref() {
         copy_replace(config_path.clone(), paths.config_file.clone())?;
+    } else if paths.config_file.exists() {
+        std::fs::remove_file(&paths.config_file)?;
     }
 
     Ok(())
@@ -192,6 +194,7 @@ mod tests {
         let legacy_db = dir.path.join("VRCX").join("VRCX.sqlite3");
 
         write_file(&legacy_db, b"legacy-db")?;
+        write_file(&paths.config_file, b"stale-config")?;
         write_file(&paths.app_data.join("VRCX-0.sqlite3-shm"), b"stale-shm")?;
         write_file(&paths.app_data.join("VRCX-0.sqlite3-wal"), b"stale-wal")?;
 
@@ -204,6 +207,7 @@ mod tests {
         copy_legacy_vrcx_data(&paths, &source)?;
 
         assert_eq!(std::fs::read(&paths.db_file)?, b"legacy-db");
+        assert!(!paths.config_file.exists());
         assert!(!paths.app_data.join("VRCX-0.sqlite3-shm").exists());
         assert!(!paths.app_data.join("VRCX-0.sqlite3-wal").exists());
         Ok(())

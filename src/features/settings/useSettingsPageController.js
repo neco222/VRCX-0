@@ -332,6 +332,7 @@ export function useSettingsPageController() {
         openUgcFolderSelector,
         handleCropInstancePrintsChange,
         handleGameLogDisabledChange,
+        migrateLegacyVrcxData,
         updateSharedFeedFilter,
         resetSharedFeedFilters
     } = useSettingsPageActions({
@@ -617,7 +618,8 @@ export function useSettingsPageController() {
             refreshSqliteTableSizes,
             refreshOnlineVisits,
             refreshConfigTreeData,
-            setConfigTreeData
+            setConfigTreeData,
+            migrateLegacyVrcxData
         },
         dialogs: {
             SettingsDialogs,

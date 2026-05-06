@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
     getAutoLoginStateLabel,
     getLoginErrorMessage,
-    getLoginUserDisplayName
+    getLoginUserDisplayName,
+    shouldShowLegacyMigrationAction
 } from './loginDisplay.js';
 
 describe('login display helpers', () => {
@@ -48,5 +49,13 @@ describe('login display helpers', () => {
         expect(getAutoLoginStateLabel('expired')).toBe('Session expired');
         expect(getAutoLoginStateLabel('failed')).toBe('Auto-login failed');
         expect(getAutoLoginStateLabel('idle')).toBe('Auto-login idle');
+    });
+
+    it('shows the legacy migration action only after loading when there are no saved accounts', () => {
+        expect(shouldShowLegacyMigrationAction(true, [])).toBe(false);
+        expect(shouldShowLegacyMigrationAction(false, [{ user: { id: 'u1' } }])).toBe(
+            false
+        );
+        expect(shouldShowLegacyMigrationAction(false, [])).toBe(true);
     });
 });

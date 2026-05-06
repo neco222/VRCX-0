@@ -39,6 +39,7 @@ export function SettingsAdvancedTab({
     onOpenPurgeDialog,
     onOpenLaunchOptions,
     onOpenRegistryBackup,
+    onMigrateLegacyVrcxData,
     onRefreshSqliteTableSizes,
     onRefreshOnlineVisits,
     onRefreshConfigTreeData,
@@ -280,6 +281,7 @@ export function SettingsAdvancedTab({
                 onOpenPurgeDialog={onOpenPurgeDialog}
                 onOpenLaunchOptions={onOpenLaunchOptions}
                 onOpenRegistryBackup={onOpenRegistryBackup}
+                onMigrateLegacyVrcxData={onMigrateLegacyVrcxData}
                 onRefreshSqliteTableSizes={onRefreshSqliteTableSizes}
                 onRefreshOnlineVisits={onRefreshOnlineVisits}
                 onRefreshConfigTreeData={onRefreshConfigTreeData}

@@ -30,3 +30,7 @@ export function getAutoLoginStateLabel(status) {
             return 'Auto-login idle';
     }
 }
+
+export function shouldShowLegacyMigrationAction(isLoading, savedAccounts) {
+    return !isLoading && (savedAccounts?.length || 0) === 0;
+}

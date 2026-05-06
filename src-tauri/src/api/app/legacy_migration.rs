@@ -19,17 +19,27 @@ pub fn app__get_legacy_vrcx_migration_status(
 }
 
 #[tauri::command]
+pub fn app__get_legacy_vrcx_force_migration_status() -> LegacyVrcxMigrationStatus {
+    let (_, status) = crate::domain::legacy_vrcx::discover_supported_legacy_source();
+    status
+}
+
+fn legacy_migration_unavailable_reason(status: &LegacyVrcxMigrationStatus) -> String {
+    status
+        .reason
+        .clone()
+        .unwrap_or_else(|| "Legacy VRCX migration is unavailable.".to_string())
+}
+
+#[tauri::command]
 pub fn app__request_legacy_migration(
     app_handle: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<bool, AppError> {
     let Some(source) = state.legacy_vrcx_source.as_ref() else {
-        let reason = state
-            .legacy_vrcx_migration_status
-            .reason
-            .clone()
-            .unwrap_or_else(|| "Legacy VRCX migration is unavailable.".to_string());
-        return Err(AppError::Custom(reason));
+        return Err(AppError::Custom(legacy_migration_unavailable_reason(
+            &state.legacy_vrcx_migration_status,
+        )));
     };
     crate::domain::legacy_vrcx::validate_legacy_source(source).map_err(AppError::Custom)?;
 
@@ -43,6 +53,36 @@ pub fn app__request_legacy_migration(
     #[cfg(not(debug_assertions))]
     {
         crate::domain::legacy_migration::request_legacy_migration(&state.paths)?;
+        app_handle.request_restart();
+        Ok(true)
+    }
+}
+
+#[tauri::command]
+pub fn app__request_legacy_vrcx_force_migration(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<bool, AppError> {
+    let (source, status) = crate::domain::legacy_vrcx::discover_supported_legacy_source();
+    let Some(source) = source.as_ref() else {
+        return Err(AppError::Custom(legacy_migration_unavailable_reason(
+            &status,
+        )));
+    };
+    crate::domain::legacy_vrcx::validate_legacy_source(source).map_err(AppError::Custom)?;
+    crate::domain::legacy_migration::request_legacy_migration(&state.paths)?;
+
+    #[cfg(debug_assertions)]
+    {
+        tracing::warn!(
+            "app__request_legacy_vrcx_force_migration: dev mode wrote migration flag but did not auto-restart"
+        );
+        let _ = app_handle;
+        Ok(false)
+    }
+
+    #[cfg(not(debug_assertions))]
+    {
         app_handle.request_restart();
         Ok(true)
     }

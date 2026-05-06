@@ -72,7 +72,11 @@ export interface LegacyVrcxMigrationStatus {
 export interface AppBackendNamespace extends BackendNamespace {
     AppendErrorLog(entry: string): Promise<void>;
     GetHostCapabilities(): Promise<HostCapabilities>;
+    CheckLegacyVrcxAvailable(): Promise<boolean>;
     GetLegacyVrcxMigrationStatus(): Promise<LegacyVrcxMigrationStatus>;
+    GetLegacyVrcxForceMigrationStatus(): Promise<LegacyVrcxMigrationStatus>;
+    RequestLegacyMigration(): Promise<boolean>;
+    RequestLegacyVrcxForceMigration(): Promise<boolean>;
 }
 
 export type BackendEvents = typeof backendEvents;

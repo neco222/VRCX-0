@@ -19,6 +19,8 @@ import {
     setAppLanguagePreference,
     setProxyServerPreference
 } from '@/services/preferencesService.js';
+import { promptLegacyVrcxForceMigration } from '@/services/legacyVrcxMigrationService.js';
+import { useModalStore } from '@/state/modalStore.js';
 import { usePreferencesStore } from '@/state/preferencesStore.js';
 import { useSessionStore } from '@/state/sessionStore.js';
 import { useShellStore } from '@/state/shellStore.js';
@@ -32,7 +34,8 @@ import { LoginProxySettingsDialog } from './components/LoginProxySettingsDialog.
 import { SavedAccountsCard } from './components/SavedAccountsCard.jsx';
 import {
     getLoginErrorMessage as getErrorMessage,
-    getLoginUserDisplayName as getUserDisplayName
+    getLoginUserDisplayName as getUserDisplayName,
+    shouldShowLegacyMigrationAction
 } from './loginDisplay.js';
 import { getSnapshotLoginParams } from './loginSession.js';
 import { useLoginAutoLogin } from './useLoginAutoLogin.js';
@@ -42,6 +45,7 @@ export function LoginPage() {
     const { t } = useTranslation();
     const locale = useShellStore((state) => state.locale);
     const proxyServer = usePreferencesStore((state) => state.proxyServer);
+    const confirm = useModalStore((state) => state.confirm);
     const preferencesHydrated = usePreferencesStore(
         (state) => state.preferencesHydrated
     );
@@ -178,6 +182,10 @@ export function LoginPage() {
         }
         setProxyInput(usePreferencesStore.getState().proxyServer || '');
         setIsProxyDialogOpen(true);
+    }
+
+    async function migrateLegacyVrcxData() {
+        await promptLegacyVrcxForceMigration({ confirm, t, toast });
     }
 
     async function saveProxySettings(event) {
@@ -382,6 +390,10 @@ export function LoginPage() {
 
     const savedAccounts = snapshot?.savedCredentialsList || [];
     const hasSavedAccounts = !isLoading && savedAccounts.length > 0;
+    const showLegacyMigrationAction = shouldShowLegacyMigrationAction(
+        isLoading,
+        savedAccounts
+    );
 
     return (
         <div className="bg-background relative flex min-h-full w-full flex-col overflow-y-auto p-6">
@@ -394,6 +406,10 @@ export function LoginPage() {
                             void handleLanguageChange(value)
                         }
                         onOpenProxyDialog={() => void openProxyDialog()}
+                        showLegacyMigration={showLegacyMigrationAction}
+                        onMigrateLegacyVrcxData={() =>
+                            void migrateLegacyVrcxData()
+                        }
                     />
                     <div
                         className={cn(

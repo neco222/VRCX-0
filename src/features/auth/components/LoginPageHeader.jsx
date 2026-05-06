@@ -1,4 +1,4 @@
-import { NetworkIcon } from 'lucide-react';
+import { DatabaseIcon, NetworkIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { getLanguageName, languageCodes } from '@/localization/index.js';
@@ -15,8 +15,10 @@ import {
 export function LoginPageHeader({
     locale,
     disabled,
+    showLegacyMigration,
     onLanguageChange,
-    onOpenProxyDialog
+    onOpenProxyDialog,
+    onMigrateLegacyVrcxData
 }) {
     const { t } = useTranslation();
 
@@ -55,6 +57,20 @@ export function LoginPageHeader({
                     <NetworkIcon data-icon="inline-start" />
                     {t('view.login.proxy_settings')}
                 </Button>
+                {showLegacyMigration ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={disabled}
+                        onClick={onMigrateLegacyVrcxData}
+                    >
+                        <DatabaseIcon data-icon="inline-start" />
+                        {t(
+                            'view.settings.advanced.advanced.database_cleanup.legacy_migration'
+                        )}
+                    </Button>
+                ) : null}
             </div>
         </div>
     );

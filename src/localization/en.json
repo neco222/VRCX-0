@@ -1787,7 +1787,15 @@
                         "purge_confirm_button": "Purge & Restart",
                         "purge_in_progress": "Purging avatar data...",
                         "purge_complete": "Avatar data purged successfully. Restarting...",
-                        "purge_failed": "Purge failed: {error}"
+                        "purge_failed": "Purge failed: {error}",
+                        "legacy_migration": "Migrate VRCX Data",
+                        "legacy_migration_description": "Replace the current VRCX-0 configuration and database with data from the fixed VRCX data folder.",
+                        "legacy_migration_confirm_title": "Replace VRCX-0 data with VRCX data?",
+                        "legacy_migration_confirm_description": "This will delete and replace the current VRCX-0 settings and local database with the data found at {path}. VRCX-0 will restart to complete the migration. The original VRCX data will not be modified.",
+                        "legacy_migration_confirm": "Migrate and Restart",
+                        "legacy_migration_not_available": "No supported VRCX database was found.",
+                        "legacy_migration_restart_manually": "Migration is ready. Restart VRCX-0 to complete it.",
+                        "legacy_migration_failed": "Failed to start VRCX migration: {error}"
                     },
                     "user_generated_content": {
                         "header": "Content Folder",

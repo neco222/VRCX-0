@@ -23,7 +23,8 @@ export function SettingsAdvancedSection({ advanced }) {
         refreshSqliteTableSizes,
         refreshOnlineVisits,
         refreshConfigTreeData,
-        setConfigTreeData
+        setConfigTreeData,
+        migrateLegacyVrcxData
     } = advanced;
 
     return (
@@ -137,6 +138,7 @@ export function SettingsAdvancedSection({ advanced }) {
             onOpenRegistryBackup={() =>
                 setSystemHostOpen('registryBackupOpen', true)
             }
+            onMigrateLegacyVrcxData={() => void migrateLegacyVrcxData()}
             onRefreshSqliteTableSizes={() => void refreshSqliteTableSizes()}
             onRefreshOnlineVisits={() => void refreshOnlineVisits()}
             onRefreshConfigTreeData={() => void refreshConfigTreeData()}

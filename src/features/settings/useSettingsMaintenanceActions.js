@@ -2,6 +2,7 @@ import {
     clearFavoriteRemoteDetailsCache,
     getFavoriteRemoteDetailsCacheStats
 } from '@/services/favoriteRemoteDetailsCacheService.js';
+import { promptLegacyVrcxForceMigration } from '@/services/legacyVrcxMigrationService.js';
 
 export function useSettingsMaintenanceActions({
     auth,
@@ -257,6 +258,9 @@ export function useSettingsMaintenanceActions({
             setPurgeInProgress(false);
         }
     }
+    async function migrateLegacyVrcxData() {
+        await promptLegacyVrcxForceMigration({ confirm, t, toast });
+    }
     async function openUgcFolderSelector() {
         const selectedPath = await backend.app
             .OpenFolderSelectorDialog(prefs.userGeneratedContentPath || '')
@@ -386,6 +390,7 @@ export function useSettingsMaintenanceActions({
         openUgcFolderSelector,
         handleCropInstancePrintsChange,
         handleGameLogDisabledChange,
+        migrateLegacyVrcxData,
         updateSharedFeedFilter,
         resetSharedFeedFilters
     };
