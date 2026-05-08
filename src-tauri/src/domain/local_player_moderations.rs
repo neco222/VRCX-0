@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::domain::vrchat_paths;
 use crate::error::AppError;
 
+// VRChat stores per-user Hide Avatar / Show Avatar overrides in this local file.
 pub fn get_vrchat_moderations(current_user_id: &str) -> Result<HashMap<String, i16>, AppError> {
     let path = vrchat_paths::vrchat_app_data()
         .join("LocalPlayerModerations")

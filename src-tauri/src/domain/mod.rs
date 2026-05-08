@@ -15,9 +15,9 @@ pub mod legacy_migration;
 pub mod legacy_vrcx;
 #[cfg(target_os = "linux")]
 pub mod linux_registry;
+pub mod local_player_moderations;
 pub mod log_watcher;
 pub mod media_files;
-pub mod moderation;
 pub mod png;
 pub mod process_monitor;
 pub mod screenshot;
