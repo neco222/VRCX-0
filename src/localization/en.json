@@ -2280,7 +2280,7 @@
                 "moderation_disable_chatbox": "Mute Chatbox",
                 "edit_status": "Social Status",
                 "edit_profile_details": "Profile Details",
-                "edit_profile_media": "Profile Media",
+                "edit_profile_media": "Change Banner and Icon",
                 "edit_language": "Language",
                 "edit_bio": "Bio",
                 "edit_pronouns": "Pronouns",
@@ -2306,7 +2306,7 @@
                 "manage_photo_gallery": "Manage photo gallery in Gallery",
                 "manage_profile_icon": "Manage Profile Icon in Gallery",
                 "empty_title": "No media loaded",
-                "empty_description": "Refresh this section or manage assets in Gallery."
+                "empty_description": "Upload or manage assets in Gallery."
             },
             "info": {
                 "header": "Info",
@@ -3574,8 +3574,8 @@
             "set_profile_photo": "Set banner",
             "set_profile_icon": "Set Profile Icon",
             "current": "Current",
-            "edit_profile_media": "Edit Profile Media",
-            "edit_current_profile_media": "Edit current profile media",
+            "edit_profile_media": "Change Banner and Icon",
+            "edit_current_profile_media": "Change current banner and icon",
             "profile_icons_managed_link": "Profile Icons are managed in Gallery",
             "emoji_animation_styles": "Animation Styles",
             "emoji_animation_type": "Animated Emoji",

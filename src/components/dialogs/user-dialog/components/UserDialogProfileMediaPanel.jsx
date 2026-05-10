@@ -1,24 +1,19 @@
-import {
-    ArrowLeftIcon,
-    ArrowRightIcon,
-    CheckIcon,
-    ImageIcon,
-    RefreshCwIcon,
-    XIcon
-} from 'lucide-react';
+import { CheckIcon, ImageIcon, XIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { EmptyState, LoadingState } from '@/components/layout/PageScaffold.jsx';
 import {
-    convertFileUrlToImageUrl,
-    userImage
-} from '@/lib/entityMedia.js';
+    EmptyState,
+    LoadingState,
+    PageBackButton,
+    PageHeader,
+    PageTitle,
+    PageToolbar,
+    PageToolbarRow
+} from '@/components/layout/PageScaffold.jsx';
 import { cn } from '@/lib/utils.js';
 import { mediaRepository } from '@/repositories/index.js';
 import { extractFileId } from '@/shared/utils/fileUtils.js';
-import { useDialogStore } from '@/state/dialogStore.js';
 import { Badge } from '@/ui/shadcn/badge';
 import { Button } from '@/ui/shadcn/button';
 
@@ -28,26 +23,20 @@ const MEDIA_SECTIONS = [
         fieldName: 'profilePicOverride',
         fileTag: 'gallery',
         assetKey: 'gallery',
-        galleryTab: 'gallery',
         titleKey: 'dialog.user.profile_media.banner',
-        descriptionKey: 'dialog.user.profile_media.banner_description',
         clearKey: 'dialog.gallery_icons.clear_banner',
         useKey: 'dialog.gallery_icons.use_banner',
-        manageKey: 'dialog.user.profile_media.manage_photo_gallery',
-        aspectClass: 'aspect-[4/3]'
+        cardClass: 'h-20 w-[6.667rem] sm:h-24 sm:w-32'
     },
     {
         key: 'profile-icon',
         fieldName: 'userIcon',
         fileTag: 'icon',
         assetKey: 'icons',
-        galleryTab: 'icons',
         titleKey: 'dialog.user.profile_media.profile_icon',
-        descriptionKey: 'dialog.user.profile_media.profile_icon_description',
         clearKey: 'dialog.gallery_icons.clear_profile_icon',
         useKey: 'dialog.gallery_icons.use_profile_icon',
-        manageKey: 'dialog.user.profile_media.manage_profile_icon',
-        aspectClass: 'aspect-square'
+        cardClass: 'size-20 sm:size-24'
     }
 ];
 
@@ -73,21 +62,6 @@ function getUsefulDisplayName(file) {
     return visibleName;
 }
 
-function resolveCurrentImage(profile, section, endpoint) {
-    if (section.fieldName === 'userIcon') {
-        return profile?.userIcon
-            ? convertFileUrlToImageUrl(profile.userIcon, 256, endpoint)
-            : '';
-    }
-    return (
-        convertFileUrlToImageUrl(
-            profile?.profilePicOverride || '',
-            256,
-            endpoint
-        ) || userImage(profile, false, '256')
-    );
-}
-
 function ProfileMediaThumbnail({
     file,
     section,
@@ -109,7 +83,9 @@ function ProfileMediaThumbnail({
             type="button"
             variant="ghost"
             className={cn(
-                'relative h-auto min-w-0 overflow-hidden rounded-lg border p-0',
+                'relative min-w-0 overflow-hidden rounded-lg border p-0',
+                'shrink-0',
+                section.cardClass,
                 isCurrent && 'ring-primary ring-2'
             )}
             title={`${t(section.useKey)}: ${displayName || file.id}`}
@@ -117,10 +93,7 @@ function ProfileMediaThumbnail({
             onClick={() => onUse(section.fieldName, file.id)}
         >
             <div
-                className={cn(
-                    'bg-muted text-muted-foreground flex w-full items-center justify-center overflow-hidden',
-                    section.aspectClass
-                )}
+                className="bg-muted text-muted-foreground flex size-full items-center justify-center overflow-hidden"
             >
                 {imageUrl ? (
                     <img
@@ -156,86 +129,39 @@ function ProfileMediaSection({
     files,
     loading,
     profile,
-    endpoint,
     isVrcPlusSupporter,
     busy,
     mutatingKey,
-    onRefresh,
     onUse,
     onClear,
-    onManage,
     t
 }) {
     const currentValue = profile?.[section.fieldName] || '';
     const currentFileId = extractFileId(currentValue);
-    const currentImage = resolveCurrentImage(profile, section, endpoint);
 
     return (
         <div className="bg-card/40 flex min-w-0 flex-col gap-3 rounded-lg border p-3">
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-                <div className="flex min-w-0 gap-3">
-                    <div
-                        className={cn(
-                            'bg-muted text-muted-foreground flex w-24 shrink-0 items-center justify-center overflow-hidden rounded-md border',
-                            section.aspectClass
-                        )}
-                    >
-                        {currentImage ? (
-                            <img
-                                src={currentImage}
-                                alt=""
-                                className={cn(
-                                    'size-full',
-                                    section.fieldName === 'userIcon'
-                                        ? 'object-contain'
-                                        : 'object-cover'
-                                )}
-                            />
-                        ) : (
-                            <ImageIcon />
-                        )}
-                    </div>
-                    <div className="min-w-0">
-                        <div className="font-heading text-base font-medium">
-                            {t(section.titleKey)}
-                        </div>
-                        <div className="text-muted-foreground mt-1 max-w-2xl text-sm">
-                            {t(section.descriptionKey)}
-                        </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                    <div className="font-heading text-base font-medium">
+                        {t(section.titleKey)}
                     </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onRefresh(section)}
-                    >
-                        <RefreshCwIcon data-icon="inline-start" />
-                        {t('dialog.gallery_icons.refresh')}
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={!isVrcPlusSupporter || !currentValue || busy}
-                        onClick={() => onClear(section.fieldName)}
-                    >
-                        <XIcon data-icon="inline-start" />
-                        {t(section.clearKey)}
-                    </Button>
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => onManage(section)}
-                    >
-                        <ArrowRightIcon data-icon="inline-start" />
-                        {t(section.manageKey)}
-                    </Button>
-                </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 self-start"
+                    disabled={!isVrcPlusSupporter || !currentValue || busy}
+                    onClick={() => onClear(section.fieldName)}
+                >
+                    <XIcon data-icon="inline-start" />
+                    {t(section.clearKey)}
+                </Button>
             </div>
             {loading ? (
                 <LoadingState className="min-h-32" />
             ) : files.length ? (
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-6">
+                <div className="flex flex-wrap gap-2">
                     {files.map((file) => (
                         <ProfileMediaThumbnail
                             key={file.id}
@@ -274,8 +200,6 @@ export function UserDialogProfileMediaPanel({
     onSetProfileMediaField,
     t
 }) {
-    const navigate = useNavigate();
-    const closeDialog = useDialogStore((state) => state.closeDialog);
     const [filesBySection, setFilesBySection] = useState({
         gallery: [],
         icons: []
@@ -347,27 +271,21 @@ export function UserDialogProfileMediaPanel({
         }
     }
 
-    function manageInGallery(section) {
-        closeDialog();
-        navigate(`/tools/gallery?tab=${section.galleryTab}`);
-    }
-
     return (
         <div className="flex min-h-0 flex-1 flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-                <Button variant="ghost" size="sm" onClick={onBack}>
-                    <ArrowLeftIcon data-icon="inline-start" />
-                    {t('common.actions.back')}
-                </Button>
-                <div className="min-w-0">
-                    <div className="font-heading text-lg font-medium">
-                        {t('dialog.user.actions.edit_profile_media')}
-                    </div>
-                    <div className="text-muted-foreground text-sm">
-                        {t('dialog.user.profile_media.description')}
-                    </div>
-                </div>
-            </div>
+            <PageToolbar>
+                <PageToolbarRow className="items-center">
+                    <PageBackButton
+                        label={t('common.actions.back')}
+                        onClick={onBack}
+                    />
+                    <PageHeader className="min-w-0 p-0">
+                        <PageTitle>
+                            {t('dialog.user.actions.edit_profile_media')}
+                        </PageTitle>
+                    </PageHeader>
+                </PageToolbarRow>
+            </PageToolbar>
             <div className="min-h-0 flex-1 overflow-y-auto pr-1">
                 <div className="flex flex-col gap-3">
                     {MEDIA_SECTIONS.map((section) => (
@@ -377,20 +295,15 @@ export function UserDialogProfileMediaPanel({
                             files={filesBySection[section.assetKey] || []}
                             loading={loadingBySection[section.assetKey]}
                             profile={profile}
-                            endpoint={endpoint}
                             isVrcPlusSupporter={isVrcPlusSupporter}
                             busy={busy}
                             mutatingKey={mutatingKey}
-                            onRefresh={(nextSection) =>
-                                void refreshSection(nextSection)
-                            }
                             onUse={(fieldName, fileId) =>
                                 void useProfileMedia(fieldName, fileId)
                             }
                             onClear={(fieldName) =>
                                 void clearProfileMedia(fieldName)
                             }
-                            onManage={manageInGallery}
                             t={t}
                         />
                     ))}
