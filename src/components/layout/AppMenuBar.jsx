@@ -6,9 +6,15 @@ import { toast } from 'sonner';
 import { KeyboardShortcut } from '@/components/keyboard/KeyboardShortcut.jsx';
 import { OpenSourceNoticeDialog } from '@/features/settings/components/OpenSourceNoticeDialog.jsx';
 import { openExternalLink } from '@/lib/entityMedia.js';
+import { cn } from '@/lib/utils';
 import { backend } from '@/platform/index.js';
 import { logoutFromReactShell } from '@/services/authExecutionService.js';
-import { setZoomLevelPreference } from '@/services/preferencesService.js';
+import {
+    setTableDensityPreference,
+    setThemeColorPreference,
+    setThemeModePreference,
+    setZoomLevelPreference
+} from '@/services/preferencesService.js';
 import {
     formatZoomPercentage,
     normalizeZoomLevel
@@ -18,6 +24,7 @@ import {
     triggerToolByKey
 } from '@/services/toolActionService.js';
 import { links } from '@/shared/constants/link.js';
+import { THEME_COLORS } from '@/shared/constants/themes.js';
 import { toolDefinitionMap } from '@/shared/constants/tools.js';
 import { formatReleaseDisplayVersion } from '@/shared/utils/releaseVersion.js';
 import { useRuntimeStore } from '@/state/runtimeStore.js';
@@ -38,12 +45,36 @@ import {
     MenubarGroup,
     MenubarItem,
     MenubarMenu,
+    MenubarRadioGroup,
+    MenubarRadioItem,
     MenubarSeparator,
     MenubarShortcut,
+    MenubarSub,
+    MenubarSubContent,
+    MenubarSubTrigger,
     MenubarTrigger
 } from '@/ui/shadcn/menubar';
 
 const ZOOM_STEP = 10;
+const themeModeOptions = ['system', 'light', 'dark'];
+const tableDensityOptions = [
+    {
+        value: 'standard',
+        labelKey: 'view.settings.appearance.appearance.table_density_standard'
+    },
+    {
+        value: 'compact',
+        labelKey: 'view.settings.appearance.appearance.table_density_compact'
+    }
+];
+
+function themeModeLabel(themeMode, t) {
+    return t(`view.settings.appearance.appearance.theme_mode_${themeMode}`);
+}
+
+function themeColorLabel(themeColor, t) {
+    return t(`view.settings.appearance.theme_color.${themeColor.key}`);
+}
 
 function MenuItem({ children, onSelect, ...props }) {
     return (
@@ -54,6 +85,35 @@ function MenuItem({ children, onSelect, ...props }) {
         >
             {children}
         </MenubarItem>
+    );
+}
+
+function MenuRadioItem({ children, className, ...props }) {
+    return (
+        <MenubarRadioItem
+            className={cn(
+                'min-h-7 min-w-48 !pr-7 !pl-1.5 text-xs [&>span:first-child]:!right-1.5 [&>span:first-child]:!left-auto',
+                className
+            )}
+            {...props}
+        >
+            {children}
+        </MenubarRadioItem>
+    );
+}
+
+function ThemeColorRadioItem({ themeColor, t }) {
+    return (
+        <MenuRadioItem value={themeColor.key}>
+            <span className="flex min-w-0 items-center gap-2">
+                <span
+                    aria-hidden="true"
+                    className="border-foreground/10 size-2.5 shrink-0 rounded-full border"
+                    style={{ backgroundColor: themeColor.swatch }}
+                />
+                <span className="truncate">{themeColorLabel(themeColor, t)}</span>
+            </span>
+        </MenuRadioItem>
     );
 }
 
@@ -84,6 +144,9 @@ export function AppMenuBar({
     const [aboutOpen, setAboutOpen] = useState(false);
     const [openSourceNoticeOpen, setOpenSourceNoticeOpen] = useState(false);
     const zoomLevel = useShellStore((state) => state.zoomLevel);
+    const themeMode = useShellStore((state) => state.themeMode);
+    const themeColor = useShellStore((state) => state.themeColor);
+    const tableDensity = useShellStore((state) => state.tableDensity);
     const setSystemHostOpen = useRuntimeStore(
         (state) => state.setSystemHostOpen
     );
@@ -93,6 +156,7 @@ export function AppMenuBar({
     const currentZoom = normalizeZoomLevel(zoomLevel);
     const quickSearchShortcutKeys =
         hostPlatform === 'macos' ? ['Meta', 'K'] : ['Ctrl', 'K'];
+    const appVersion = formatReleaseDisplayVersion(VERSION || '') || '-';
 
     async function applyZoomLevel(nextZoom) {
         try {
@@ -144,7 +208,10 @@ export function AppMenuBar({
                         </MenubarGroup>
                         <MenubarSeparator />
                         <MenubarGroup>
-                            <MenuItem onSelect={() => void runLogout()}>
+                            <MenuItem
+                                variant="destructive"
+                                onSelect={() => void runLogout()}
+                            >
                                 {t('app_menu.logout')}
                             </MenuItem>
                             <MenuItem
@@ -187,6 +254,69 @@ export function AppMenuBar({
                                         : 'app_menu.expand_friends_sidebar'
                                 )}
                             </MenuItem>
+                        </MenubarGroup>
+                        <MenubarSeparator />
+                        <MenubarGroup>
+                            <MenubarSub>
+                                <MenubarSubTrigger className="min-h-7 min-w-48 text-xs">
+                                    {t(
+                                        'view.settings.appearance.appearance.theme_mode'
+                                    )}
+                                </MenubarSubTrigger>
+                                <MenubarSubContent className="w-56">
+                                    <MenubarRadioGroup
+                                        value={themeMode}
+                                        onValueChange={(value) => {
+                                            void setThemeModePreference(value);
+                                        }}
+                                    >
+                                        {themeModeOptions.map((mode) => (
+                                            <MenuRadioItem key={mode} value={mode}>
+                                                {themeModeLabel(mode, t)}
+                                            </MenuRadioItem>
+                                        ))}
+                                    </MenubarRadioGroup>
+                                    <MenubarSeparator />
+                                    <MenubarRadioGroup
+                                        value={themeColor}
+                                        onValueChange={(value) => {
+                                            void setThemeColorPreference(value);
+                                        }}
+                                    >
+                                        {THEME_COLORS.map((color) => (
+                                            <ThemeColorRadioItem
+                                                key={color.key}
+                                                themeColor={color}
+                                                t={t}
+                                            />
+                                        ))}
+                                    </MenubarRadioGroup>
+                                </MenubarSubContent>
+                            </MenubarSub>
+                            <MenubarSub>
+                                <MenubarSubTrigger className="min-h-7 min-w-48 text-xs">
+                                    {t(
+                                        'view.settings.appearance.appearance.table_density'
+                                    )}
+                                </MenubarSubTrigger>
+                                <MenubarSubContent className="w-48">
+                                    <MenubarRadioGroup
+                                        value={tableDensity}
+                                        onValueChange={(value) => {
+                                            void setTableDensityPreference(value);
+                                        }}
+                                    >
+                                        {tableDensityOptions.map((option) => (
+                                            <MenuRadioItem
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {t(option.labelKey)}
+                                            </MenuRadioItem>
+                                        ))}
+                                    </MenubarRadioGroup>
+                                </MenubarSubContent>
+                            </MenubarSub>
                         </MenubarGroup>
                         <MenubarSeparator />
                         <MenubarGroup>
@@ -331,6 +461,9 @@ export function AppMenuBar({
                             </MenuItem>
                             <MenuItem onSelect={() => setAboutOpen(true)}>
                                 {t('app_menu.about')}
+                                <MenubarShortcut className="tracking-normal">
+                                    {appVersion}
+                                </MenubarShortcut>
                             </MenuItem>
                         </MenubarGroup>
                     </MenubarContent>
@@ -357,8 +490,7 @@ export function AppMenuBar({
                                 {t('app_menu.version')}
                             </span>
                             <span className="font-medium">
-                                {formatReleaseDisplayVersion(VERSION || '') ||
-                                    '-'}
+                                {appVersion}
                             </span>
                         </div>
                     </div>

@@ -3,16 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { logoutFromReactShell } from '@/services/authExecutionService.js';
 import {
     setSidebarCollapsedPreference,
-    setTableDensityPreference,
-    setThemeColorPreference,
     setThemeModePreference
 } from '@/services/preferencesService.js';
 import { triggerToolByKey } from '@/services/toolActionService.js';
 import { DASHBOARD_NAV_KEY_PREFIX } from '@/shared/constants/dashboard.js';
-import { formatReleaseDisplayVersion } from '@/shared/utils/releaseVersion.js';
 import { useDashboardStore } from '@/state/dashboardStore.js';
 import { useModalStore } from '@/state/modalStore.js';
 import { usePreferencesStore } from '@/state/preferencesStore.js';
@@ -65,8 +61,6 @@ export function AppNavMenu({ isCollapsed }) {
     const { t } = useTranslation();
     const sidebarOpen = useShellStore((state) => state.sidebarOpen);
     const themeMode = useShellStore((state) => state.themeMode);
-    const themeColor = useShellStore((state) => state.themeColor);
-    const tableDensity = useShellStore((state) => state.tableDensity);
     const notifiedMenus = useShellStore((state) => state.notifiedMenus);
     const removeNavNotification = useShellStore((state) => state.removeNotify);
     const dashboards = useDashboardStore((state) => state.dashboards);
@@ -80,7 +74,6 @@ export function AppNavMenu({ isCollapsed }) {
         (state) => state.setEditingDashboardId
     );
     const confirm = useModalStore((state) => state.confirm);
-    const isLoggedIn = useSessionStore((state) => state.isLoggedIn);
     const sessionPhase = useSessionStore((state) => state.sessionPhase);
     const currentUserId = useRuntimeStore((state) => state.auth.currentUserId);
     const vrcUnseenNotificationCount = useVrcNotificationStore(
@@ -108,7 +101,6 @@ export function AppNavMenu({ isCollapsed }) {
         (state) => state.showNewDashboardButton
     );
     const [isCreatingDashboard, setIsCreatingDashboard] = useState(false);
-    const appVersion = formatReleaseDisplayVersion(VERSION || '') || '-';
     const notifiedKeys = new Set(notifiedMenus);
     if (vrcUnseenNotificationCount > 0) {
         notifiedKeys.add('notification');
@@ -365,25 +357,6 @@ export function AppNavMenu({ isCollapsed }) {
         }
     }
 
-    async function handleLogout() {
-        try {
-            const didLogout = await logoutFromReactShell();
-            if (didLogout) {
-                navigate('/login', {
-                    replace: true
-                });
-            }
-        } catch (error) {
-            toast.error(
-                error instanceof Error
-                    ? error.message
-                    : t(
-                          'component.app_nav_menu.generated_toast.failed_to_sign_out_of_vrcx_0'
-                      )
-            );
-        }
-    }
-
     return (
         <>
             <AppNavCreateDashboardHeader
@@ -411,18 +384,9 @@ export function AppNavMenu({ isCollapsed }) {
             />
 
             <AppNavFooter
-                appVersion={appVersion}
-                isLoggedIn={isLoggedIn}
                 sidebarOpen={sidebarOpen}
-                tableDensity={tableDensity}
-                themeColor={themeColor}
                 themeMode={themeMode}
-                onLogout={handleLogout}
                 onNavigateSettings={() => navigate(routePathByName.settings)}
-                onOpenCustomNav={() => setCustomNavDialogOpen(true)}
-                onSetTableDensity={setTableDensityPreference}
-                onSetThemeColor={setThemeColorPreference}
-                onSetThemeMode={setThemeModePreference}
                 onToggleSidebar={() =>
                     setSidebarCollapsedPreference(sidebarOpen)
                 }

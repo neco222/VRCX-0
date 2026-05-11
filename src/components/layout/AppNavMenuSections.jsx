@@ -1,32 +1,11 @@
 import {
-    HeartIcon,
-    LogOutIcon,
     MoonIcon,
     PanelLeftIcon,
-    PlusIcon,
     SettingsIcon,
+    PlusIcon,
     SunIcon
 } from 'lucide-react';
 
-import { openExternalLink } from '@/lib/entityMedia.js';
-import { cn } from '@/lib/utils';
-import { links } from '@/shared/constants/link.js';
-import { THEME_COLORS } from '@/shared/constants/themes.js';
-import { Button } from '@/ui/shadcn/button';
-import {
-    DropdownMenu,
-    DropdownMenuCheckboxItem,
-    DropdownMenuContent,
-    DropdownMenuGroup,
-    DropdownMenuItem,
-    DropdownMenuRadioGroup,
-    DropdownMenuRadioItem,
-    DropdownMenuSeparator,
-    DropdownMenuSub,
-    DropdownMenuSubContent,
-    DropdownMenuSubTrigger,
-    DropdownMenuTrigger
-} from '@/ui/shadcn/dropdown-menu';
 import {
     SidebarContent,
     SidebarFooter,
@@ -37,85 +16,12 @@ import {
     SidebarMenuButton,
     SidebarMenuItem
 } from '@/ui/shadcn/sidebar';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/shadcn/tooltip';
 
 import {
     NavItemContextMenu,
     NavMenuEntryItem,
-    NavMenuFolderItem,
-    themeModeLabel
+    NavMenuFolderItem
 } from './AppNavMenuParts.jsx';
-
-const themeModeOptions = ['system', 'light', 'dark'];
-const tableDensityOptions = [
-    {
-        value: 'standard',
-        labelKey: 'view.settings.appearance.appearance.table_density_standard'
-    },
-    {
-        value: 'compact',
-        labelKey: 'view.settings.appearance.appearance.table_density_compact'
-    }
-];
-const vrcxLogo = new URL('../../../images/VRCX-0.png', import.meta.url).href;
-
-function themeColorLabel(themeColor, t) {
-    return t(`view.settings.appearance.theme_color.${themeColor.key}`);
-}
-
-function ThemeColorSwatchItem({ themeColor, selected, t }) {
-    const label = themeColorLabel(themeColor, t);
-
-    return (
-        <Tooltip>
-            <TooltipTrigger asChild>
-                <DropdownMenuRadioItem
-                    value={themeColor.key}
-                    aria-label={label}
-                    className={cn(
-                        'group/theme-color size-6 justify-center !gap-0 rounded-sm bg-transparent !p-0 !pr-0 !pl-0 hover:bg-transparent focus:bg-transparent focus:text-current data-highlighted:bg-transparent data-highlighted:text-current [&_[data-slot=dropdown-menu-radio-item-indicator]]:hidden'
-                    )}
-                    onSelect={(event) => {
-                        event.preventDefault();
-                    }}
-                >
-                    <span
-                        aria-hidden="true"
-                        className={cn(
-                            'border-foreground/10 size-3.5 rounded-sm border transition-transform group-hover/theme-color:scale-125 group-data-[highlighted]/theme-color:scale-125',
-                            selected &&
-                                'border-ring ring-ring ring-offset-background ring-1 ring-offset-1'
-                        )}
-                        data-theme-color-swatch
-                        style={{ backgroundColor: themeColor.swatch }}
-                    />
-                </DropdownMenuRadioItem>
-            </TooltipTrigger>
-            <TooltipContent side="top">{label}</TooltipContent>
-        </Tooltip>
-    );
-}
-
-function ThemeColorSwatchGroup({ themeColor, onSetThemeColor, t }) {
-    return (
-        <DropdownMenuRadioGroup
-            value={themeColor}
-            className="grid grid-cols-8 gap-1 px-2 py-2"
-            onValueChange={(value) => {
-                void onSetThemeColor(value);
-            }}
-        >
-            {THEME_COLORS.map((color) => (
-                <ThemeColorSwatchItem
-                    key={color.key}
-                    themeColor={color}
-                    selected={themeColor === color.key}
-                    t={t}
-                />
-            ))}
-        </DropdownMenuRadioGroup>
-    );
-}
 
 function AppNavCreateDashboardHeader({
     visible,
@@ -225,18 +131,9 @@ function AppNavMenuContent({
 }
 
 function AppNavFooter({
-    appVersion,
-    isLoggedIn,
     sidebarOpen,
-    tableDensity,
-    themeColor,
     themeMode,
-    onLogout,
     onNavigateSettings,
-    onOpenCustomNav,
-    onSetTableDensity,
-    onSetThemeColor,
-    onSetThemeMode,
     onToggleSidebar,
     onToggleTheme,
     t
@@ -257,144 +154,16 @@ function AppNavFooter({
                 </SidebarMenuItem>
 
                 <SidebarMenuItem>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <SidebarMenuButton
-                                tooltip={t('nav_tooltip.manage')}
-                            >
-                                <span className="relative inline-flex size-4 items-center justify-center">
-                                    <SettingsIcon />
-                                </span>
-                                <span>{t('nav_tooltip.manage')}</span>
-                            </SidebarMenuButton>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                            side="right"
-                            align="start"
-                            className="w-56"
-                        >
-                            <div className="flex items-center gap-2 px-2 py-1.5">
-                                <img
-                                    className="size-6 cursor-pointer"
-                                    src={vrcxLogo}
-                                    alt={t(
-                                        'view.settings.advanced.advanced.vrcx_settings.header'
-                                    )}
-                                    onClick={() =>
-                                        void openExternalLink(links.github)
-                                    }
-                                />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    className="h-auto min-w-0 flex-col items-start gap-0 p-0 text-left font-normal"
-                                    onClick={() =>
-                                        void openExternalLink(links.github)
-                                    }
-                                >
-                                    <span className="flex items-center gap-1 truncate text-sm font-medium">
-                                        {t(
-                                            'view.settings.advanced.advanced.vrcx_settings.header'
-                                        )}
-                                        <HeartIcon
-                                            data-icon="inline-end"
-                                            className="text-primary fill-current stroke-none"
-                                        />
-                                    </span>
-                                    <span className="text-muted-foreground text-xs">
-                                        {appVersion}
-                                    </span>
-                                </Button>
-                            </div>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuGroup>
-                                <DropdownMenuItem onSelect={onNavigateSettings}>
-                                    {t('nav_tooltip.settings')}
-                                </DropdownMenuItem>
-                            </DropdownMenuGroup>
-                            <DropdownMenuSub>
-                                <DropdownMenuSubTrigger>
-                                    {t(
-                                        'view.settings.appearance.appearance.theme_mode'
-                                    )}
-                                </DropdownMenuSubTrigger>
-                                <DropdownMenuSubContent
-                                    side="right"
-                                    align="start"
-                                    className="w-48"
-                                >
-                                    <DropdownMenuGroup>
-                                        {themeModeOptions.map((mode) => (
-                                            <DropdownMenuCheckboxItem
-                                                key={mode}
-                                                checked={themeMode === mode}
-                                                onSelect={() => {
-                                                    void onSetThemeMode(mode);
-                                                }}
-                                            >
-                                                {themeModeLabel(mode, t)}
-                                            </DropdownMenuCheckboxItem>
-                                        ))}
-                                    </DropdownMenuGroup>
-                                    <DropdownMenuSeparator />
-                                    <ThemeColorSwatchGroup
-                                        themeColor={themeColor}
-                                        onSetThemeColor={onSetThemeColor}
-                                        t={t}
-                                    />
-                                </DropdownMenuSubContent>
-                            </DropdownMenuSub>
-                            <DropdownMenuSub>
-                                <DropdownMenuSubTrigger>
-                                    {t(
-                                        'view.settings.appearance.appearance.table_density'
-                                    )}
-                                </DropdownMenuSubTrigger>
-                                <DropdownMenuSubContent
-                                    side="right"
-                                    align="start"
-                                    className="w-48"
-                                >
-                                    <DropdownMenuGroup>
-                                        {tableDensityOptions.map((option) => (
-                                            <DropdownMenuCheckboxItem
-                                                key={option.value}
-                                                checked={
-                                                    tableDensity ===
-                                                    option.value
-                                                }
-                                                onSelect={() => {
-                                                    void onSetTableDensity(
-                                                        option.value
-                                                    );
-                                                }}
-                                            >
-                                                {t(option.labelKey)}
-                                            </DropdownMenuCheckboxItem>
-                                        ))}
-                                    </DropdownMenuGroup>
-                                </DropdownMenuSubContent>
-                            </DropdownMenuSub>
-                            <DropdownMenuGroup>
-                                <DropdownMenuItem onSelect={onOpenCustomNav}>
-                                    {t('nav_menu.custom_nav.header')}
-                                </DropdownMenuItem>
-                            </DropdownMenuGroup>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuGroup>
-                                <DropdownMenuItem
-                                    variant="destructive"
-                                    disabled={!isLoggedIn}
-                                    onSelect={() => {
-                                        void onLogout();
-                                    }}
-                                >
-                                    <LogOutIcon />
-                                    {t('dialog.user.actions.logout')}
-                                </DropdownMenuItem>
-                            </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <SidebarMenuButton
+                        type="button"
+                        tooltip={t('nav_tooltip.settings')}
+                        onClick={onNavigateSettings}
+                    >
+                        <span className="relative inline-flex size-4 items-center justify-center">
+                            <SettingsIcon />
+                        </span>
+                        <span>{t('nav_tooltip.settings')}</span>
+                    </SidebarMenuButton>
                 </SidebarMenuItem>
 
                 <SidebarMenuItem>
