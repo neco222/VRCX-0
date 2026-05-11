@@ -4,7 +4,10 @@ import {
     startCurrentAvatarWearTimer,
     stopCurrentAvatarWearTimer
 } from '@/services/avatarWearTimeService.js';
-import { refreshDiscordPresence } from '@/services/discordPresenceService.js';
+import {
+    queueDiscordPresenceGameStopCloseAttempts,
+    refreshDiscordPresence
+} from '@/services/discordPresenceService.js';
 import {
     finalizeCurrentGameLogSession,
     resetGameLogIngestSessionState,
@@ -240,6 +243,7 @@ async function handleGameStopped(previousGameState, currentUserSnapshot) {
     }
 
     clearStoppedGameLocationSnapshot(previousGameState, currentUserSnapshot);
+    queueDiscordPresenceGameStopCloseAttempts();
     await refreshDiscordPresence({ force: true }).catch((error) => {
         console.warn('Discord presence refresh after game stop failed:', error);
     });

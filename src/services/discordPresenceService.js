@@ -20,6 +20,7 @@ import { useRuntimeStore } from '@/state/runtimeStore.js';
 import i18n from './i18nService.js';
 
 const DEFAULT_APP_ID = '883308884863901717';
+const GAME_STOP_DISCORD_CLOSE_ATTEMPTS = 5;
 const i18nKeys = [
     'dialog.new_instance.access_type_public',
     'dialog.new_instance.access_type_invite_plus',
@@ -41,6 +42,7 @@ const i18nKeys = [
 
 let isDiscordActive = false;
 let lastLocationDetails = createEmptyLocationDetails();
+let gameStopDiscordCloseAttemptsRemaining = 0;
 
 function createEmptyLocationDetails() {
     return {
@@ -373,6 +375,10 @@ export function invalidateDiscordPresenceCache() {
     lastLocationDetails = createEmptyLocationDetails();
 }
 
+export function queueDiscordPresenceGameStopCloseAttempts() {
+    gameStopDiscordCloseAttemptsRemaining = GAME_STOP_DISCORD_CLOSE_ATTEMPTS;
+}
+
 export async function refreshDiscordPresence({ force = false } = {}) {
     if (force) {
         invalidateDiscordPresenceCache();
@@ -380,9 +386,16 @@ export async function refreshDiscordPresence({ force = false } = {}) {
 
     const runtimeState = useRuntimeStore.getState();
     if (runtimeState.gameState.isGameRunning !== true) {
-        await setDiscordActiveState(false, { force: true });
+        if (gameStopDiscordCloseAttemptsRemaining > 0) {
+            gameStopDiscordCloseAttemptsRemaining -= 1;
+            await setDiscordActiveState(false, { force: true });
+            return;
+        }
+
+        await setDiscordActiveState(false);
         return;
     }
+    gameStopDiscordCloseAttemptsRemaining = 0;
 
     const config = await loadDiscordConfig();
     const auth = runtimeState.auth;
