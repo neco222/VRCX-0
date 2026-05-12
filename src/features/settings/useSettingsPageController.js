@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import { useShallow } from 'zustand/react/shallow';
 
 import { PageHeader, PageTitle } from '@/components/layout/PageScaffold.jsx';
-import { openExternalLink } from '@/lib/entityMedia.js';
 import {
     clearEntityQueryCache,
     getEntityQueryCacheSize,
@@ -75,7 +74,6 @@ import {
     TABLE_MAX_SIZE_MAX,
     TABLE_MAX_SIZE_MIN
 } from '@/shared/constants/settings.js';
-import { formatReleaseDisplayVersion } from '@/shared/utils/releaseVersion.js';
 import { useFavoriteStore } from '@/state/favoriteStore.js';
 import { useModalStore } from '@/state/modalStore.js';
 import {
@@ -205,7 +203,6 @@ export function useSettingsPageController() {
     );
     const [notificationTtsTestVisible, setNotificationTtsTestVisible] =
         useState(false);
-    const [openSourceNoticeOpen, setOpenSourceNoticeOpen] = useState(false);
     const [tablePageSizesDialogOpen, setTablePageSizesDialogOpen] =
         useState(false);
     const [tableLimitsDialogOpen, setTableLimitsDialogOpen] = useState(false);
@@ -480,16 +477,15 @@ export function useSettingsPageController() {
         system: {
             SettingsSystemTab,
             t,
-            formatReleaseDisplayVersion,
             hostPlatform,
             prefs,
-            openExternalLink,
             savePreferenceValue,
+            saveBoolPreference,
             setStartAtWindowsStartupPreference,
             setStartAsMinimizedPreference,
             setCloseToTrayPreference,
             promptProxySettings,
-            setOpenSourceNoticeOpen
+            promptAutoLoginDelaySeconds
         },
         interface: {
             SettingsInterfaceTab,
@@ -603,7 +599,6 @@ export function useSettingsPageController() {
             onlineVisitCount,
             configTreeData,
             saveBoolPreference,
-            promptAutoLoginDelaySeconds,
             backend,
             saveAppLauncherField,
             clearVrcxCache,
@@ -612,7 +607,6 @@ export function useSettingsPageController() {
             handleGameLogDisabledChange,
             saveStringPreference,
             setPurgeDialogOpen,
-            setSystemHostOpen,
             refreshSqliteTableSizes,
             refreshOnlineVisits,
             refreshConfigTreeData,
@@ -673,9 +667,7 @@ export function useSettingsPageController() {
             currentSharedFeedFilterOptions,
             sharedFeedFilters,
             updateSharedFeedFilter,
-            resetSharedFeedFilters,
-            openSourceNoticeOpen,
-            setOpenSourceNoticeOpen
+            resetSharedFeedFilters
         }
     };
 }

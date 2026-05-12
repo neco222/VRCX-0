@@ -53,9 +53,7 @@ export function SettingsDialogsSection({ dialogs }) {
         currentSharedFeedFilterOptions,
         sharedFeedFilters,
         updateSharedFeedFilter,
-        resetSharedFeedFilters,
-        openSourceNoticeOpen,
-        setOpenSourceNoticeOpen
+        resetSharedFeedFilters
     } = dialogs;
 
     return (
@@ -133,10 +131,6 @@ export function SettingsDialogsSection({ dialogs }) {
                 filters: sharedFeedFilters,
                 onUpdate: updateSharedFeedFilter,
                 onReset: resetSharedFeedFilters
-            }}
-            openSourceNotice={{
-                open: openSourceNoticeOpen,
-                setOpen: setOpenSourceNoticeOpen
             }}
         />
     );

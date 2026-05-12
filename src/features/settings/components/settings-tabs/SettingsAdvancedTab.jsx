@@ -1,4 +1,3 @@
-import { Badge } from '@/ui/shadcn/badge';
 import { Button } from '@/ui/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/shadcn/card';
 import { Switch } from '@/ui/shadcn/switch';
@@ -23,8 +22,6 @@ export function SettingsAdvancedTab({
     onAutoSweepVRChatCacheChange,
     onUdonExceptionLoggingChange,
     onLogResourceLoadChange,
-    onAutoLoginDelayEnabledChange,
-    onPromptAutoLoginDelaySeconds,
     onOpenShortcutFolder,
     onEnableAppLauncherChange,
     onEnableAppLauncherAutoCloseChange,
@@ -36,8 +33,6 @@ export function SettingsAdvancedTab({
     onGameLogDisabledChange,
     onAvatarAutoCleanupChange,
     onOpenPurgeDialog,
-    onOpenLaunchOptions,
-    onOpenRegistryBackup,
     onMigrateLegacyVrcxData,
     onRefreshSqliteTableSizes,
     onRefreshOnlineVisits,
@@ -122,40 +117,12 @@ export function SettingsAdvancedTab({
                             onCheckedChange={onLogResourceLoadChange}
                         />
                     </Field>
-                    <Field
-                        label={t(
-                            'view.settings.general.logging.auto_login_delay'
-                        )}
-                    >
+                    <Field label={gameLogDisabledLabel}>
                         <Switch
-                            checked={prefs.autoLoginDelayEnabled}
-                            onCheckedChange={onAutoLoginDelayEnabledChange}
+                            checked={prefs.gameLogDisabled}
+                            onCheckedChange={onGameLogDisabledChange}
                         />
                     </Field>
-                    {prefs.autoLoginDelayEnabled ? (
-                        <Field
-                            label={t(
-                                'view.settings.general.logging.auto_login_delay_button'
-                            )}
-                        >
-                            <div className="flex items-center gap-2">
-                                <Badge variant="outline">
-                                    {prefs.autoLoginDelaySeconds}
-                                    {t('common.time_units.s')}
-                                </Badge>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={onPromptAutoLoginDelaySeconds}
-                                >
-                                    {t(
-                                        'view.settings.general.logging.auto_login_delay_button'
-                                    )}
-                                </Button>
-                            </div>
-                        </Field>
-                    ) : null}
                 </CardContent>
             </Card>
             <Card>
@@ -250,15 +217,12 @@ export function SettingsAdvancedTab({
             </Card>
             <SettingsAdvancedCacheCard
                 t={t}
-                prefs={prefs}
                 cacheStats={cacheStats}
-                gameLogDisabledLabel={gameLogDisabledLabel}
                 onClearVrcxCache={onClearVrcxCache}
                 onPromptAutoClearVrcxCacheFrequency={
                     onPromptAutoClearVrcxCacheFrequency
                 }
                 onRefreshCacheSize={onRefreshCacheSize}
-                onGameLogDisabledChange={onGameLogDisabledChange}
             />
             <SettingsAdvancedDataCards
                 t={t}
@@ -270,8 +234,6 @@ export function SettingsAdvancedTab({
                 configTreeData={configTreeData}
                 onAvatarAutoCleanupChange={onAvatarAutoCleanupChange}
                 onOpenPurgeDialog={onOpenPurgeDialog}
-                onOpenLaunchOptions={onOpenLaunchOptions}
-                onOpenRegistryBackup={onOpenRegistryBackup}
                 onMigrateLegacyVrcxData={onMigrateLegacyVrcxData}
                 onRefreshSqliteTableSizes={onRefreshSqliteTableSizes}
                 onRefreshOnlineVisits={onRefreshOnlineVisits}

@@ -14,7 +14,6 @@ export function SettingsInterfaceTab({
     onCjkFontPackChange,
     onZoomInputChange,
     onZoomBlur,
-    onNotificationIconDotChange,
     onDataTableStripedChange,
     onAccessibleStatusIndicatorsChange,
     onShowInstanceIdInLocationChange,
@@ -48,7 +47,6 @@ export function SettingsInterfaceTab({
                 onCjkFontPackChange={onCjkFontPackChange}
                 onZoomInputChange={onZoomInputChange}
                 onZoomBlur={onZoomBlur}
-                onNotificationIconDotChange={onNotificationIconDotChange}
                 onDataTableStripedChange={onDataTableStripedChange}
                 onAccessibleStatusIndicatorsChange={
                     onAccessibleStatusIndicatorsChange

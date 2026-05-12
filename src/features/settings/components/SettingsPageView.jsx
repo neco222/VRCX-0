@@ -149,13 +149,6 @@ export function SettingsPageView({ controller }) {
                             setZoomInput(String(nextZoom));
                         })
                     }
-                    onNotificationIconDotChange={(checked) =>
-                        void saveBoolPreference(
-                            'notificationIconDot',
-                            'notificationIconDot',
-                            checked
-                        )
-                    }
                     onDataTableStripedChange={(checked) =>
                         void savePreferenceValue(
                             'dataTableStriped',

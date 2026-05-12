@@ -89,7 +89,6 @@ export function SettingsInterfaceAppearanceCard({
     onCjkFontPackChange,
     onZoomInputChange,
     onZoomBlur,
-    onNotificationIconDotChange,
     onDataTableStripedChange,
     onAccessibleStatusIndicatorsChange
 }) {
@@ -219,17 +218,6 @@ export function SettingsInterfaceAppearanceCard({
                             {formatZoomPercentage(zoomLevel)}
                         </Badge>
                     </div>
-                </Field>
-
-                <Field
-                    label={t(
-                        'view.settings.appearance.appearance.show_notification_icon_dot'
-                    )}
-                >
-                    <Switch
-                        checked={prefs.notificationIconDot}
-                        onCheckedChange={onNotificationIconDotChange}
-                    />
                 </Field>
 
                 <Field

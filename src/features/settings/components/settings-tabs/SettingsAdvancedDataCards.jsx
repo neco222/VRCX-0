@@ -23,8 +23,6 @@ export function SettingsAdvancedDataCards({
     configTreeData,
     onAvatarAutoCleanupChange,
     onOpenPurgeDialog,
-    onOpenLaunchOptions,
-    onOpenRegistryBackup,
     onMigrateLegacyVrcxData,
     onRefreshSqliteTableSizes,
     onRefreshOnlineVisits,
@@ -94,22 +92,6 @@ export function SettingsAdvancedDataCards({
                             )}
                         </Button>
                     </Field>
-                    <div className="flex flex-wrap gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={onOpenLaunchOptions}
-                        >
-                            {t('dialog.launch_options.header')}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={onOpenRegistryBackup}
-                        >
-                            {t('dialog.registry_backup.header')}
-                        </Button>
-                    </div>
                 </CardContent>
             </Card>
 

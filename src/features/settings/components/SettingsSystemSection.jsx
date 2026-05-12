@@ -2,32 +2,26 @@ export function SettingsSystemSection({ system }) {
     const {
         SettingsSystemTab,
         t,
-        formatReleaseDisplayVersion,
         hostPlatform,
         prefs,
-        openExternalLink,
         savePreferenceValue,
+        saveBoolPreference,
         setStartAtWindowsStartupPreference,
         setStartAsMinimizedPreference,
         setCloseToTrayPreference,
         promptProxySettings,
-        setOpenSourceNoticeOpen
+        promptAutoLoginDelaySeconds
     } = system;
 
     return (
         <SettingsSystemTab
             t={t}
-            versionText={formatReleaseDisplayVersion(VERSION || '') || '-'}
             hostPlatform={hostPlatform}
             isStartAtWindowsStartup={prefs.isStartAtWindowsStartup}
             isStartAsMinimizedState={prefs.isStartAsMinimizedState}
             isCloseToTray={prefs.isCloseToTray}
-            onOpenRepository={() =>
-                void openExternalLink('https://github.com/Map1en/VRCX-0')
-            }
-            onOpenSupport={() =>
-                void openExternalLink('https://github.com/Map1en/VRCX-0/issues')
-            }
+            autoLoginDelayEnabled={prefs.autoLoginDelayEnabled}
+            autoLoginDelaySeconds={prefs.autoLoginDelaySeconds}
             onStartAtWindowsStartupChange={(checked) =>
                 void savePreferenceValue(
                     'isStartAtWindowsStartup',
@@ -47,8 +41,17 @@ export function SettingsSystemSection({ system }) {
                     setCloseToTrayPreference(checked)
                 )
             }
+            onAutoLoginDelayEnabledChange={(checked) =>
+                void saveBoolPreference(
+                    'autoLoginDelayEnabled',
+                    'VRCX_autoLoginDelayEnabled',
+                    checked
+                )
+            }
+            onPromptAutoLoginDelaySeconds={() =>
+                void promptAutoLoginDelaySeconds()
+            }
             onProxySettings={() => void promptProxySettings()}
-            onOpenSourceNotice={() => setOpenSourceNoticeOpen(true)}
         />
     );
 }

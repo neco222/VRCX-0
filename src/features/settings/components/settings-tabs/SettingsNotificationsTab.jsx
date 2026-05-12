@@ -24,6 +24,7 @@ export function SettingsNotificationsTab({
     notificationTtsTestVisible,
     notificationTtsTest,
     onNotificationLayoutChange,
+    onNotificationIconDotChange,
     onOpenFeedFilterDialog,
     onTestDesktopNotification,
     onDesktopToastChange,
@@ -75,6 +76,17 @@ export function SettingsNotificationsTab({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
+                    </Field>
+
+                    <Field
+                        label={t(
+                            'view.settings.appearance.appearance.show_notification_icon_dot'
+                        )}
+                    >
+                        <Switch
+                            checked={prefs.notificationIconDot}
+                            onCheckedChange={onNotificationIconDotChange}
+                        />
                     </Field>
 
                     <Field

@@ -1,4 +1,3 @@
-import { OpenSourceNoticeDialog } from './OpenSourceNoticeDialog.jsx';
 import { AvatarProviderDialog } from './settings-dialogs/AvatarProviderDialog.jsx';
 import { CustomFontDialog } from './settings-dialogs/CustomFontDialog.jsx';
 import { FeedFilterDialog } from './settings-dialogs/FeedFilterDialog.jsx';
@@ -17,8 +16,7 @@ export function SettingsDialogs({
     tableLimits,
     avatarProvider,
     purge,
-    feedFilter,
-    openSourceNotice
+    feedFilter
 }) {
     return (
         <>
@@ -97,11 +95,6 @@ export function SettingsDialogs({
                 filters={feedFilter.filters}
                 onUpdate={feedFilter.onUpdate}
                 onReset={feedFilter.onReset}
-            />
-            <OpenSourceNoticeDialog
-                open={openSourceNotice.open}
-                onOpenChange={openSourceNotice.setOpen}
-                t={t}
             />
         </>
     );

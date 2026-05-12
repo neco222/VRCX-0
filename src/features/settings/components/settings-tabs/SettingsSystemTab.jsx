@@ -1,8 +1,8 @@
+import { Badge } from '@/ui/shadcn/badge';
 import { Button } from '@/ui/shadcn/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle
 } from '@/ui/shadcn/card';
@@ -13,18 +13,18 @@ import { SettingsTabContent } from '../SettingsViewParts.jsx';
 
 export function SettingsSystemTab({
     t,
-    versionText,
     hostPlatform = 'unknown',
     isStartAtWindowsStartup,
     isStartAsMinimizedState,
     isCloseToTray,
-    onOpenRepository,
-    onOpenSupport,
+    autoLoginDelayEnabled,
+    autoLoginDelaySeconds,
     onStartAtWindowsStartupChange,
     onStartAsMinimizedChange,
     onCloseToTrayChange,
-    onProxySettings,
-    onOpenSourceNotice
+    onAutoLoginDelayEnabledChange,
+    onPromptAutoLoginDelaySeconds,
+    onProxySettings
 }) {
     const startupLabel =
         hostPlatform === 'linux'
@@ -45,37 +45,6 @@ export function SettingsSystemTab({
 
     return (
         <SettingsTabContent value="system">
-            <Card>
-                <CardHeader>
-                    <CardTitle>
-                        {t('view.settings.general.general.header')}
-                    </CardTitle>
-                    <CardDescription>
-                        {t('view.settings.general.general.version')}:{' '}
-                        {versionText}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col">
-                    <div className="flex flex-wrap gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={onOpenRepository}
-                        >
-                            {t('view.settings.general.general.repository_url')}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={onOpenSupport}
-                        >
-                            {t('view.settings.general.general.support')}
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
             <Card>
                 <CardHeader>
                     <CardTitle>
@@ -106,6 +75,40 @@ export function SettingsSystemTab({
                             onCheckedChange={onCloseToTrayChange}
                         />
                     </Field>
+                    <Field
+                        label={t(
+                            'view.settings.general.logging.auto_login_delay'
+                        )}
+                    >
+                        <Switch
+                            checked={autoLoginDelayEnabled}
+                            onCheckedChange={onAutoLoginDelayEnabledChange}
+                        />
+                    </Field>
+                    {autoLoginDelayEnabled ? (
+                        <Field
+                            label={t(
+                                'view.settings.general.logging.auto_login_delay_button'
+                            )}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Badge variant="outline">
+                                    {autoLoginDelaySeconds}
+                                    {t('common.time_units.s')}
+                                </Badge>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={onPromptAutoLoginDelaySeconds}
+                                >
+                                    {t(
+                                        'view.settings.general.logging.auto_login_delay_button'
+                                    )}
+                                </Button>
+                            </div>
+                        </Field>
+                    ) : null}
                     <Field label={t('view.settings.general.application.proxy')}>
                         <Button
                             type="button"
@@ -116,40 +119,6 @@ export function SettingsSystemTab({
                             {t('view.settings.general.application.proxy')}
                         </Button>
                     </Field>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>
-                        {t('view.settings.general.legal_notice.header')}
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col">
-                    <div className="text-muted-foreground rounded-lg border p-4 text-sm">
-                        <p>{t('view.settings.general.legal_notice.info')}</p>
-                        <p>
-                            {t(
-                                'view.settings.general.legal_notice.disclaimer1'
-                            )}
-                        </p>
-                        <p>
-                            {t(
-                                'view.settings.general.legal_notice.disclaimer2'
-                            )}
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={onOpenSourceNotice}
-                        >
-                            {t(
-                                'view.settings.general.legal_notice.open_source_software_notice'
-                            )}
-                        </Button>
-                    </div>
                 </CardContent>
             </Card>
         </SettingsTabContent>

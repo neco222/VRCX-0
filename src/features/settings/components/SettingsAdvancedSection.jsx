@@ -10,7 +10,6 @@ export function SettingsAdvancedSection({ advanced }) {
         onlineVisitCount,
         configTreeData,
         saveBoolPreference,
-        promptAutoLoginDelaySeconds,
         backend,
         saveAppLauncherField,
         clearVrcxCache,
@@ -19,7 +18,6 @@ export function SettingsAdvancedSection({ advanced }) {
         handleGameLogDisabledChange,
         saveStringPreference,
         setPurgeDialogOpen,
-        setSystemHostOpen,
         refreshSqliteTableSizes,
         refreshOnlineVisits,
         refreshConfigTreeData,
@@ -79,16 +77,6 @@ export function SettingsAdvancedSection({ advanced }) {
                     checked
                 )
             }
-            onAutoLoginDelayEnabledChange={(checked) =>
-                void saveBoolPreference(
-                    'autoLoginDelayEnabled',
-                    'VRCX_autoLoginDelayEnabled',
-                    checked
-                )
-            }
-            onPromptAutoLoginDelaySeconds={() =>
-                void promptAutoLoginDelaySeconds()
-            }
             onOpenShortcutFolder={() => void backend.app.OpenShortcutFolder()}
             onEnableAppLauncherChange={(checked) =>
                 void saveAppLauncherField('enableAppLauncher', checked)
@@ -125,12 +113,6 @@ export function SettingsAdvancedSection({ advanced }) {
                 )
             }
             onOpenPurgeDialog={() => setPurgeDialogOpen(true)}
-            onOpenLaunchOptions={() =>
-                setSystemHostOpen('launchOptionsOpen', true)
-            }
-            onOpenRegistryBackup={() =>
-                setSystemHostOpen('registryBackupOpen', true)
-            }
             onMigrateLegacyVrcxData={() => void migrateLegacyVrcxData()}
             onRefreshSqliteTableSizes={() => void refreshSqliteTableSizes()}
             onRefreshOnlineVisits={() => void refreshOnlineVisits()}

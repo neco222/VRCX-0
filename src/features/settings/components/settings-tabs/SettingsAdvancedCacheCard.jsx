@@ -1,18 +1,14 @@
 import { Button } from '@/ui/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/shadcn/card';
-import { Switch } from '@/ui/shadcn/switch';
 
 import { Field } from '../SettingsField.jsx';
 
 export function SettingsAdvancedCacheCard({
     t,
-    prefs,
     cacheStats,
-    gameLogDisabledLabel,
     onClearVrcxCache,
     onPromptAutoClearVrcxCacheFrequency,
-    onRefreshCacheSize,
-    onGameLogDisabledChange
+    onRefreshCacheSize
 }) {
     return (
         <Card>
@@ -120,12 +116,6 @@ export function SettingsAdvancedCacheCard({
                         </div>
                     ))}
                 </div>
-                <Field label={gameLogDisabledLabel}>
-                    <Switch
-                        checked={prefs.gameLogDisabled}
-                        onCheckedChange={onGameLogDisabledChange}
-                    />
-                </Field>
             </CardContent>
         </Card>
     );

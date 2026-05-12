@@ -57,6 +57,13 @@ export function SettingsNotificationsSection({ notifications }) {
                     }
                 )
             }
+            onNotificationIconDotChange={(checked) =>
+                void saveBoolPreference(
+                    'notificationIconDot',
+                    'notificationIconDot',
+                    checked
+                )
+            }
             onOpenFeedFilterDialog={() => setFeedFilterDialogOpen(true)}
             onTestDesktopNotification={() =>
                 void backend.app.DesktopNotification(
