@@ -163,8 +163,8 @@ pub fn delete_all_cache() {
 
 fn delete_all_cache_in(cache_path: &Path) {
     if cache_path.exists() {
-        let _ = fs::remove_dir_all(&cache_path);
-        let _ = fs::create_dir_all(&cache_path);
+        let _ = fs::remove_dir_all(cache_path);
+        let _ = fs::create_dir_all(cache_path);
     }
 }
 
