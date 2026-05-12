@@ -30,6 +30,7 @@ export function ModerationPageToolbar({
                     onChange={onSelectedTypesChange}
                     getTypeLabel={getModerationTypeLabel}
                     sanitizeTypes={normalizeSelectedTypes}
+                    t={t}
                 />
                 <Input
                     value={searchQuery}

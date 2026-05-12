@@ -828,6 +828,7 @@
                 "showing": "Showing",
                 "of": "of",
                 "log_row": "log row",
+                "log_rows": "log rows",
                 "no_friend_history_rows_match_the_current_filters": "No friend history rows match the current filters",
                 "broaden_the_type_filters_or_search_query_to_see_more_history": "Broaden the type filters or search query to see more history"
             }
@@ -852,11 +853,14 @@
                 "showing": "Showing",
                 "of": "of",
                 "moderation_row": "moderation row",
+                "moderation_rows": "moderation rows",
+                "moderation_filters": "Moderation filters",
                 "no_moderation_rows_match_the_current_filters": "No moderation rows match the current filters",
                 "broaden_the_type_filters_or_search_query_to_see_more_results": "Broaden the type filters or search query to see more results"
             },
             "generated_dynamic": {
-                "deleted_value_for_value": "Deleted {value} for {value2}"
+                "deleted_value_for_value": "Deleted {value} for {value2}",
+                "selected_moderation_filters": "{count} moderation filters"
             }
         },
         "notification": {
@@ -978,6 +982,7 @@
                 "showing": "Showing",
                 "of": "of",
                 "friend": "friend",
+                "friends": "friends",
                 "no_friends_match_the_current_filters": "No friends match the current filters",
                 "try_turning_off_favorites_only_or_broadening_the_search_query": "Try turning off favorites-only or broadening the search query",
                 "favorites_are_still_hydrating": "Favorites are still hydrating",
@@ -4048,7 +4053,8 @@
         },
         "instance_invite": {
             "generated_dynamic": {
-                "send_invites_to_value_user_value": "Send invites to {value} user{value2}?"
+                "send_invite_to_value_user": "Send invite to {value} user?",
+                "send_invites_to_value_users": "Send invites to {value} users?"
             },
             "generated_toast": {
                 "sent_value_invites": "Sent {value} invites",

@@ -66,8 +66,11 @@ export function FriendLogPageTable({
                     <span className="text-foreground font-medium">
                         {orderedRowsLength}
                     </span>{' '}
-                    {t('view.friend_log.generated.log_row')}
-                    {orderedRowsLength === 1 ? '' : 's'}
+                    {t(
+                        orderedRowsLength === 1
+                            ? 'view.friend_log.generated.log_row'
+                            : 'view.friend_log.generated.log_rows'
+                    )}
                 </div>
                 <DataTablePagination
                     table={table}

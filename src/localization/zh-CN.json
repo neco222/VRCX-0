@@ -828,6 +828,7 @@
                 "showing": "显示",
                 "of": "/",
                 "log_row": "日志行",
+                "log_rows": "日志行",
                 "no_friend_history_rows_match_the_current_filters": "没有符合当前筛选的好友历史行",
                 "broaden_the_type_filters_or_search_query_to_see_more_history": "放宽类型筛选或搜索词以查看更多历史记录"
             }
@@ -852,11 +853,14 @@
                 "showing": "显示",
                 "of": "/",
                 "moderation_row": "玩家管理记录",
+                "moderation_rows": "玩家管理记录",
+                "moderation_filters": "玩家管理筛选",
                 "no_moderation_rows_match_the_current_filters": "没有符合当前筛选的玩家管理记录",
                 "broaden_the_type_filters_or_search_query_to_see_more_results": "放宽类型筛选或搜索词以查看更多结果"
             },
             "generated_dynamic": {
-                "deleted_value_for_value": "已删除 {value2} 的 {value}"
+                "deleted_value_for_value": "已删除 {value2} 的 {value}",
+                "selected_moderation_filters": "已选 {count} 个玩家管理筛选"
             }
         },
         "notification": {
@@ -978,6 +982,7 @@
                 "showing": "显示",
                 "of": "共",
                 "friend": "个好友",
+                "friends": "个好友",
                 "no_friends_match_the_current_filters": "没有符合当前筛选条件的好友",
                 "try_turning_off_favorites_only_or_broadening_the_search_query": "请关闭仅收藏，或放宽搜索条件。",
                 "favorites_are_still_hydrating": "收藏仍在加载",
@@ -4048,7 +4053,8 @@
         },
         "instance_invite": {
             "generated_dynamic": {
-                "send_invites_to_value_user_value": "向 {value} 名玩家{value2}发送邀请？"
+                "send_invite_to_value_user": "向 {value} 名玩家发送邀请？",
+                "send_invites_to_value_users": "向 {value} 名玩家发送邀请？"
             },
             "generated_toast": {
                 "sent_value_invites": "已发送 {value} 个邀请",

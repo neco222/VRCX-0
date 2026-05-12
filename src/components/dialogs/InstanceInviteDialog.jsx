@@ -284,10 +284,11 @@ export function InstanceInviteDialog({
         const result = await confirm({
             title: t('dialog.instance_invite.generated_modal.send_invite'),
             description: t(
-                'dialog.instance_invite.generated_dynamic.send_invites_to_value_user_value',
+                normalizedUserIds.length === 1
+                    ? 'dialog.instance_invite.generated_dynamic.send_invite_to_value_user'
+                    : 'dialog.instance_invite.generated_dynamic.send_invites_to_value_users',
                 {
-                    value: normalizedUserIds.length,
-                    value2: normalizedUserIds.length === 1 ? '' : 's'
+                    value: normalizedUserIds.length
                 }
             ),
             confirmText: t('dialog.instance_invite.generated_modal.invite'),

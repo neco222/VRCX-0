@@ -133,8 +133,11 @@ export function FriendListTable({
                             <span className="text-foreground font-medium">
                                 {filteredRowsLength}
                             </span>{' '}
-                            {t('view.friend_list.generated.friend')}
-                            {filteredRowsLength === 1 ? '' : 's'}
+                            {t(
+                                filteredRowsLength === 1
+                                    ? 'view.friend_list.generated.friend'
+                                    : 'view.friend_list.generated.friends'
+                            )}
                         </div>
                         <DataTablePagination
                             table={table}

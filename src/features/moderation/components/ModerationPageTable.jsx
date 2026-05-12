@@ -64,8 +64,11 @@ export function ModerationPageTable({
                     <span className="text-foreground font-medium">
                         {filteredRowsLength}
                     </span>{' '}
-                    {t('view.moderation.generated.moderation_row')}
-                    {filteredRowsLength === 1 ? '' : 's'}
+                    {t(
+                        filteredRowsLength === 1
+                            ? 'view.moderation.generated.moderation_row'
+                            : 'view.moderation.generated.moderation_rows'
+                    )}
                 </div>
                 <DataTablePagination
                     table={table}
