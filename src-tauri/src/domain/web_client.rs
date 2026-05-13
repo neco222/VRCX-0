@@ -41,6 +41,7 @@ impl WebClient {
         let mut builder = Client::builder()
             .cookie_provider(jar.clone())
             .user_agent("VRCX-0")
+            .no_proxy()
             .gzip(true)
             .brotli(true)
             .deflate(true)
