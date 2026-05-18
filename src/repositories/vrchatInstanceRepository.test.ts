@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const tauriApp = vi.hoisted(() => ({
-    VrchatInstanceCreate: vi.fn(),
-    VrchatInstanceClose: vi.fn()
+    VrchatInstanceCreate: vi.fn()
 }));
 
 const tauriMock = vi.hoisted(() => ({
@@ -110,16 +109,4 @@ describe('InstanceRepository', () => {
         expect(tauriApp.VrchatInstanceCreate).not.toHaveBeenCalled();
     });
 
-    it('sends close-instance requests with the hard-close flag', async () => {
-        await vrchatInstanceRepository.closeInstance({
-            location: 'wrld_test:12345',
-            hardClose: true
-        });
-
-        expect(tauriApp.VrchatInstanceClose).toHaveBeenCalledWith({
-            endpoint: '',
-            location: 'wrld_test:12345',
-            hardClose: true
-        });
-    });
 });

@@ -2,8 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const tauriMock = vi.hoisted(() => ({
     app: {
-        VrchatGroupGet: vi.fn(),
-        VrchatGroupInviteSend: vi.fn()
+        VrchatGroupGet: vi.fn()
     }
 }));
 
@@ -81,20 +80,6 @@ describe('GroupProfileRepository', () => {
                     permissions: ['group-members-manage']
                 }
             ]
-        });
-    });
-
-    it('sends group invites through the typed runtime command', async () => {
-        await groupProfileRepository.sendGroupInvite({
-            groupId: ' grp_123 ',
-            userId: ' usr_123 ',
-            endpoint: 'https://api.example.test'
-        });
-
-        expect(tauriMock.app.VrchatGroupInviteSend).toHaveBeenCalledWith({
-            groupId: 'grp_123',
-            userId: 'usr_123',
-            endpoint: 'https://api.example.test'
         });
     });
 

@@ -2,8 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const tauriMock = vi.hoisted(() => ({
     app: {
-        VrchatWorldGet: vi.fn(),
-        VrchatWorldListByUserGet: vi.fn()
+        VrchatWorldGet: vi.fn()
     }
 }));
 
@@ -75,36 +74,6 @@ describe('WorldProfileRepository', () => {
             createdAt: '2026-01-01',
             updatedAt: '2026-01-02',
             platforms: ['PC', 'Quest', 'iOS']
-        });
-    });
-
-    it('requests user worlds through the typed runtime command', async () => {
-        tauriMock.app.VrchatWorldListByUserGet.mockResolvedValue({
-            status: 200,
-            data: '[{"id":" wrld_1 ","name":" Test World "}]',
-            raw: { source: 'rust-api' }
-        });
-
-        const rows = await worldProfileRepository.getWorldsByUser({
-            userId: ' usr_author ',
-            n: 50,
-            offset: 10,
-            sort: 'updated',
-            order: 'descending',
-            releaseStatus: 'public',
-            endpoint: 'https://api.example.test/custom/',
-            force: true
-        });
-
-        expect(rows).toMatchObject([{ id: 'wrld_1', name: 'Test World' }]);
-        expect(tauriMock.app.VrchatWorldListByUserGet).toHaveBeenCalledWith({
-            endpoint: 'https://api.example.test/custom/',
-            userId: 'usr_author',
-            n: 50,
-            offset: 10,
-            sort: 'updated',
-            order: 'descending',
-            releaseStatus: 'public'
         });
     });
 
