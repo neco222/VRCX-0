@@ -115,6 +115,20 @@ function NowPlayingProgress({ formatter, nowPlaying }: any) {
     );
 }
 
+function formatInstanceQueueValue(instanceQueue: any, t: any) {
+    const position = Number(instanceQueue?.position) || 0;
+    const queueSize = Number(instanceQueue?.queueSize) || 0;
+    if (position > 0 && queueSize > 0) {
+        return `${position}/${queueSize}`;
+    }
+    if (position > 0) {
+        return t('status_bar.instance_queue_position', {
+            position
+        });
+    }
+    return t('status_bar.instance_queue_waiting');
+}
+
 export const StatusBarFooter = forwardRef(function StatusBarFooter(
     { className, footer, ...props }: any,
     ref: any
@@ -127,6 +141,7 @@ export const StatusBarFooter = forwardRef(function StatusBarFooter(
         gameStartedAt,
         isGameRunning,
         isSteamVRRunning,
+        instanceQueue,
         nowPlaying,
         proxyServer,
         runtimeGameState,
@@ -151,6 +166,9 @@ export const StatusBarFooter = forwardRef(function StatusBarFooter(
     } = footer;
     const { t } = useTranslation();
     const [zoomPopoverOpen, setZoomPopoverOpen] = useState(false);
+    const instanceQueueActive = Boolean(
+        instanceQueue?.active && instanceQueue?.instanceLocation
+    );
 
     useEffect(() => {
         if (!zoomPopoverOpen) {
@@ -275,6 +293,47 @@ export const StatusBarFooter = forwardRef(function StatusBarFooter(
                                         </div>
                                     </>
                                 )}
+                            </div>
+                        }
+                    />
+                    <StatusSegment
+                        visible={
+                            visibility.instanceQueue && instanceQueueActive
+                        }
+                        active
+                        warn
+                        label={t('status_bar.instance_queue')}
+                        value={formatInstanceQueueValue(instanceQueue, t)}
+                        tooltip={
+                            <div className="flex flex-col gap-1 text-xs">
+                                {instanceQueue?.label ? (
+                                    <div className="text-muted-foreground max-w-64 truncate">
+                                        {instanceQueue.label}
+                                    </div>
+                                ) : null}
+                                <div className="flex justify-between gap-4">
+                                    <span className="text-muted-foreground">
+                                        {t(
+                                            'status_bar.instance_queue_position_label'
+                                        )}
+                                    </span>
+                                    <span>
+                                        {formatInstanceQueueValue(
+                                            instanceQueue,
+                                            t
+                                        )}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between gap-4">
+                                    <span className="text-muted-foreground">
+                                        {t('app_menu.label.last_game_event')}
+                                    </span>
+                                    <span>
+                                        {formatStatusDate(
+                                            instanceQueue?.updatedAt
+                                        )}
+                                    </span>
+                                </div>
                             </div>
                         }
                     />

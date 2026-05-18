@@ -6,7 +6,7 @@ use serde_json::Value;
 use crate::game_log::GameLogProjection;
 use crate::realtime::{
     FriendProjection, RealtimeCurrentUserProjection, RealtimeInstanceClosedProjection,
-    RealtimeNotificationProjection,
+    RealtimeInstanceQueueProjection, RealtimeNotificationProjection,
 };
 use crate::session::HostSessionProjection;
 use vrcx_0_core::realtime::RealtimeWsStatusPayload;
@@ -162,5 +162,12 @@ impl RuntimeEventBus {
         payload: RealtimeInstanceClosedProjection,
     ) {
         self.emit("realtimeInstanceClosedProjection", payload);
+    }
+
+    pub fn emit_realtime_instance_queue_projection(
+        &self,
+        payload: RealtimeInstanceQueueProjection,
+    ) {
+        self.emit("realtimeInstanceQueueProjection", payload);
     }
 }

@@ -33,6 +33,15 @@ type ActivityState = Record<string, unknown> & {
     lastReadyAt: string | null;
 };
 
+type InstanceQueueState = Record<string, unknown> & {
+    active: boolean;
+    instanceLocation: string;
+    position: number;
+    queueSize: number;
+    label: string;
+    updatedAt: string | null;
+};
+
 type RuntimeStore = {
     startup: Record<string, TaskState>;
     hostCapabilities: Record<string, any> & {
@@ -73,6 +82,7 @@ type RuntimeStore = {
         length: number;
         startedAt: string | null;
     };
+    instanceQueue: InstanceQueueState;
     vrcStatus: Record<string, any>;
     groupInstances: Record<string, any> & {
         instances: unknown[];
@@ -99,6 +109,8 @@ type RuntimeStore = {
     recordRuntimeEvent(name: string, payload: unknown): void;
     setGameState(patch: Partial<RuntimeStore['gameState']>): void;
     setNowPlayingState(patch: Record<string, unknown>): void;
+    setInstanceQueueState(patch: Partial<InstanceQueueState>): void;
+    clearInstanceQueueState(): void;
     setVrcStatusState(patch: Record<string, unknown>): void;
     setGroupInstancesState(patch: Partial<RuntimeStore['groupInstances']>): void;
     setSystemHostOpen(name: string, value: unknown): void;
@@ -144,6 +156,17 @@ function createActivityState(): ActivityState {
         fullCacheReady: false,
         lastUpdatedAt: null,
         lastReadyAt: null
+    };
+}
+
+function createInstanceQueueState(): InstanceQueueState {
+    return {
+        active: false,
+        instanceLocation: '',
+        position: 0,
+        queueSize: 0,
+        label: '',
+        updatedAt: null
     };
 }
 
@@ -254,6 +277,7 @@ const initialState = {
         startedAt: null,
         updatedAt: null
     },
+    instanceQueue: createInstanceQueueState(),
     vrcStatus: {
         status: '',
         indicator: '',
@@ -305,6 +329,7 @@ const initialState = {
         realtimeNotificationProjection: createRuntimeEventState(),
         realtimeCurrentUserProjection: createRuntimeEventState(),
         realtimeInstanceClosedProjection: createRuntimeEventState(),
+        realtimeInstanceQueueProjection: createRuntimeEventState(),
         updateIsGameRunning: createRuntimeEventState(),
         ipcEvent: createRuntimeEventState(),
         browserFocus: createRuntimeEventState()
@@ -322,6 +347,8 @@ const initialState = {
     | 'recordRuntimeEvent'
     | 'setGameState'
     | 'setNowPlayingState'
+    | 'setInstanceQueueState'
+    | 'clearInstanceQueueState'
     | 'setVrcStatusState'
     | 'setGroupInstancesState'
     | 'setSystemHostOpen'
@@ -430,6 +457,19 @@ export const useRuntimeStore = create<RuntimeStore>((set: any) => ({
                 ...patch
             }
         }));
+    },
+    setInstanceQueueState(patch: any) {
+        set((state: any) => ({
+            instanceQueue: {
+                ...state.instanceQueue,
+                ...patch
+            }
+        }));
+    },
+    clearInstanceQueueState() {
+        set({
+            instanceQueue: createInstanceQueueState()
+        });
     },
     setVrcStatusState(patch: any) {
         set((state: any) => ({

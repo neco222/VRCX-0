@@ -36,6 +36,7 @@ const DEFAULT_VISIBILITY: any = {
     steamvr: true,
     proxy: true,
     ws: true,
+    instanceQueue: true,
     nowPlaying: true,
     uptime: false,
     zoom: true,
@@ -206,6 +207,7 @@ export function AppStatusBar() {
     const nowPlayingLength = useRuntimeStore(
         (state: any) => state.nowPlaying.length
     );
+    const instanceQueue = useRuntimeStore((state: any) => state.instanceQueue);
     const isGameRunning = useRuntimeStore(
         (state: any) => state.gameState.isGameRunning
     );
@@ -490,6 +492,7 @@ export function AppStatusBar() {
         gameStartedAt,
         isGameRunning,
         isSteamVRRunning,
+        instanceQueue,
         nowPlaying,
         proxyServer,
         runtimeGameState,

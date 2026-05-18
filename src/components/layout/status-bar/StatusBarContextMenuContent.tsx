@@ -16,6 +16,7 @@ const VISIBILITY_MENU_ITEMS = [
     ['vrchat', 'status_bar.game'],
     ['servers', 'status_bar.servers'],
     ['steamvr', 'status_bar.steamvr'],
+    ['instanceQueue', 'status_bar.instance_queue'],
     ['proxy', 'status_bar.proxy'],
     ['ws', 'status_bar.realtime_connection'],
     ['uptime', 'status_bar.app_uptime_short'],

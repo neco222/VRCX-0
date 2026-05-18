@@ -5127,7 +5127,12 @@
         "clocks_label": "时钟",
         "clocks_none": "无",
         "timezone": "时区",
-        "now_playing": "正在游玩"
+        "now_playing": "正在游玩",
+        "instance_queue": "排队",
+        "instance_queue_waiting": "等待中",
+        "instance_queue_position": "第 {position} 位",
+        "instance_queue_position_label": "队列位置",
+        "instance_queue_ready_to_join": "队列已准备好，可以加入 {location}"
     },
     "component": {
         "favorite_action_menu": {

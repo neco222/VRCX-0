@@ -5127,7 +5127,12 @@
         "clocks_label": "Clocks",
         "clocks_none": "None",
         "timezone": "Timezone",
-        "now_playing": "Now Playing"
+        "now_playing": "Now Playing",
+        "instance_queue": "Queue",
+        "instance_queue_waiting": "Waiting",
+        "instance_queue_position": "#{position}",
+        "instance_queue_position_label": "Position",
+        "instance_queue_ready_to_join": "Instance ready to join {location}"
     },
     "component": {
         "favorite_action_menu": {

@@ -85,6 +85,14 @@ impl RealtimeMessageSink for RealtimeHostRuntimeMessageSink {
             return;
         }
 
+        if let Some(projection) = apply_instance_queue_ws_message(generation, payload) {
+            self.runtime
+                .deps
+                .event_bus
+                .emit_realtime_instance_queue_projection(projection);
+            return;
+        }
+
         let is_user_update = message_type == Some("user-update");
         if let Some(output) = self.runtime.current_user.apply_ws_message(
             generation,

@@ -1,6 +1,7 @@
 pub(crate) mod connection;
 pub(crate) mod current_user;
 pub(crate) mod friends;
+pub(crate) mod instance_queue;
 pub(crate) mod notifications;
 mod output;
 mod projection;
@@ -14,7 +15,8 @@ pub use output::{
 };
 pub use projection::{
     FriendProjection, FriendProjectionPatch, RealtimeCurrentUserProjection,
-    RealtimeInstanceClosedProjection, RealtimeNotificationProjection, RealtimeNotificationUpsert,
+    RealtimeInstanceClosedProjection, RealtimeInstanceQueueProjection,
+    RealtimeNotificationProjection, RealtimeNotificationUpsert,
 };
 pub use runtime_types::{
     FriendBaselineResult, PendingOfflineTimerAction, RealtimeCurrentUserAuthority,

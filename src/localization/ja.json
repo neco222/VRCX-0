@@ -5127,7 +5127,12 @@
         "clocks_label": "時計",
         "clocks_none": "なし",
         "timezone": "タイムゾーン",
-        "now_playing": "現在プレイ中"
+        "now_playing": "現在プレイ中",
+        "instance_queue": "キュー",
+        "instance_queue_waiting": "待機中",
+        "instance_queue_position": "#{position}",
+        "instance_queue_position_label": "キュー位置",
+        "instance_queue_ready_to_join": "{location} に参加できるようになりました"
     },
     "component": {
         "favorite_action_menu": {

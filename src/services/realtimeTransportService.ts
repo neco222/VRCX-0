@@ -14,6 +14,9 @@ import {
     handleRealtimeInstanceClosedProjection,
     handleRealtimeNotificationProjection
 } from './realtimePresenceService';
+import {
+    handleRealtimeInstanceQueueProjection
+} from './realtimeInstanceQueueService';
 import { showSQLiteErrorDialog } from './sqliteErrorDialogService';
 import { syncStartupServicesTask } from './startupServicesStatus';
 
@@ -443,6 +446,20 @@ async function subscribeRuntimeRealtimeEvents(
                     Promise.resolve(
                         handleRealtimeInstanceClosedProjection(payload)
                     ).catch(handleRealtimeMessageFailure);
+                });
+            }
+        ),
+        tauriClient.events.subscribe(
+            'realtimeInstanceQueueProjection',
+            (payload: any) => {
+                routeRealtimeProjection(payload, context, () => {
+                    useRuntimeStore
+                        .getState()
+                        .recordRuntimeEvent(
+                            'realtimeInstanceQueueProjection',
+                            payload
+                        );
+                    handleRealtimeInstanceQueueProjection(payload);
                 });
             }
         )

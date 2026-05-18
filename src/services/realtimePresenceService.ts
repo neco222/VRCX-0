@@ -10,6 +10,9 @@ import {
     recordFriendPatch
 } from './domainIngestionService';
 import { handleInviteAutomationNotification } from './inviteAutomationService';
+import {
+    handleRealtimeInstanceQueueProjection
+} from './realtimeInstanceQueueService';
 import { deliverRuntimeNotification } from './notificationDeliveryService';
 import { pushSharedFeedNotification } from './sharedFeedFilterService';
 
@@ -27,6 +30,10 @@ function isRecord(value: unknown): value is AnyRecord {
 
 function asRecord(value: unknown): AnyRecord {
     return isRecord(value) ? value : {};
+}
+
+function hasOwn(record: AnyRecord, key: string): boolean {
+    return Object.prototype.hasOwnProperty.call(record, key);
 }
 
 function normalizeUserId(value: unknown): string {
@@ -385,6 +392,18 @@ function handleRealtimeCurrentUserProjection(payload: unknown) {
             runtimeStore.auth.currentUserDisplayName
         )
     });
+    const patch = asRecord(projection.patch);
+    if (hasOwn(patch, 'queuedInstance')) {
+        const queuedInstance = normalizeUserId(patch.queuedInstance);
+        if (queuedInstance) {
+            handleRealtimeInstanceQueueProjection({
+                kind: 'update',
+                instanceLocation: queuedInstance
+            });
+        } else if (useRuntimeStore.getState().instanceQueue.active) {
+            useRuntimeStore.getState().clearInstanceQueueState();
+        }
+    }
     if (isRecord(projection.gameStatePatch)) {
         runtimeStore.setGameState(projection.gameStatePatch);
     }

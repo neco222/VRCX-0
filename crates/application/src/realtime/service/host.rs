@@ -24,6 +24,7 @@ use crate::realtime::connection::{
 };
 use crate::realtime::current_user::RealtimeCurrentUserRuntime;
 use crate::realtime::friends::{is_friend_event_type, RealtimeFriendsRuntime};
+use crate::realtime::instance_queue::apply_instance_queue_ws_message;
 use crate::realtime::notifications::{
     apply_instance_closed_ws_message, apply_notification_ws_message,
 };

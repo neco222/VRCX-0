@@ -64,3 +64,14 @@ pub struct RealtimeInstanceClosedProjection {
     pub notification: Value,
     pub feed_entry: Value,
 }
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RealtimeInstanceQueueProjection {
+    pub generation: u64,
+    pub kind: String,
+    pub instance_location: String,
+    pub position: i64,
+    pub queue_size: i64,
+    pub received_at: String,
+}
