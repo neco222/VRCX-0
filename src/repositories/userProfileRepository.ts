@@ -3,9 +3,13 @@ import {
     fetchCachedData,
     getCachedQueryData,
     queryKeys,
-    setCachedQueryData
+    setCachedQueryData,
+    userProfileQueryPolicy
 } from '@/lib/entityQueryCache';
-import { recordUserProfile } from '@/domain/users/userFactAccess';
+import {
+    getKnownUserFact,
+    recordUserProfile
+} from '@/domain/users/userFactAccess';
 import { tauriClient } from '@/platform/tauri/client';
 import {
     computeTrustLevel,
@@ -59,6 +63,7 @@ interface UserEndpointInput {
 interface UserProfileInput extends UserEndpointInput {
     force?: boolean;
     dialog?: boolean;
+    isFriend?: boolean | null;
 }
 
 interface UserGroupsInput extends UserEndpointInput {
@@ -208,7 +213,8 @@ async function getUserProfile({
     userId,
     endpoint = '',
     force = false,
-    dialog = false
+    dialog = false,
+    isFriend = null
 }: UserProfileInput) {
     const normalizedUserId =
         typeof userId === 'string'
@@ -220,11 +226,17 @@ async function getUserProfile({
         );
     }
 
+    const knownUser = getKnownUserFact(endpoint, normalizedUserId);
+    const shouldUseFriendPolicy =
+        isFriend === true ||
+        (isFriend !== false && Boolean(knownUser?.isFriend));
+
     const json = await fetchCachedData({
         queryKey: queryKeys.user(normalizedUserId, endpoint),
-        policy: dialog
-            ? entityQueryPolicies.userDialog
-            : entityQueryPolicies.user,
+        policy: userProfileQueryPolicy({
+            dialog,
+            isFriend: shouldUseFriendPolicy
+        }),
         force,
         queryFn: async () => {
             const response = await tauriClient.app.VrchatUserGet({

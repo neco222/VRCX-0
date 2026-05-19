@@ -7,6 +7,7 @@ import {
     mergeInstanceUsers,
     normalizeInstanceUsers
 } from '@/domain/instances/instanceRoster';
+import { useKnownUserFact } from '@/domain/users/useKnownUser';
 import { resolveSidebarStatusDotClassName } from '@/components/sidebar/friends-sidebar/friendsSidebarModel';
 import { UserStatusAvatar } from '@/components/UserStatusAvatar';
 import { timeToText } from '@/lib/dateTime';
@@ -71,11 +72,34 @@ function instanceUserSubtitle(user: any, t: any) {
     );
 }
 
+function firstDisplayName(userId: any, ...sources: any[]) {
+    const normalizedUserId = firstText(userId);
+    for (const source of sources) {
+        const displayName = firstText(
+            source?.displayName,
+            source?.display_name,
+            source?.username,
+            source?.name
+        );
+        if (displayName && displayName !== normalizedUserId) {
+            return displayName;
+        }
+    }
+    return normalizedUserId;
+}
+
 export function InstanceUserTiles({ instance }: any) {
     const { t } = useTranslation();
+    const currentEndpoint = useRuntimeStore(
+        (state: any) => state.auth.currentUserEndpoint
+    );
     const currentUserSnapshot = useRuntimeStore(
         (state: any) => state.auth.currentUserSnapshot
     );
+    const creatorUserId = firstText(instance?.creatorUserId);
+    const knownCreatorUser = useKnownUserFact(creatorUserId, {
+        endpoint: currentEndpoint
+    });
     const userMap = new Map();
     const pushUser = (user: any) => {
         const row = createInstanceUserRow(user);
@@ -89,16 +113,16 @@ export function InstanceUserTiles({ instance }: any) {
         userMap.set(key, row);
     };
 
-    if (instance?.creatorUserId && !isGroupId(instance.creatorUserId)) {
+    if (creatorUserId && !isGroupId(creatorUserId)) {
         pushUser({
+            ...(knownCreatorUser || {}),
             ...(instance.creatorUser || {}),
-            id: instance.creatorUserId,
-            userId: instance.creatorUser?.userId || instance.creatorUserId,
-            displayName: firstText(
-                instance.creatorUser?.displayName,
-                instance.creatorUser?.username,
-                instance.creatorUser?.name,
-                instance.creatorUserId
+            id: creatorUserId,
+            userId: instance.creatorUser?.userId || creatorUserId,
+            displayName: firstDisplayName(
+                creatorUserId,
+                instance.creatorUser,
+                knownCreatorUser
             ),
             $subtitle: t('dialog.world.instances.instance_creator')
         });

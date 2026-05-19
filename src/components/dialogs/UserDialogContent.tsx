@@ -94,6 +94,7 @@ export function UserDialogContent({
         normalizedUserId && normalizedUserId === normalizedCurrentUserId
     );
     const friendSnapshot = friendsById[normalizedUserId] || null;
+    const isKnownFriend = Boolean(friendSnapshot);
     const localSnapshot = useMemo(
         () =>
             isTargetCurrentUser
@@ -130,6 +131,7 @@ export function UserDialogContent({
         currentUserSnapshot,
         gameLogDisabled,
         gameState,
+        isFriend: isKnownFriend,
         isTargetCurrentUser,
         localSnapshot,
         normalizedUserId,

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { recordUserProfile } from '@/domain/users/userFactAccess';
 import { useKnownUserFacts } from '@/domain/users/useKnownUser';
-import { entityQueryPolicies, queryKeys } from '@/lib/entityQueryCache';
+import { queryKeys, userProfileQueryPolicy } from '@/lib/entityQueryCache';
 import vrchatAuthRepository from '@/repositories/vrchatAuthRepository';
 import vrchatFriendRepository from '@/repositories/vrchatFriendRepository';
 import userProfileRepository from '@/repositories/userProfileRepository';
@@ -97,27 +97,33 @@ export function usePlayerListProfileData({
         endpoint: currentUserEndpoint
     });
     const profilesByUserId = useQueries({
-        queries: playerProfileIds.map((userId: any) => ({
-            enabled: Boolean(userId),
-            gcTime: entityQueryPolicies.user.gcTime,
-            queryFn: async () => {
-                const response = await vrchatFriendRepository.getUser({
-                    endpoint: currentUserEndpoint,
-                    userId
-                });
-                const profile = userProfileRepository.normalize(response.json);
-                recordUserProfile(profile, {
-                    endpoint: currentUserEndpoint,
-                    source: 'profile'
-                });
-                return profile;
-            },
-            queryKey: queryKeys.user(userId, currentUserEndpoint),
-            refetchOnWindowFocus:
-                entityQueryPolicies.user.refetchOnWindowFocus,
-            retry: entityQueryPolicies.user.retry,
-            staleTime: 0
-        })),
+        queries: playerProfileIds.map((userId: any) => {
+            const policy = userProfileQueryPolicy({
+                isFriend: Boolean(knownUsersById[userId]?.isFriend)
+            });
+            return {
+                enabled: Boolean(userId),
+                gcTime: policy.gcTime,
+                queryFn: async () => {
+                    const response = await vrchatFriendRepository.getUser({
+                        endpoint: currentUserEndpoint,
+                        userId
+                    });
+                    const profile = userProfileRepository.normalize(
+                        response.json
+                    );
+                    recordUserProfile(profile, {
+                        endpoint: currentUserEndpoint,
+                        source: 'profile'
+                    });
+                    return profile;
+                },
+                queryKey: queryKeys.user(userId, currentUserEndpoint),
+                refetchOnWindowFocus: policy.refetchOnWindowFocus,
+                retry: policy.retry,
+                staleTime: policy.staleTime
+            };
+        }),
         combine: (results: any) =>
             mapProfileQueryResults(playerProfileIds, results)
     });

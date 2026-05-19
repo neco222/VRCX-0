@@ -35,6 +35,18 @@ export const entityQueryPolicies = Object.freeze({
         retry: 1,
         refetchOnWindowFocus: false
     }),
+    userNonFriend: Object.freeze({
+        staleTime: 10 * MINUTE,
+        gcTime: 20 * MINUTE,
+        retry: 1,
+        refetchOnWindowFocus: false
+    }),
+    userDialogNonFriend: Object.freeze({
+        staleTime: 10 * MINUTE,
+        gcTime: 20 * MINUTE,
+        retry: 1,
+        refetchOnWindowFocus: false
+    }),
     instance: Object.freeze({
         staleTime: 20 * SECOND,
         gcTime: 90 * SECOND,
@@ -274,6 +286,23 @@ export function toQueryOptions(
         refetchOnWindowFocus: policy.refetchOnWindowFocus,
         ...overrides
     };
+}
+
+export function userProfileQueryPolicy({
+    dialog = false,
+    isFriend = false
+}: {
+    dialog?: boolean;
+    isFriend?: boolean;
+} = {}): EntityQueryPolicy {
+    if (dialog) {
+        return isFriend
+            ? entityQueryPolicies.userDialog
+            : entityQueryPolicies.userDialogNonFriend;
+    }
+    return isFriend
+        ? entityQueryPolicies.user
+        : entityQueryPolicies.userNonFriend;
 }
 
 export async function fetchWithEntityPolicy<TData = any>({

@@ -516,8 +516,7 @@ export function WorldDialogTabbedView({
                     .getInstance({
                         worldId: target.worldId,
                         instanceId: target.instanceId,
-                        endpoint: currentEndpoint,
-                        force: true
+                        endpoint: currentEndpoint
                     })
                     .then((response: any) => ({
                         location: target.location,

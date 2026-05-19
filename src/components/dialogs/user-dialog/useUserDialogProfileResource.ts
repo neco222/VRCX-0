@@ -166,8 +166,65 @@ const LOCAL_SNAPSHOT_REFRESH_FIELDS = [
     '$travelingToTime'
 ];
 
+const ID_ONLY_SEED_FIELDS = new Set([
+    'id',
+    'userId',
+    'user_id',
+    'targetUserId',
+    'target_user_id',
+    'displayName',
+    'display_name',
+    'username',
+    'name',
+    'subtitle',
+    '$subtitle',
+    ...LOCAL_SNAPSHOT_REFRESH_FIELDS
+]);
+
 function hasRefreshValue(value: any) {
     return value !== undefined && value !== null && value !== '';
+}
+
+function hasUsefulDisplayName(snapshot: any, userId: any) {
+    const displayName = normalizeUserId(
+        snapshot?.displayName ||
+            snapshot?.display_name ||
+            snapshot?.username ||
+            snapshot?.name
+    );
+    return Boolean(displayName && displayName !== normalizeUserId(userId));
+}
+
+function isIdOnlyUserSeed(snapshot: any) {
+    if (!snapshot || typeof snapshot !== 'object') {
+        return false;
+    }
+    const userId = resolveProfileUserId(snapshot);
+    if (!userId || hasUsefulDisplayName(snapshot, userId)) {
+        return false;
+    }
+    return !Object.entries(snapshot).some(
+        ([key, value]) =>
+            !ID_ONLY_SEED_FIELDS.has(key) && hasRefreshValue(value)
+    );
+}
+
+function sameSnapshotTarget(left: any, right: any) {
+    const leftUserId = resolveProfileUserId(left);
+    const rightUserId = resolveProfileUserId(right);
+    return Boolean(leftUserId && rightUserId && leftUserId === rightUserId);
+}
+
+function mergeSeedAndKnownSnapshot(seedData: any, knownTargetUser: any) {
+    if (!seedData || !knownTargetUser) {
+        return seedData || knownTargetUser || null;
+    }
+    if (!sameSnapshotTarget(seedData, knownTargetUser)) {
+        return seedData;
+    }
+    return isIdOnlyUserSeed(seedData)
+        ? mergeLocalSnapshotIntoProfile(seedData, knownTargetUser)
+        : seedData;
 }
 
 export function mergeLocalSnapshotIntoProfile(localSnapshot: any, profile: any) {
@@ -198,7 +255,7 @@ export function mergeUserDialogLocalSnapshot({
     seedData = null,
     knownTargetUser = null
 }: any = {}) {
-    const baseSnapshot = seedData || knownTargetUser || null;
+    const baseSnapshot = mergeSeedAndKnownSnapshot(seedData, knownTargetUser);
     if (friendSnapshot && baseSnapshot) {
         return mergeLocalSnapshotIntoProfile(friendSnapshot, baseSnapshot);
     }
@@ -210,6 +267,7 @@ export function useUserDialogProfileResource({
     currentUserSnapshot,
     gameLogDisabled,
     gameState,
+    isFriend = false,
     isTargetCurrentUser,
     localSnapshot,
     normalizedUserId,
@@ -338,7 +396,8 @@ export function useUserDialogProfileResource({
                 userId: normalizedUserId,
                 endpoint: currentEndpoint,
                 force: reloadToken > 0,
-                dialog: true
+                dialog: true,
+                isFriend
             })
             .then((nextProfile: any) => {
                 if (!active) {
