@@ -5161,6 +5161,8 @@
         "instance_queue_position": "#{position}",
         "instance_queue_position_label": "キュー位置",
         "instance_queue_ready_to_join": "{location} に参加できるようになりました",
+        "mutual_graph": "共通フレンドグラフ",
+        "mutual_graph_progress": "共通フレンドグラフの取得進捗",
         "start_background_mode": "バックグラウンドモードへ切り替える",
         "start_background_mode_tooltip": "バックグラウンドモードへ切り替えます"
     },

@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use serde_json::{json, Map, Value};
 use vrcx_0_application::HostSessionRuntime;
 use vrcx_0_application::ImageCache;
+use vrcx_0_application::MutualGraphFetchRuntime;
 use vrcx_0_application::RuntimeAuthScope;
 use vrcx_0_application::RuntimeBackgroundJobs;
 use vrcx_0_application::RuntimeDiagnostics;
@@ -31,6 +32,7 @@ pub struct RuntimeHostContext {
     pub tasks: TaskSupervisor,
     pub session: HostSessionRuntime,
     pub auth_scope: RuntimeAuthScope,
+    pub mutual_graph_fetch: MutualGraphFetchRuntime,
     pub config: ConfigRepository,
     game_log_snapshot: Arc<Mutex<RuntimeSnapshot>>,
     now_playing: Arc<Mutex<Value>>,
@@ -56,6 +58,7 @@ impl RuntimeHostContext {
             tasks: TaskSupervisor::new(),
             session: HostSessionRuntime::new(),
             auth_scope: RuntimeAuthScope::new(),
+            mutual_graph_fetch: MutualGraphFetchRuntime::new(),
             config,
             game_log_snapshot: Arc::new(Mutex::new(RuntimeSnapshot::default())),
             now_playing: Arc::new(Mutex::new(default_now_playing_value())),

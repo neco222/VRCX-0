@@ -9,9 +9,9 @@ use vrcx_0_persistence::activity::{
     ActivityBucketCacheInput, ActivityBucketCacheOutput, ActivityBucketCacheQueryInput,
     ActivityFriendPresenceAfterInput, ActivityFriendPresenceSliceInput, ActivityPresenceOutput,
     ActivitySelfSessionsRefreshInput, ActivitySelfSessionsRefreshOutput,
-    ActivitySelfSourceAfterInput, ActivitySelfSourceSliceInput, ActivitySessionInput,
-    ActivitySessionOutput, ActivitySourceLocationOutput, ActivitySyncStateInput,
-    ActivitySyncStateOutput,
+    ActivitySelfSourceAfterInput, ActivitySelfSourceBoundsOutput, ActivitySelfSourceSliceInput,
+    ActivitySessionInput, ActivitySessionOutput, ActivitySourceLocationOutput,
+    ActivitySyncStateInput, ActivitySyncStateOutput,
 };
 
 #[tauri::command]
@@ -65,6 +65,14 @@ pub fn app__activity_self_source_after(
     query: ActivitySelfSourceAfterInput,
 ) -> Result<Vec<ActivitySourceLocationOutput>, AppError> {
     vrcx_0_persistence::activity::activity_self_source_after(state.db.as_ref(), query)
+        .map_err(AppError::from)
+}
+
+#[tauri::command]
+pub fn app__activity_self_source_bounds(
+    state: State<'_, AppState>,
+) -> Result<ActivitySelfSourceBoundsOutput, AppError> {
+    vrcx_0_persistence::activity::activity_self_source_bounds(state.db.as_ref())
         .map_err(AppError::from)
 }
 

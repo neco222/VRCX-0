@@ -147,6 +147,19 @@ async function hydrateSnapshot(userId: any, isSelf: any, ownerUserId: any = '') 
 }
 
 async function fullRefresh(snapshot: any, rangeDays: any) {
+    if (snapshot.isSelf) {
+        const result =
+            await activityPersistenceRepository.refreshSelfActivitySessions({
+                userId: snapshot.userId,
+                mode: 'full',
+                rangeDays,
+                nowMs: Date.now()
+            });
+        applySelfRefreshResult(snapshot, result);
+        clearDerivedViews(snapshot);
+        return;
+    }
+
     const sourceItems = await activityPersistenceRepository.getActivitySourceSlice({
         userId: snapshot.userId,
         ownerUserId: snapshot.sync.ownerUserId || '',
@@ -157,12 +170,11 @@ async function fullRefresh(snapshot: any, rangeDays: any) {
         ? sourceItems[sourceItems.length - 1].created_at
         : '';
     const result = await runActivityWorkerTask('computeSessionsSnapshot', {
-        sourceType: snapshot.isSelf ? 'self_gamelog' : 'friend_presence',
-        rows: snapshot.isSelf ? sourceItems : undefined,
-        events: snapshot.isSelf ? undefined : sourceItems,
+        sourceType: 'friend_presence',
+        events: sourceItems,
         initialStart: null,
         nowMs: Date.now(),
-        mayHaveOpenTail: snapshot.isSelf,
+        mayHaveOpenTail: false,
         sourceRevision: sourceLastCreatedAt
     });
 
@@ -191,6 +203,21 @@ async function incrementalRefresh(snapshot: any) {
         return;
     }
 
+    if (snapshot.isSelf) {
+        const result =
+            await activityPersistenceRepository.refreshSelfActivitySessions({
+                userId: snapshot.userId,
+                mode: 'incremental',
+                nowMs: Date.now()
+            });
+        const previousCursor = snapshot.sync.sourceLastCreatedAt;
+        applySelfRefreshResult(snapshot, result);
+        if (result.sourceCount > 0 || snapshot.sync.sourceLastCreatedAt !== previousCursor) {
+            clearDerivedViews(snapshot);
+        }
+        return;
+    }
+
     const sourceItems = await activityPersistenceRepository.getActivitySourceAfter({
         userId: snapshot.userId,
         ownerUserId: snapshot.sync.ownerUserId || '',
@@ -208,14 +235,11 @@ async function incrementalRefresh(snapshot: any) {
 
     const sourceLastCreatedAt = sourceItems[sourceItems.length - 1].created_at;
     const result = await runActivityWorkerTask('computeSessionsSnapshot', {
-        sourceType: snapshot.isSelf ? 'self_gamelog' : 'friend_presence',
-        rows: snapshot.isSelf ? sourceItems : undefined,
-        events: snapshot.isSelf ? undefined : sourceItems,
-        initialStart: snapshot.isSelf
-            ? null
-            : snapshot.sync.pendingSessionStartAt,
+        sourceType: 'friend_presence',
+        events: sourceItems,
+        initialStart: snapshot.sync.pendingSessionStartAt,
         nowMs: Date.now(),
-        mayHaveOpenTail: snapshot.isSelf,
+        mayHaveOpenTail: false,
         sourceRevision: sourceLastCreatedAt
     });
 
@@ -253,6 +277,19 @@ async function expandRange(snapshot: any, rangeDays: any) {
         return;
     }
 
+    if (snapshot.isSelf) {
+        const result =
+            await activityPersistenceRepository.refreshSelfActivitySessions({
+                userId: snapshot.userId,
+                mode: 'expand',
+                rangeDays,
+                nowMs: Date.now()
+            });
+        applySelfRefreshResult(snapshot, result);
+        clearDerivedViews(snapshot);
+        return;
+    }
+
     const sourceItems = await activityPersistenceRepository.getActivitySourceSlice({
         userId: snapshot.userId,
         ownerUserId: snapshot.sync.ownerUserId || '',
@@ -261,9 +298,8 @@ async function expandRange(snapshot: any, rangeDays: any) {
         toDays: currentDays
     });
     const result = await runActivityWorkerTask('computeSessionsSnapshot', {
-        sourceType: snapshot.isSelf ? 'self_gamelog' : 'friend_presence',
-        rows: snapshot.isSelf ? sourceItems : undefined,
-        events: snapshot.isSelf ? undefined : sourceItems,
+        sourceType: 'friend_presence',
+        events: sourceItems,
         initialStart: null,
         nowMs: Date.now(),
         mayHaveOpenTail: false,
@@ -285,6 +321,16 @@ async function expandRange(snapshot: any, rangeDays: any) {
     if (snapshot.isSelf) {
         await activityPersistenceRepository.upsertActivitySyncState(snapshot.sync);
     }
+}
+
+function applySelfRefreshResult(snapshot: any, result: any) {
+    snapshot.sessions = Array.isArray(result?.sessions) ? result.sessions : [];
+    snapshot.sync = {
+        ...snapshot.sync,
+        ...(result?.sync || {}),
+        isSelf: true,
+        ownerUserId: snapshot.sync.ownerUserId || ''
+    };
 }
 
 async function ensureSnapshot(

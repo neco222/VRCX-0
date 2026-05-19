@@ -3,6 +3,7 @@ import { useRuntimeStore } from '@/state/runtimeStore';
 import { useSessionStore } from '@/state/sessionStore';
 import { DEFAULT_TIME_UNIT_LABELS, useShellStore } from '@/state/shellStore';
 
+import { bootstrapActivityCache } from './activityCacheService';
 import { startRuntimeAuthFailureRecovery } from './authSessionRecoveryService';
 import { bindRuntimeEvents } from './runtimeEventBridgeService';
 import { refreshPlayerModerations } from './backgroundMaintenanceService';
@@ -234,6 +235,7 @@ export function startAuthenticatedRuntimeServices() {
     let activeModerationRunId = 0;
     let friendBootstrapStarted = false;
     let favoritesBootstrapStarted = false;
+    let activityWarmupStarted = false;
     let moderationRefreshStarted = false;
     let realtimeTransportStarted = false;
     let realtimeTransportOwner = 'none';
@@ -265,6 +267,7 @@ export function startAuthenticatedRuntimeServices() {
         activeRunId += 1;
         friendBootstrapStarted = false;
         favoritesBootstrapStarted = false;
+        activityWarmupStarted = false;
         realtimeTransportStarted = false;
         realtimeTransportOwner = 'none';
         clearBootstrapRetries();
@@ -365,6 +368,24 @@ export function startAuthenticatedRuntimeServices() {
             });
     };
 
+    const runActivityWarmup = (context: any, runId: any) => {
+        activityWarmupStarted = true;
+        bootstrapActivityCache({
+            userId: context.userId,
+            currentUserSnapshot: context.currentUserSnapshot
+        }).catch((error: any) => {
+            if (!isActiveRun(runId, context)) {
+                return;
+            }
+
+            pushRuntimeNotification({
+                level: 'warning',
+                title: 'Activity warm-up failed',
+                error
+            });
+        });
+    };
+
     const runModerationRefresh = (context: any, runId: any) => {
         moderationRefreshStarted = true;
         const target: any = {
@@ -443,6 +464,10 @@ export function startAuthenticatedRuntimeServices() {
             bootstrapRetryState.favorites.timer === null
         ) {
             runFavoritesBootstrap(context, runId);
+        }
+
+        if (!activityWarmupStarted) {
+            runActivityWarmup(context, runId);
         }
 
         if (!moderationRefreshStarted) {

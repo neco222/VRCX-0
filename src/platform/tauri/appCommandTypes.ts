@@ -387,6 +387,12 @@ export interface ActivitySelfSessionsRefreshOutput {
     sourceCount: number;
 }
 
+export interface ActivitySelfSourceBoundsOutput {
+    firstCreatedAt: string;
+    lastCreatedAt: string;
+    count: number;
+}
+
 export interface ActivitySessionInput {
     start: number;
     end: number;
@@ -427,6 +433,23 @@ export interface MutualGraphSnapshotOutput {
         lastFetchedAt: string;
         optedOut: boolean;
     }>;
+}
+
+export interface MutualGraphFetchStatus {
+    runId: number;
+    status: string;
+    ownerUserId: string;
+    totalFriends: number;
+    processedFriends: number;
+    currentFriendId: string;
+    fetchedFriends: number;
+    optedOutFriends: number;
+    failedFriends: number;
+    cancelRequested: boolean;
+    startedAt: string;
+    updatedAt: string;
+    finishedAt?: string | null;
+    lastError?: string | null;
 }
 
 export interface MemoSaveResult {
@@ -834,6 +857,7 @@ export interface AppTauriCommandNamespace extends TauriCommandNamespace {
     ActivitySelfSourceAfter(input: {
         query: { afterCreatedAt: string; inclusive?: boolean };
     }): Promise<ActivitySourceLocationOutput[]>;
+    ActivitySelfSourceBounds(): Promise<ActivitySelfSourceBoundsOutput>;
     ActivityFriendPresenceSlice(input: {
         query: {
             ownerUserId: unknown;
@@ -900,6 +924,15 @@ export interface AppTauriCommandNamespace extends TauriCommandNamespace {
         userId: string;
         entries: MutualGraphMetaInput[];
     }): Promise<void>;
+    MutualGraphFetchStatusGet(): Promise<MutualGraphFetchStatus>;
+    MutualGraphFetchCancel(input: {
+        ownerUserId?: string;
+    }): Promise<MutualGraphFetchStatus>;
+    MutualGraphFetchStart(input: {
+        ownerUserId: string;
+        endpoint?: string;
+        friendIds: string[];
+    }): Promise<MutualGraphFetchStatus>;
     MemoGetUser(input: { userId: string }): Promise<UserMemoOutput | null>;
     MemoListUsers(): Promise<UserMemoOutput[]>;
     MemoListUserNotes(input: {

@@ -135,6 +135,31 @@ function formatInstanceQueueValue(instanceQueue: any, t: any) {
     return t('status_bar.instance_queue_waiting');
 }
 
+function formatMutualGraphValue(mutualGraph: any) {
+    const processed = Number(mutualGraph?.processedFriends) || 0;
+    const total = Number(mutualGraph?.totalFriends) || 0;
+    if (total > 0) {
+        return `${processed}/${total}`;
+    }
+    return '';
+}
+
+function formatMutualGraphTooltip(mutualGraph: any, t: any) {
+    const status = String(mutualGraph?.status || 'idle');
+    if (status === 'error') {
+        return (
+            mutualGraph?.lastError ||
+            t('view.charts.toast.failed_to_fetch_mutual_friends_graph')
+        );
+    }
+    if (status === 'cancelled') {
+        return t(
+            'view.charts.label.mutual_graph_fetch_cancelled_the_cached_graph_was_not_replaced'
+        );
+    }
+    return t('status_bar.mutual_graph_progress');
+}
+
 export const StatusBarFooter = forwardRef(function StatusBarFooter(
     { className, footer, ...props }: any,
     ref: any
@@ -148,6 +173,7 @@ export const StatusBarFooter = forwardRef(function StatusBarFooter(
         isGameRunning,
         isSteamVRRunning,
         instanceQueue,
+        mutualGraph,
         nowPlaying,
         proxyServer,
         runtimeGameState,
@@ -176,6 +202,21 @@ export const StatusBarFooter = forwardRef(function StatusBarFooter(
     const instanceQueueActive = Boolean(
         instanceQueue?.active && instanceQueue?.instanceLocation
     );
+    const mutualGraphStatus = String(mutualGraph?.status || 'idle');
+    const mutualGraphVisible = [
+        'running',
+        'cancelling',
+        'completed',
+        'cancelled',
+        'error'
+    ].includes(mutualGraphStatus);
+    const mutualGraphRunning =
+        mutualGraphStatus === 'running' || mutualGraphStatus === 'completed';
+    const mutualGraphWarn =
+        mutualGraphStatus === 'cancelling' ||
+        mutualGraphStatus === 'cancelled' ||
+        mutualGraphStatus === 'error' ||
+        Boolean(mutualGraph?.failedFriends);
 
     useEffect(() => {
         if (!zoomPopoverOpen) {
@@ -343,6 +384,14 @@ export const StatusBarFooter = forwardRef(function StatusBarFooter(
                                 </div>
                             </div>
                         }
+                    />
+                    <StatusSegment
+                        visible={visibility.mutualGraph && mutualGraphVisible}
+                        active={mutualGraphRunning}
+                        warn={mutualGraphWarn}
+                        label={t('status_bar.mutual_graph')}
+                        value={formatMutualGraphValue(mutualGraph)}
+                        tooltip={formatMutualGraphTooltip(mutualGraph, t)}
                     />
                     <StatusSegment
                         visible={visibility.servers}

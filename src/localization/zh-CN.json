@@ -5161,6 +5161,8 @@
         "instance_queue_position": "第 {position} 位",
         "instance_queue_position_label": "队列位置",
         "instance_queue_ready_to_join": "队列已准备好，可以加入 {location}",
+        "mutual_graph": "共同好友图谱",
+        "mutual_graph_progress": "共同好友图谱获取进度",
         "start_background_mode": "切换到后台模式",
         "start_background_mode_tooltip": "切换到后台模式"
     },

@@ -17,6 +17,7 @@ const VISIBILITY_MENU_ITEMS = [
     ['servers', 'status_bar.servers'],
     ['steamvr', 'status_bar.steamvr'],
     ['instanceQueue', 'status_bar.instance_queue'],
+    ['mutualGraph', 'status_bar.mutual_graph'],
     ['proxy', 'status_bar.proxy'],
     ['ws', 'status_bar.realtime_connection'],
     ['uptime', 'status_bar.app_uptime_short'],

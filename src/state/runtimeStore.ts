@@ -33,6 +33,23 @@ type ActivityState = Record<string, unknown> & {
     lastReadyAt: string | null;
 };
 
+type MutualGraphState = Record<string, unknown> & {
+    runId: number;
+    status: string;
+    ownerUserId: string;
+    totalFriends: number;
+    processedFriends: number;
+    currentFriendId: string;
+    fetchedFriends: number;
+    optedOutFriends: number;
+    failedFriends: number;
+    cancelRequested: boolean;
+    startedAt: string | null;
+    updatedAt: string | null;
+    finishedAt: string | null;
+    lastError: string | null;
+};
+
 type InstanceQueueState = Record<string, unknown> & {
     active: boolean;
     instanceLocation: string;
@@ -62,6 +79,7 @@ type RuntimeStore = {
         hasAvailableUpdate: boolean;
     };
     activity: ActivityState;
+    mutualGraph: MutualGraphState;
     transport: TransportState;
     gameState: Record<string, any> & {
         isGameRunning: boolean | null;
@@ -109,6 +127,8 @@ type RuntimeStore = {
     setUpdateLoopState(patch: Record<string, unknown>): void;
     setActivityState(patch: Partial<ActivityState>): void;
     resetActivityState(): void;
+    setMutualGraphState(patch: Partial<MutualGraphState>): void;
+    resetMutualGraphState(): void;
     setTransportState(patch: Partial<TransportState>): void;
     incrementTransportReconnect(): void;
     recordRuntimeEvent(name: string, payload: unknown): void;
@@ -163,6 +183,25 @@ function createActivityState(): ActivityState {
         fullCacheReady: false,
         lastUpdatedAt: null,
         lastReadyAt: null
+    };
+}
+
+function createMutualGraphState(): MutualGraphState {
+    return {
+        runId: 0,
+        status: 'idle',
+        ownerUserId: '',
+        totalFriends: 0,
+        processedFriends: 0,
+        currentFriendId: '',
+        fetchedFriends: 0,
+        optedOutFriends: 0,
+        failedFriends: 0,
+        cancelRequested: false,
+        startedAt: null,
+        updatedAt: null,
+        finishedAt: null,
+        lastError: null
     };
 }
 
@@ -252,6 +291,7 @@ const initialState = {
         lastUpdaterCheckDetail: ''
     },
     activity: createActivityState(),
+    mutualGraph: createMutualGraphState(),
     transport: createTransportState(),
     gameState: {
         isGameRunning: null,
@@ -355,6 +395,8 @@ const initialState = {
     | 'setUpdateLoopState'
     | 'setActivityState'
     | 'resetActivityState'
+    | 'setMutualGraphState'
+    | 'resetMutualGraphState'
     | 'setTransportState'
     | 'incrementTransportReconnect'
     | 'recordRuntimeEvent'
@@ -423,6 +465,20 @@ export const useRuntimeStore = create<RuntimeStore>((set: any) => ({
     resetActivityState() {
         set({
             activity: createActivityState()
+        });
+    },
+    setMutualGraphState(patch: any) {
+        set((state: any) => ({
+            mutualGraph: {
+                ...state.mutualGraph,
+                ...patch,
+                updatedAt: patch?.updatedAt || new Date().toISOString()
+            }
+        }));
+    },
+    resetMutualGraphState() {
+        set({
+            mutualGraph: createMutualGraphState()
         });
     },
     setTransportState(patch: any) {

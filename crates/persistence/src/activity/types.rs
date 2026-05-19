@@ -17,6 +17,14 @@ pub struct ActivitySelfSourceAfterInput {
     pub inclusive: bool,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActivitySelfSourceBoundsOutput {
+    pub first_created_at: String,
+    pub last_created_at: String,
+    pub count: i64,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActivityFriendPresenceSliceInput {

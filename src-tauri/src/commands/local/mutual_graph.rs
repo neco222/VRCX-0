@@ -5,6 +5,9 @@ use tauri::State;
 use crate::error::AppError;
 use crate::state::AppState;
 
+use vrcx_0_application::{
+    MutualGraphFetchCancelInput, MutualGraphFetchStartInput, MutualGraphFetchStatus,
+};
 use vrcx_0_persistence::maintenance::UserTableContextOutput;
 use vrcx_0_persistence::mutual_graph::{
     MutualGraphMetaInput, MutualGraphSnapshotEntryInput, MutualGraphSnapshotOutput,
@@ -79,5 +82,39 @@ pub fn app__mutual_graph_tables_ensure(
     user_id: String,
 ) -> Result<UserTableContextOutput, AppError> {
     vrcx_0_persistence::mutual_graph::mutual_graph_tables_ensure(state.db.as_ref(), user_id)
+        .map_err(AppError::from)
+}
+
+#[tauri::command]
+pub fn app__mutual_graph_fetch_status_get(state: State<'_, AppState>) -> MutualGraphFetchStatus {
+    state.runtime_context.mutual_graph_fetch.status()
+}
+
+#[tauri::command]
+pub fn app__mutual_graph_fetch_cancel(
+    state: State<'_, AppState>,
+    input: MutualGraphFetchCancelInput,
+) -> Result<MutualGraphFetchStatus, AppError> {
+    state
+        .runtime_context
+        .mutual_graph_fetch
+        .cancel(input)
+        .map_err(AppError::from)
+}
+
+#[tauri::command]
+pub fn app__mutual_graph_fetch_start(
+    state: State<'_, AppState>,
+    input: MutualGraphFetchStartInput,
+) -> Result<MutualGraphFetchStatus, AppError> {
+    state
+        .runtime_context
+        .mutual_graph_fetch
+        .start(
+            input,
+            state.db.clone(),
+            state.web.clone(),
+            state.runtime_context.tasks.clone(),
+        )
         .map_err(AppError::from)
 }

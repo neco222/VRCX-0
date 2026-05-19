@@ -157,6 +157,69 @@ fn insert_mutual_graph_link(
     Ok(())
 }
 
+fn upsert_mutual_graph_meta_entries(
+    tx: &mut DatabaseWriteTransaction<'_>,
+    user_prefix: &str,
+    entries: &[MutualGraphMetaInput],
+) -> Result<(), Error> {
+    let now = now_iso();
+    for entry in entries {
+        let friend_id = normalize_text(&entry.friend_id);
+        if friend_id.is_empty() {
+            continue;
+        }
+        tx.execute_non_query(
+            &format!("INSERT OR REPLACE INTO {user_prefix}_mutual_graph_meta (friend_id, last_fetched_at, opted_out) VALUES (@friend_id, @last_fetched_at, @opted_out)"),
+            &ParamsBuilder::new()
+                .set("friend_id", friend_id)
+                .set(
+                    "last_fetched_at",
+                    if entry.last_fetched_at.trim().is_empty() {
+                        now.clone()
+                    } else {
+                        entry.last_fetched_at.clone()
+                    },
+                )
+                .set("opted_out", if entry.opted_out { 1 } else { 0 })
+                .build(),
+        )?;
+    }
+    Ok(())
+}
+
+fn replace_mutual_graph_snapshot_entries(
+    tx: &mut DatabaseWriteTransaction<'_>,
+    user_prefix: &str,
+    entries: &[MutualGraphSnapshotEntryInput],
+) -> Result<(), Error> {
+    tx.execute_non_query(
+        &format!("DELETE FROM {user_prefix}_mutual_graph_links WHERE friend_id NOT IN (SELECT friend_id FROM {user_prefix}_mutual_graph_meta WHERE opted_out = 1)"),
+        &Default::default(),
+    )?;
+    tx.execute_non_query(
+        &format!("DELETE FROM {user_prefix}_mutual_graph_friends WHERE friend_id NOT IN (SELECT friend_id FROM {user_prefix}_mutual_graph_meta WHERE opted_out = 1)"),
+        &Default::default(),
+    )?;
+    for entry in entries {
+        let friend_id = normalize_text(&entry.friend_id);
+        if friend_id.is_empty() {
+            continue;
+        }
+        tx.execute_non_query(
+            &format!("DELETE FROM {user_prefix}_mutual_graph_links WHERE friend_id = @friend_id"),
+            &ParamsBuilder::new().set("friend_id", friend_id.clone()).build(),
+        )?;
+        insert_mutual_graph_friend(tx, user_prefix, &friend_id)?;
+        for mutual_id in &entry.mutual_ids {
+            let mutual_id = normalize_text(mutual_id);
+            if !mutual_id.is_empty() {
+                insert_mutual_graph_link(tx, user_prefix, &friend_id, &mutual_id)?;
+            }
+        }
+    }
+    Ok(())
+}
+
 pub fn mutual_graph_snapshot_save(
     db: &DatabaseService,
     user_id: String,
@@ -165,31 +228,23 @@ pub fn mutual_graph_snapshot_save(
     let user_prefix = normalize_user_table_prefix(&user_id)?;
     ensure_user_store_tables(db, &user_prefix)?;
     db.write_transaction(|tx| {
-        tx.execute_non_query(
-            &format!("DELETE FROM {user_prefix}_mutual_graph_links WHERE friend_id NOT IN (SELECT friend_id FROM {user_prefix}_mutual_graph_meta WHERE opted_out = 1)"),
-            &Default::default(),
-        )?;
-        tx.execute_non_query(
-            &format!("DELETE FROM {user_prefix}_mutual_graph_friends WHERE friend_id NOT IN (SELECT friend_id FROM {user_prefix}_mutual_graph_meta WHERE opted_out = 1)"),
-            &Default::default(),
-        )?;
-        for entry in &entries {
-            let friend_id = normalize_text(&entry.friend_id);
-            if friend_id.is_empty() {
-                continue;
-            }
-            tx.execute_non_query(
-                &format!("DELETE FROM {user_prefix}_mutual_graph_links WHERE friend_id = @friend_id"),
-                &ParamsBuilder::new().set("friend_id", friend_id.clone()).build(),
-            )?;
-            insert_mutual_graph_friend(tx, &user_prefix, &friend_id)?;
-            for mutual_id in &entry.mutual_ids {
-                let mutual_id = normalize_text(mutual_id);
-                if !mutual_id.is_empty() {
-                    insert_mutual_graph_link(tx, &user_prefix, &friend_id, &mutual_id)?;
-                }
-            }
-        }
+        replace_mutual_graph_snapshot_entries(tx, &user_prefix, &entries)?;
+        Ok(())
+    })?;
+    Ok(())
+}
+
+pub fn mutual_graph_snapshot_commit(
+    db: &DatabaseService,
+    user_id: String,
+    entries: Vec<MutualGraphSnapshotEntryInput>,
+    meta_entries: Vec<MutualGraphMetaInput>,
+) -> Result<(), Error> {
+    let user_prefix = normalize_user_table_prefix(&user_id)?;
+    ensure_user_store_tables(db, &user_prefix)?;
+    db.write_transaction(|tx| {
+        upsert_mutual_graph_meta_entries(tx, &user_prefix, &meta_entries)?;
+        replace_mutual_graph_snapshot_entries(tx, &user_prefix, &entries)?;
         Ok(())
     })?;
     Ok(())
@@ -241,29 +296,8 @@ pub fn mutual_graph_meta_bulk_upsert(
 ) -> Result<(), Error> {
     let user_prefix = normalize_user_table_prefix(&user_id)?;
     ensure_user_store_tables(db, &user_prefix)?;
-    let now = now_iso();
     db.write_transaction(|tx| {
-        for entry in &entries {
-            let friend_id = normalize_text(&entry.friend_id);
-            if friend_id.is_empty() {
-                continue;
-            }
-            tx.execute_non_query(
-                &format!("INSERT OR REPLACE INTO {user_prefix}_mutual_graph_meta (friend_id, last_fetched_at, opted_out) VALUES (@friend_id, @last_fetched_at, @opted_out)"),
-                &ParamsBuilder::new()
-                    .set("friend_id", friend_id)
-                    .set(
-                        "last_fetched_at",
-                        if entry.last_fetched_at.trim().is_empty() {
-                            now.clone()
-                        } else {
-                            entry.last_fetched_at.clone()
-                        },
-                    )
-                    .set("opted_out", if entry.opted_out { 1 } else { 0 })
-                    .build(),
-            )?;
-        }
+        upsert_mutual_graph_meta_entries(tx, &user_prefix, &entries)?;
         Ok(())
     })?;
     Ok(())

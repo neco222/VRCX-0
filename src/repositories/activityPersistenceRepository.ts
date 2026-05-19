@@ -102,6 +102,14 @@ interface ActivitySelfSessionsRefreshOutput extends ObjectRow {
     source_count?: unknown;
 }
 
+interface ActivitySourceBoundsRow extends ObjectRow {
+    firstCreatedAt?: unknown;
+    first_created_at?: unknown;
+    lastCreatedAt?: unknown;
+    last_created_at?: unknown;
+    count?: unknown;
+}
+
 interface ActivitySourceSliceInput {
     fromDays: number;
     toDays?: number;
@@ -269,6 +277,17 @@ async function getSelfActivitySourceAfter({
     }
 
     return rows.map(normalizeLocationRow).filter(hasCreatedAt);
+}
+
+async function getSelfActivitySourceBounds() {
+    const row =
+        ((await tauriClient.app.ActivitySelfSourceBounds()) as ActivitySourceBoundsRow | null) ||
+        {};
+    return {
+        firstCreatedAt: String(row.firstCreatedAt ?? row.first_created_at ?? ''),
+        lastCreatedAt: String(row.lastCreatedAt ?? row.last_created_at ?? ''),
+        count: Number.parseInt(String(row.count ?? 0), 10) || 0
+    };
 }
 
 async function getFriendPresenceSlice({
@@ -580,6 +599,7 @@ const activityPersistenceRepository = Object.freeze({
     getActivityBucketCache,
     getSelfActivitySourceSlice,
     getSelfActivitySourceAfter,
+    getSelfActivitySourceBounds,
     getActivitySourceSlice,
     getActivitySourceAfter,
     getActivitySyncState,
@@ -598,6 +618,7 @@ export {
     getActivitySourceSlice,
     getSelfActivitySourceSlice,
     getSelfActivitySourceAfter,
+    getSelfActivitySourceBounds,
     getActivitySyncState,
     upsertActivitySyncState,
     refreshSelfActivitySessions,

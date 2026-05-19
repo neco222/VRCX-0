@@ -12,6 +12,7 @@ mod image_cache;
 mod log_watcher;
 mod media_upload;
 mod moderation_sync;
+mod mutual_graph_fetch;
 mod process_monitor;
 mod proxy;
 mod realtime;
@@ -84,6 +85,10 @@ pub use moderation_sync::{
     refresh_player_moderations, update_player_moderation, ModerationSyncDeps,
     ModerationSyncMutationInput, ModerationSyncMutationOutput, ModerationSyncRefreshInput,
     ModerationSyncRefreshOutput, RemoteModerationRow,
+};
+pub use mutual_graph_fetch::{
+    MutualGraphFetchCancelInput, MutualGraphFetchRuntime, MutualGraphFetchStartInput,
+    MutualGraphFetchStatus,
 };
 pub use process_monitor::{
     GameProcessEvent, GameProcessEventSink, GameProcessMonitorActions, GameProcessStatus,

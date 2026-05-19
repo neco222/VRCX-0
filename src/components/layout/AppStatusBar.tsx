@@ -8,6 +8,10 @@ import {
     loadPreferenceSnapshot,
     setProxyServerPreference
 } from '@/services/preferencesService';
+import {
+    refreshMutualGraphFetchStatus,
+    startMutualGraphFetchStatusPolling
+} from '@/services/mutualGraphFetchService';
 import { openExternalLink } from '@/services/shellIntegrationService';
 import {
     formatZoomPercentage,
@@ -38,6 +42,7 @@ const DEFAULT_VISIBILITY: any = {
     proxy: true,
     ws: true,
     instanceQueue: true,
+    mutualGraph: true,
     nowPlaying: true,
     uptime: false,
     zoom: true,
@@ -209,6 +214,27 @@ export function AppStatusBar() {
         (state: any) => state.nowPlaying.length
     );
     const instanceQueue = useRuntimeStore((state: any) => state.instanceQueue);
+    const mutualGraphRunId = useRuntimeStore(
+        (state: any) => state.mutualGraph.runId
+    );
+    const mutualGraphStatus = useRuntimeStore(
+        (state: any) => state.mutualGraph.status
+    );
+    const mutualGraphProcessedFriends = useRuntimeStore(
+        (state: any) => state.mutualGraph.processedFriends
+    );
+    const mutualGraphTotalFriends = useRuntimeStore(
+        (state: any) => state.mutualGraph.totalFriends
+    );
+    const mutualGraphCancelRequested = useRuntimeStore(
+        (state: any) => state.mutualGraph.cancelRequested
+    );
+    const mutualGraphFailedFriends = useRuntimeStore(
+        (state: any) => state.mutualGraph.failedFriends
+    );
+    const mutualGraphLastError = useRuntimeStore(
+        (state: any) => state.mutualGraph.lastError
+    );
     const isGameRunning = useRuntimeStore(
         (state: any) => state.gameState.isGameRunning
     );
@@ -274,6 +300,26 @@ export function AppStatusBar() {
             nowPlayingUrl
         ]
     );
+    const mutualGraph = useMemo(
+        () => ({
+            runId: mutualGraphRunId,
+            status: mutualGraphStatus,
+            processedFriends: mutualGraphProcessedFriends,
+            totalFriends: mutualGraphTotalFriends,
+            cancelRequested: mutualGraphCancelRequested,
+            failedFriends: mutualGraphFailedFriends,
+            lastError: mutualGraphLastError
+        }),
+        [
+            mutualGraphCancelRequested,
+            mutualGraphFailedFriends,
+            mutualGraphLastError,
+            mutualGraphProcessedFriends,
+            mutualGraphRunId,
+            mutualGraphStatus,
+            mutualGraphTotalFriends
+        ]
+    );
     const vrcStatus = useMemo(
         () => ({
             indicator: vrcStatusIndicator,
@@ -293,6 +339,19 @@ export function AppStatusBar() {
     useEffect(() => {
         syncQueuedZoomLevel(currentZoomLevel);
     }, [currentZoomLevel]);
+
+    useEffect(() => {
+        refreshMutualGraphFetchStatus().catch(() => {});
+    }, []);
+
+    useEffect(() => {
+        if (
+            mutualGraphStatus === 'running' ||
+            mutualGraphStatus === 'cancelling'
+        ) {
+            startMutualGraphFetchStatusPolling();
+        }
+    }, [mutualGraphStatus]);
 
     useEffect(() => {
         let active = true;
@@ -507,6 +566,7 @@ export function AppStatusBar() {
         isGameRunning,
         isSteamVRRunning,
         instanceQueue,
+        mutualGraph,
         nowPlaying,
         proxyServer,
         runtimeGameState,

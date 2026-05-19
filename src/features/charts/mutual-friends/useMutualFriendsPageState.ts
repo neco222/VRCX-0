@@ -33,6 +33,7 @@ export function useMutualFriendsPageState() {
     const confirm = useModalStore((state: any) => state.confirm);
     const {
         currentUserId,
+        currentUserEndpoint,
         friendsById,
         orderedFriendIds,
         resolvedTheme
@@ -162,6 +163,7 @@ export function useMutualFriendsPageState() {
         progressPercent
     } = useMutualFriendsGraphFetch({
         currentUserId,
+        currentUserEndpoint,
         currentUserIdRef,
         friendsById,
         orderedFriendIds,

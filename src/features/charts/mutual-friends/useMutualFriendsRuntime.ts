@@ -5,6 +5,9 @@ import { useShellStore } from '@/state/shellStore';
 
 export function useMutualFriendsRuntime() {
     const currentUserId = useRuntimeStore((state: any) => state.auth.currentUserId);
+    const currentUserEndpoint = useRuntimeStore(
+        (state: any) => state.auth.currentUserEndpoint
+    );
     const friendsById = useFriendRosterStore((state: any) => state.friendsById);
     const orderedFriendIds = useFriendRosterStore(
         (state: any) => state.orderedFriendIds
@@ -14,6 +17,7 @@ export function useMutualFriendsRuntime() {
 
     return {
         currentUserId,
+        currentUserEndpoint,
         friendsById,
         orderedFriendIds,
         resolvedTheme

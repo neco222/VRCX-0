@@ -4,10 +4,6 @@ import { useSessionStore } from '@/state/sessionStore';
 
 import { syncStartupServicesTask } from './startupServicesStatus';
 
-type ActivitySourceRow = Record<string, any> & {
-    created_at: string | number | Date;
-};
-
 type ActivitySession = Record<string, any> & {
     start: any;
     end: any;
@@ -91,6 +87,12 @@ function updateActivityState(patch: Record<string, any>) {
     useRuntimeStore.getState().setActivityState(patch);
 }
 
+function yieldToEventLoop() {
+    return new Promise((resolve) => {
+        window.setTimeout(resolve, 0);
+    });
+}
+
 function updateWarmupProgress(snapshot: ActivitySnapshot, detail: string) {
     if (!isCurrentWarmupTarget(snapshot.userId)) {
         return false;
@@ -145,21 +147,6 @@ function setWarmupError(userId: string, error: unknown) {
             'error',
             `Activity cache warm-up failed: ${message}`
         );
-}
-
-function scheduleIdleTask(task: () => unknown) {
-    return new Promise((resolve: any, reject: any) => {
-        const callback = () => {
-            Promise.resolve().then(task).then(resolve).catch(reject);
-        };
-
-        if (typeof requestIdleCallback === 'function') {
-            requestIdleCallback(callback);
-            return;
-        }
-
-        window.setTimeout(callback, 0);
-    });
 }
 
 async function hydrateSnapshot(userId: string) {
@@ -298,12 +285,17 @@ async function runActivityCacheWarmup({
         }
     }
 
+    await yieldToEventLoop();
+    if (!isCurrentWarmupTarget(normalizedUserId)) {
+        return {
+            userId: normalizedUserId,
+            stale: true
+        };
+    }
+
     const currentDays = snapshot.sync.cachedRangeDays || INITIAL_RANGE_DAYS;
-    const probeItems = (await activityPersistenceRepository.getSelfActivitySourceSlice({
-        userId: normalizedUserId,
-        fromDays: FULL_CACHE_MAX_DAYS,
-        toDays: currentDays
-    } as any)) as ActivitySourceRow[];
+    const sourceBounds =
+        await activityPersistenceRepository.getSelfActivitySourceBounds();
 
     if (!isCurrentWarmupTarget(normalizedUserId)) {
         return {
@@ -312,7 +304,7 @@ async function runActivityCacheWarmup({
         };
     }
 
-    if (probeItems.length === 0) {
+    if (!sourceBounds.count || !sourceBounds.firstCreatedAt) {
         setWarmupReady(snapshot, displayName);
         return {
             userId: normalizedUserId,
@@ -322,14 +314,17 @@ async function runActivityCacheWarmup({
         };
     }
 
-    const earliestDate = new Date(probeItems[0].created_at);
+    const earliestDate = new Date(sourceBounds.firstCreatedAt);
     const totalDays = Math.max(
-        Math.ceil((Date.now() - earliestDate.getTime()) / 86400000),
+        Number.isNaN(earliestDate.getTime())
+            ? currentDays
+            : Math.ceil((Date.now() - earliestDate.getTime()) / 86400000) + 1,
         currentDays
     );
+    const cappedTotalDays = Math.min(FULL_CACHE_MAX_DAYS, totalDays);
 
     let targetDays = currentDays;
-    while (targetDays < totalDays) {
+    while (targetDays < cappedTotalDays) {
         if (!isCurrentWarmupTarget(normalizedUserId)) {
             return {
                 userId: normalizedUserId,
@@ -337,12 +332,13 @@ async function runActivityCacheWarmup({
             };
         }
 
-        targetDays = Math.min(targetDays + FULL_CACHE_BATCH_DAYS, totalDays);
+        targetDays = Math.min(
+            targetDays + FULL_CACHE_BATCH_DAYS,
+            cappedTotalDays
+        );
         const nextTarget = targetDays;
 
-        await scheduleIdleTask(async () => {
-            await expandRange(snapshot, nextTarget);
-        });
+        await expandRange(snapshot, nextTarget);
 
         if (
             !updateWarmupProgress(
@@ -354,6 +350,10 @@ async function runActivityCacheWarmup({
                 userId: normalizedUserId,
                 stale: true
             };
+        }
+
+        if (targetDays < cappedTotalDays) {
+            await yieldToEventLoop();
         }
     }
 

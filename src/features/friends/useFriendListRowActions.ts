@@ -1,5 +1,6 @@
 import {
-    useState,
+    useEffect,
+    useRef,
     type Dispatch,
     type MutableRefObject,
     type SetStateAction
@@ -11,8 +12,10 @@ import mutualGraphPersistenceRepository from '@/repositories/mutualGraphPersiste
 import userProfileRepository from '@/repositories/userProfileRepository';
 import { openUserDialog } from '@/services/dialogService';
 import friendRelationshipService from '@/services/friendRelationshipService';
-import { executeWithBackoff } from '@/shared/utils/retry';
-import { createRateLimiter } from '@/shared/utils/throttle';
+import {
+    startMutualGraphFetch,
+    startMutualGraphFetchStatusPolling
+} from '@/services/mutualGraphFetchService';
 import { useFriendRosterStore } from '@/state/friendRosterStore';
 import { useModalStore } from '@/state/modalStore';
 import { useRuntimeStore } from '@/state/runtimeStore';
@@ -59,7 +62,91 @@ export function useFriendListRowActions({
         (state: any) => state.applyFriendPatch
     );
     const confirm = useModalStore((state: any) => state.confirm);
-    const [isMutualFetching, setIsMutualFetching] = useState(false);
+    const mutualGraphRunId = useRuntimeStore(
+        (state: any) => state.mutualGraph.runId
+    );
+    const mutualGraphStatus = useRuntimeStore(
+        (state: any) => state.mutualGraph.status
+    );
+    const mutualGraphOwnerUserId = useRuntimeStore(
+        (state: any) => state.mutualGraph.ownerUserId
+    );
+    const mutualGraphProcessedFriends = useRuntimeStore(
+        (state: any) => state.mutualGraph.processedFriends
+    );
+    const mutualGraphTotalFriends = useRuntimeStore(
+        (state: any) => state.mutualGraph.totalFriends
+    );
+    const mutualGraphLastError = useRuntimeStore(
+        (state: any) => state.mutualGraph.lastError
+    );
+    const startedMutualGraphRunsRef = useRef(new Set<number>());
+    const handledMutualGraphRunRef = useRef(0);
+    const isMutualFetching =
+        mutualGraphOwnerUserId === currentUserId &&
+        (mutualGraphStatus === 'running' ||
+            mutualGraphStatus === 'cancelling');
+
+    useEffect(() => {
+        if (!isMutualFetching) {
+            return;
+        }
+        setMutualProgress({
+            current: mutualGraphProcessedFriends,
+            total: mutualGraphTotalFriends
+        });
+    }, [
+        isMutualFetching,
+        mutualGraphProcessedFriends,
+        mutualGraphTotalFriends,
+        setMutualProgress
+    ]);
+
+    useEffect(() => {
+        if (
+            !currentUserId ||
+            !mutualGraphRunId ||
+            mutualGraphOwnerUserId !== currentUserId ||
+            handledMutualGraphRunRef.current === mutualGraphRunId
+        ) {
+            return;
+        }
+
+        const startedHere =
+            startedMutualGraphRunsRef.current.has(mutualGraphRunId);
+        if (mutualGraphStatus === 'completed') {
+            handledMutualGraphRunRef.current = mutualGraphRunId;
+            applyCachedMutualFriendStats(currentUserId).catch((error: any) => {
+                console.warn(
+                    '[FriendListPage] Failed to apply mutual graph cache',
+                    error
+                );
+            });
+            if (startedHere) {
+                toast.success(t('view.friend_list.label.mutual_friends_loaded'));
+            }
+            return;
+        }
+
+        if (mutualGraphStatus === 'error') {
+            handledMutualGraphRunRef.current = mutualGraphRunId;
+            if (startedHere) {
+                toast.error(
+                    mutualGraphLastError ||
+                        t(
+                            'view.charts.toast.failed_to_fetch_mutual_friends_graph'
+                        )
+                );
+            }
+        }
+    }, [
+        currentUserId,
+        mutualGraphLastError,
+        mutualGraphOwnerUserId,
+        mutualGraphRunId,
+        mutualGraphStatus,
+        t
+    ]);
 
     function setFriendDeleting(userId: any, isDeleting: any) {
         const normalizedUserId = normalizeId(userId);
@@ -284,42 +371,28 @@ export function useFriendListRowActions({
         }
     }
 
-    async function fetchMutualFriendIds(friendId: any, rateLimiter: any) {
-        const collected = [];
-        let offset = 0;
-        while (true) {
-            await rateLimiter.wait();
-            const response = await executeWithBackoff(
-                () =>
-                    mutualGraphPersistenceRepository.getMutualFriends({
-                        friendId,
-                        offset,
-                        n: 100
-                    }),
-                {
-                    maxRetries: 4,
-                    baseDelay: 500,
-                    shouldRetry: (error: any) =>
-                        error?.status === 429 ||
-                        String(error?.message || '').includes('429')
-                }
-            );
-            const rows = Array.isArray(response?.json) ? response.json : [];
-            collected.push(
-                ...rows
-                    .map((entry: any) =>
-                        normalizeId(
-                            typeof entry === 'string' ? entry : entry?.id
-                        )
-                    )
-                    .filter(Boolean)
-            );
-            if (rows.length < 100) {
-                break;
+    async function applyCachedMutualFriendStats(ownerUserId: string) {
+        const { snapshot, meta } =
+            await mutualGraphPersistenceRepository.getSnapshot(ownerUserId);
+        for (const friend of rosterRows) {
+            const friendId = normalizeId(friend?.id);
+            if (!friendId) {
+                continue;
             }
-            offset += rows.length;
+            const mutualIds =
+                snapshot instanceof Map ? snapshot.get(friendId) : [];
+            const metadata = meta instanceof Map ? meta.get(friendId) : null;
+            applyFriendPatch({
+                userId: friendId,
+                patch: {
+                    $mutualCount: Array.isArray(mutualIds)
+                        ? mutualIds.length
+                        : 0,
+                    $mutualOptedOut: Boolean(metadata?.optedOut)
+                },
+                stateBucket: friend.stateBucket || friend.state || 'offline'
+            });
         }
-        return collected;
     }
 
     async function loadMutualFriends() {
@@ -345,78 +418,28 @@ export function useFriendListRowActions({
             );
             return;
         }
-        const rateLimiter = createRateLimiter({
-            limitPerInterval: 5,
-            intervalMs: 1000
-        });
-        const entries = new Map();
-        const metaEntries = new Map();
-        setIsMutualFetching(true);
         setMutualProgress({
             current: 0,
             total: friendSnapshot.length
         });
         try {
-            for (let index = 0; index < friendSnapshot.length; index += 1) {
-                const friend = friendSnapshot[index];
-                const friendId = normalizeId(friend?.id);
-                try {
-                    const mutualIds = await fetchMutualFriendIds(
-                        friendId,
-                        rateLimiter
-                    );
-                    entries.set(friendId, mutualIds);
-                    metaEntries.set(friendId, {
-                        optedOut: false
-                    });
-                    applyFriendPatch({
-                        userId: friendId,
-                        patch: {
-                            $mutualCount: mutualIds.length,
-                            $mutualOptedOut: false
-                        },
-                        stateBucket:
-                            friend.stateBucket || friend.state || 'offline'
-                    });
-                } catch (error) {
-                    if (error?.status === 403 || error?.status === 404) {
-                        metaEntries.set(friendId, {
-                            optedOut: true
-                        });
-                        applyFriendPatch({
-                            userId: friendId,
-                            patch: {
-                                $mutualCount: 0,
-                                $mutualOptedOut: true
-                            },
-                            stateBucket:
-                                friend.stateBucket || friend.state || 'offline'
-                        });
-                    } else {
-                        console.warn(
-                            '[FriendListPage] Skipping mutual friend fetch',
-                            friendId,
-                            error
-                        );
-                    }
-                } finally {
-                    setMutualProgress({
-                        current: index + 1,
-                        total: friendSnapshot.length
-                    });
-                }
+            const status = await startMutualGraphFetch({
+                ownerUserId: currentUserId,
+                endpoint: currentEndpoint,
+                friendIds: friendSnapshot.map((friend: any) =>
+                    normalizeId(friend?.id)
+                )
+            });
+            if (status.runId) {
+                startedMutualGraphRunsRef.current.add(status.runId);
             }
-            await mutualGraphPersistenceRepository.bulkUpsertMeta(
-                currentUserId,
-                metaEntries
+            startMutualGraphFetchStatusPolling();
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : t('view.charts.toast.failed_to_fetch_mutual_friends_graph')
             );
-            await mutualGraphPersistenceRepository.saveSnapshot(
-                currentUserId,
-                entries
-            );
-            toast.success(t('view.friend_list.label.mutual_friends_loaded'));
-        } finally {
-            setIsMutualFetching(false);
         }
     }
 

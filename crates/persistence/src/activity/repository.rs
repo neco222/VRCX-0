@@ -446,6 +446,31 @@ pub fn activity_self_source_after(
         .collect())
 }
 
+pub fn activity_self_source_bounds(
+    db: &DatabaseService,
+) -> Result<ActivitySelfSourceBoundsOutput, Error> {
+    ensure_game_log_tables(db)?;
+    let row = db
+        .execute(
+            "SELECT MIN(created_at), MAX(created_at), COUNT(*) FROM gamelog_location",
+            &Default::default(),
+        )?
+        .into_iter()
+        .next();
+    Ok(match row {
+        Some(row) => ActivitySelfSourceBoundsOutput {
+            first_created_at: row_string(&row, 0),
+            last_created_at: row_string(&row, 1),
+            count: row_i64(&row, 2),
+        },
+        None => ActivitySelfSourceBoundsOutput {
+            first_created_at: String::new(),
+            last_created_at: String::new(),
+            count: 0,
+        },
+    })
+}
+
 pub fn activity_friend_presence_slice(
     db: &DatabaseService,
     query: ActivityFriendPresenceSliceInput,
