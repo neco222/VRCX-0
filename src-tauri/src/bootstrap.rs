@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 use tauri::http::{header::CONTENT_TYPE, Request, Response, StatusCode};
-use tauri::menu::{Menu, MenuItem};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem};
 use tauri::{Emitter, Manager, WebviewWindowBuilder};
 use tauri_plugin_autostart::ManagerExt as _;
 use tracing_subscriber::filter::LevelFilter;
@@ -608,20 +608,18 @@ fn configure_tray(app: &tauri::App, state: &AppState) -> Result<(), tauri::Error
 pub fn refresh_tray_menu(app: &tauri::AppHandle, state: &AppState) -> Result<(), tauri::Error> {
     if let Some(tray) = app.tray_by_id("main") {
         let labels = tray_labels(state);
+        let background_mode_hidden = is_background_mode_hidden(app, state);
         let open_item = MenuItem::with_id(app, "tray-open", labels.open, true, None::<&str>)?;
+        let background_item = CheckMenuItem::with_id(
+            app,
+            "tray-toggle-background-mode",
+            labels.background_mode,
+            true,
+            background_mode_hidden,
+            None::<&str>,
+        )?;
         let exit_item = MenuItem::with_id(app, "tray-exit", labels.exit, true, None::<&str>)?;
-        let menu = if is_background_mode_hidden(app, state) {
-            Menu::with_items(app, &[&open_item, &exit_item])?
-        } else {
-            let background_item = MenuItem::with_id(
-                app,
-                "tray-toggle-background-mode",
-                labels.start_background,
-                true,
-                None::<&str>,
-            )?;
-            Menu::with_items(app, &[&open_item, &background_item, &exit_item])?
-        };
+        let menu = Menu::with_items(app, &[&open_item, &background_item, &exit_item])?;
         let _ = tray.set_menu(Some(menu));
         let _ = tray.set_show_menu_on_left_click(false);
     }
@@ -630,7 +628,7 @@ pub fn refresh_tray_menu(app: &tauri::AppHandle, state: &AppState) -> Result<(),
 
 struct TrayLabels {
     open: &'static str,
-    start_background: &'static str,
+    background_mode: &'static str,
     exit: &'static str,
 }
 
@@ -657,20 +655,20 @@ fn tray_labels(state: &AppState) -> TrayLabels {
     if language.starts_with("zh") {
         return TrayLabels {
             open: "打开 VRCX-0",
-            start_background: "切换到后台模式",
+            background_mode: "后台模式",
             exit: "退出",
         };
     }
     if language.starts_with("ja") {
         return TrayLabels {
             open: "VRCX-0 を開く",
-            start_background: "バックグラウンドモードへ切り替える",
+            background_mode: "バックグラウンドモード",
             exit: "終了",
         };
     }
     TrayLabels {
         open: "Open VRCX-0",
-        start_background: "Switch to Background Mode",
+        background_mode: "Background Mode",
         exit: "Exit",
     }
 }
