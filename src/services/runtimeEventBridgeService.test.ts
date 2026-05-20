@@ -12,11 +12,17 @@ const mocks = vi.hoisted(() => ({
     handleIpcEvent: vi.fn(),
     pushSharedFeedNotification: vi.fn(),
     showSQLiteErrorDialog: vi.fn(),
-    handleBrowserFocus: vi.fn()
+    handleBrowserFocus: vi.fn(),
+    getBackendRuntimeSnapshot: vi.fn(),
+    runtimeGroupInstancesRefresh: vi.fn()
 }));
 
 vi.mock('@/platform/tauri/client', () => ({
     tauriClient: {
+        app: {
+            GetBackendRuntimeSnapshot: mocks.getBackendRuntimeSnapshot,
+            RuntimeGroupInstancesRefresh: mocks.runtimeGroupInstancesRefresh
+        },
         events: {
             subscribe: mocks.subscribe
         }
@@ -70,6 +76,8 @@ describe('runtimeEventBridgeService', () => {
         useSessionStore.getState().resetSessionState();
         mocks.isHostCapabilityAvailable.mockReturnValue(false);
         mocks.subscribe.mockResolvedValue(() => {});
+        mocks.getBackendRuntimeSnapshot.mockResolvedValue(null);
+        mocks.runtimeGroupInstancesRefresh.mockResolvedValue(null);
     });
 
     it('records GameLog persistence fallback as telemetry without frontend ingest', async () => {
