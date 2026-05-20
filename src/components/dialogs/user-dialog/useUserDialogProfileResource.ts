@@ -147,6 +147,32 @@ function previousTargetProfile(profile: any, targetUserId: any) {
     return profileMatchesTarget(profile, targetUserId) ? profile : null;
 }
 
+const ACTIVITY_TIMESTAMP_FIELDS = ['last_activity', 'last_login'];
+
+function mergeActivityTimestampsIntoProfile(profile: any, snapshot: any) {
+    if (!profile || !snapshot || typeof snapshot !== 'object') {
+        return profile;
+    }
+
+    const profileUserId = resolveProfileUserId(profile);
+    const snapshotUserId = resolveProfileUserId(snapshot);
+    if (profileUserId && snapshotUserId && profileUserId !== snapshotUserId) {
+        return profile;
+    }
+
+    let nextProfile = profile;
+    for (const field of ACTIVITY_TIMESTAMP_FIELDS) {
+        if (!hasRefreshValue(snapshot[field])) {
+            continue;
+        }
+        if (nextProfile === profile) {
+            nextProfile = { ...profile };
+        }
+        nextProfile[field] = snapshot[field];
+    }
+    return nextProfile;
+}
+
 const LOCAL_SNAPSHOT_REFRESH_FIELDS = [
     'status',
     'statusDescription',
@@ -263,6 +289,7 @@ export function mergeUserDialogLocalSnapshot({
 }
 
 export function useUserDialogProfileResource({
+    activitySnapshot = null,
     currentEndpoint,
     currentUserSnapshot,
     gameLogDisabled,
@@ -284,8 +311,14 @@ export function useUserDialogProfileResource({
             }),
         [currentUserSnapshot, normalizedUserId]
     );
+    const normalizedActivitySnapshot = useMemo(
+        () => normalizeTargetSnapshot(activitySnapshot, normalizedUserId),
+        [activitySnapshot, normalizedUserId]
+    );
     const localSnapshotRef = useRef(normalizedLocalSnapshot);
     localSnapshotRef.current = normalizedLocalSnapshot;
+    const activitySnapshotRef = useRef(normalizedActivitySnapshot);
+    activitySnapshotRef.current = normalizedActivitySnapshot;
     const [baseProfile, setBaseProfile] = useState(
         () => normalizedLocalSnapshot
     );
@@ -407,18 +440,21 @@ export function useUserDialogProfileResource({
                 setBaseProfile((currentProfile: any) =>
                     preserveProfileIdentity(
                         currentProfile,
-                        isTargetCurrentUser
-                            ? mergeCurrentUserPresenceFields(
-                                  nextProfile,
-                                  previousTargetProfile(
-                                      currentProfile,
-                                      normalizedUserId
+                        mergeActivityTimestampsIntoProfile(
+                            isTargetCurrentUser
+                                ? mergeCurrentUserPresenceFields(
+                                      nextProfile,
+                                      previousTargetProfile(
+                                          currentProfile,
+                                          normalizedUserId
+                                      )
                                   )
-                              )
-                            : mergeLocalSnapshotIntoProfile(
-                                  localSnapshotRef.current,
-                                  nextProfile
-                              ),
+                                : mergeLocalSnapshotIntoProfile(
+                                      localSnapshotRef.current,
+                                      nextProfile
+                                  ),
+                            activitySnapshotRef.current
+                        ),
                         normalizedUserId
                     )
                 );

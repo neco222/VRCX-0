@@ -112,6 +112,9 @@ export function UserDialogContent({
             seedData
         ]
     );
+    const activitySnapshot = isTargetCurrentUser
+        ? currentUserSnapshot
+        : friendSnapshot;
     const targetKey = dialogTargetKey(currentEndpoint, normalizedUserId);
     const actionStatusRef = useRef('idle');
     const [actionStatus, setActionStatus] = useState('idle');
@@ -133,6 +136,7 @@ export function UserDialogContent({
         gameState,
         isFriend: isKnownFriend,
         isTargetCurrentUser,
+        activitySnapshot,
         localSnapshot,
         normalizedUserId,
         updateEntityDialogMetadata
