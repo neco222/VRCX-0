@@ -39,11 +39,27 @@ impl RealtimeFriendsRuntime {
         realtime_generation: u64,
         baseline_revision: u64,
     ) -> FriendBaselineResult {
-        let baseline = baseline.normalized();
+        let mut baseline = baseline.normalized();
         let mut state = self.lock_state();
         let generation = realtime_generation;
+        let previous_generation = state.baseline.as_ref().map(|baseline| baseline.generation);
         state.generation = state.generation.max(generation);
-        state.pending_offline.clear();
+        if previous_generation == Some(generation) {
+            state.pending_offline.retain(|user_id, _| {
+                let Some(record) = baseline.friends_by_id.get_mut(user_id) else {
+                    return false;
+                };
+                if !is_online_state(record) {
+                    return false;
+                }
+                record
+                    .extra
+                    .insert("pendingOffline".into(), Value::Bool(true));
+                true
+            });
+        } else {
+            state.pending_offline.clear();
+        }
         let friend_count = baseline.friends_by_id.len();
         state.baseline = Some(RealtimeFriendSnapshot {
             current_user_id: baseline.current_user_id,
