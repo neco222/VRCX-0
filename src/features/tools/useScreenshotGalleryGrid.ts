@@ -31,8 +31,13 @@ function buildGalleryGridRows({ cardHeight, gridColumnCount, gridGap, items }: a
     return positionKnownSizeRows(rows);
 }
 
-export function useScreenshotGalleryGrid({ compact = false, items, resetKey }: any) {
-    const { resetScrollTop, viewportMetrics, viewportRef } =
+export function useScreenshotGalleryGrid({
+    compact = false,
+    initialScrollTop = 0,
+    items,
+    resetKey
+}: any) {
+    const { setScrollTop, viewportMetrics, viewportRef } =
         useScrollViewportMetrics();
     const cardHeight = compact ? COMPACT_CARD_HEIGHT : GALLERY_CARD_HEIGHT;
     const gridGap = compact ? COMPACT_GRID_GAP : GALLERY_GRID_GAP;
@@ -41,8 +46,8 @@ export function useScreenshotGalleryGrid({ compact = false, items, resetKey }: a
         : GALLERY_CARD_MIN_WIDTH;
 
     useEffect(() => {
-        resetScrollTop();
-    }, [resetKey, resetScrollTop]);
+        setScrollTop(initialScrollTop);
+    }, [initialScrollTop, resetKey, setScrollTop]);
 
     const safeWidth = Math.max(
         0,
@@ -89,6 +94,7 @@ export function useScreenshotGalleryGrid({ compact = false, items, resetKey }: a
         gridGap,
         gridMinWidth,
         totalHeight: positionedRows.totalHeight,
+        viewportMetrics,
         viewportRef,
         visibleRows
     };

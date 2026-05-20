@@ -150,10 +150,12 @@ function FolderTreeNode({ node, selectedFolder, onSelectFolder }: any) {
 
 function ScreenshotGalleryGrid({
     error,
+    initialScrollTop,
     images,
     isLoading,
     selectedFolder,
-    onOpen
+    onOpen,
+    onScrollPositionChange
 }: any) {
     const { t } = useTranslation();
     const {
@@ -164,6 +166,7 @@ function ScreenshotGalleryGrid({
         viewportRef,
         visibleRows
     } = useScreenshotGalleryGrid({
+        initialScrollTop,
         items: images,
         resetKey: selectedFolder
     });
@@ -206,7 +209,18 @@ function ScreenshotGalleryGrid({
     }
 
     return (
-        <div ref={viewportRef} className="min-h-0 flex-1 overflow-auto pr-1">
+        <div
+            ref={viewportRef}
+            className="min-h-0 flex-1 overflow-auto pr-1"
+            onScroll={(event: any) => {
+                if (selectedFolder) {
+                    onScrollPositionChange?.(
+                        selectedFolder,
+                        event.currentTarget.scrollTop
+                    );
+                }
+            }}
+        >
             <div className="relative" style={{ height: totalHeight }}>
                 {visibleRows.map((row: any) => (
                     <div
@@ -243,7 +257,9 @@ export function ScreenshotGalleryView({
     selectedFolder,
     onOpenImage,
     onRefresh,
-    onSelectFolder
+    onSelectFolder,
+    onScrollPositionChange,
+    restoreScrollTop
 }: any) {
     const { t } = useTranslation();
     const root = useMemo(() => buildFolderTree(folderTree), [folderTree]);
@@ -322,10 +338,12 @@ export function ScreenshotGalleryView({
                 </div>
                 <ScreenshotGalleryGrid
                     error={error}
+                    initialScrollTop={restoreScrollTop}
                     images={images}
                     isLoading={isImagesLoading}
                     selectedFolder={selectedFolder}
                     onOpen={onOpenImage}
+                    onScrollPositionChange={onScrollPositionChange}
                 />
             </section>
         </div>

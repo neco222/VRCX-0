@@ -47,6 +47,7 @@ export function useScrollViewportMetrics({
     enabled = true
 }: UseScrollViewportMetricsOptions = {}) {
     const viewportRef = useRef<HTMLElement | null>(null);
+    const pendingScrollTopRef = useRef<number | null>(null);
     const [viewportElement, setViewportElement] =
         useState<HTMLElement | null>(null);
     const [viewportMetrics, setViewportMetrics] = useState(
@@ -55,10 +56,12 @@ export function useScrollViewportMetrics({
 
     const updateViewportMetrics = useCallback(() => {
         const nextMetrics = readViewportMetrics(viewportRef.current);
+        pendingScrollTopRef.current = nextMetrics.scrollTop;
         updateMetricsIfChanged(setViewportMetrics, nextMetrics);
     }, []);
 
     const resetScrollTop = useCallback(() => {
+        pendingScrollTopRef.current = 0;
         const node = viewportRef.current;
         if (node) {
             node.scrollTop = 0;
@@ -74,11 +77,33 @@ export function useScrollViewportMetrics({
         );
     }, []);
 
+    const setScrollTop = useCallback((value: unknown) => {
+        const nextScrollTop = Math.max(0, Number(value) || 0);
+        pendingScrollTopRef.current = nextScrollTop;
+        const node = viewportRef.current;
+        if (node) {
+            node.scrollTop = nextScrollTop;
+        }
+
+        setViewportMetrics((current: any) =>
+            current.scrollTop === nextScrollTop
+                ? current
+                : {
+                      ...current,
+                      scrollTop: nextScrollTop
+                  }
+        );
+    }, []);
+
     const setViewportRef = useCallback(
         (node: HTMLElement | null) => {
             viewportRef.current = node;
             setViewportElement(node);
             if (enabled && node) {
+                const pendingScrollTop = pendingScrollTopRef.current;
+                if (pendingScrollTop !== null) {
+                    node.scrollTop = pendingScrollTop;
+                }
                 updateMetricsIfChanged(
                     setViewportMetrics,
                     readViewportMetrics(node)
@@ -123,6 +148,7 @@ export function useScrollViewportMetrics({
 
     return {
         resetScrollTop,
+        setScrollTop,
         viewportMetrics,
         viewportRef: setViewportRef
     };

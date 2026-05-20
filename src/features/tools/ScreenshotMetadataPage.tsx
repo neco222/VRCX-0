@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { convertFileSrc } from '@/platform/tauri/assets';
+import configRepository from '@/repositories/configRepository';
 import mediaRepository from '@/repositories/mediaRepository';
 import { withUploadTimeout } from '@/shared/utils/imageUpload';
 import { useModalStore } from '@/state/modalStore';
@@ -41,15 +42,22 @@ function getFolderLatestModifiedAt(folder: any) {
     return Number(folder?.latestModifiedAt) || 0;
 }
 
-function resolveGalleryFolder(folderTree: any, preferredFolder: any) {
+const SCREENSHOT_GALLERY_FOLDER_CONFIG_KEY = 'screenshotGalleryFolder';
+
+function resolveGalleryFolder(folderTree: any, preferredFolders: any) {
     const folders = Array.isArray(folderTree?.folders)
         ? folderTree.folders
         : [];
-    if (
-        preferredFolder &&
-        folders.some((folder: any) => folder.path === preferredFolder)
-    ) {
-        return preferredFolder;
+    const preferredList = Array.isArray(preferredFolders)
+        ? preferredFolders
+        : [preferredFolders];
+    for (const preferredFolder of preferredList) {
+        if (
+            preferredFolder &&
+            folders.some((folder: any) => folder.path === preferredFolder)
+        ) {
+            return preferredFolder;
+        }
     }
     const latestFolder = folders
         .filter((folder: any) => Number(folder.imageCount) > 0)
@@ -88,6 +96,8 @@ export function ScreenshotMetadataPage() {
     const metadataRequestRef = useRef(0);
     const searchRequestRef = useRef(0);
     const galleryRequestRef = useRef(0);
+    const selectedGalleryFolderRef = useRef('');
+    const galleryScrollPositionsRef = useRef(new Map());
     const routePath = searchParams.get('path') || '';
     const routeFolder = searchParams.get('folder') || '';
     const isGalleryMode = !routePath;
@@ -112,6 +122,9 @@ export function ScreenshotMetadataPage() {
     const [galleryImages, setGalleryImages] = useState<any[]>([]);
     const [galleryImagesFolder, setGalleryImagesFolder] = useState('');
     const [selectedGalleryFolder, setSelectedGalleryFolder] = useState('');
+    const [storedGalleryFolder, setStoredGalleryFolder] = useState('');
+    const [isGalleryFolderPreferenceLoaded, setIsGalleryFolderPreferenceLoaded] =
+        useState(false);
     const [scanStatus, setScanStatus] = useState(null);
     const [galleryScanError, setGalleryScanError] = useState('');
     const [galleryTreeError, setGalleryTreeError] = useState('');
@@ -138,6 +151,8 @@ export function ScreenshotMetadataPage() {
     const dateLocale = i18n.resolvedLanguage || i18n.language;
     const visibleGalleryImages =
         galleryImagesFolder === selectedGalleryFolder ? galleryImages : [];
+    const selectedGalleryScrollTop =
+        galleryScrollPositionsRef.current.get(selectedGalleryFolder) || 0;
     const shouldShowGalleryImagesLoading =
         isGalleryImagesLoading && visibleGalleryImages.length === 0;
 
@@ -153,6 +168,56 @@ export function ScreenshotMetadataPage() {
         },
         [routeFolder, selectedGalleryFolder, setSearchParams]
     );
+
+    useEffect(() => {
+        let active = true;
+        configRepository
+            .getString(SCREENSHOT_GALLERY_FOLDER_CONFIG_KEY, '')
+            .then((value: any) => {
+                if (!active) {
+                    return;
+                }
+                setStoredGalleryFolder(value || '');
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (active) {
+                    setIsGalleryFolderPreferenceLoaded(true);
+                }
+            });
+
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        selectedGalleryFolderRef.current = selectedGalleryFolder;
+    }, [selectedGalleryFolder]);
+
+    useEffect(() => {
+        if (
+            !isGalleryMode ||
+            !isGalleryFolderPreferenceLoaded ||
+            !selectedGalleryFolder ||
+            selectedGalleryFolder === storedGalleryFolder
+        ) {
+            return;
+        }
+
+        setStoredGalleryFolder(selectedGalleryFolder);
+        configRepository
+            .setString(
+                SCREENSHOT_GALLERY_FOLDER_CONFIG_KEY,
+                selectedGalleryFolder
+            )
+            .catch(() => {});
+    }, [
+        isGalleryFolderPreferenceLoaded,
+        isGalleryMode,
+        selectedGalleryFolder,
+        storedGalleryFolder
+    ]);
 
     const openDetailPath = useCallback(
         (path: any, { clearPreview = true }: any = {}) => {
@@ -322,7 +387,17 @@ export function ScreenshotMetadataPage() {
             setSelectedGalleryFolder((current: any) =>
                 resolveGalleryFolder(
                     tree,
-                    preferPopulated ? routeFolder : routeFolder || current
+                    preferPopulated
+                        ? [
+                              routeFolder,
+                              selectedGalleryFolderRef.current,
+                              storedGalleryFolder
+                          ]
+                        : [
+                              routeFolder,
+                              routeFolder ? '' : current,
+                              storedGalleryFolder
+                          ]
                 )
             );
             setGalleryRevision((current: any) => current + 1);
@@ -359,18 +434,38 @@ export function ScreenshotMetadataPage() {
     }
 
     useEffect(() => {
-        if (!isGalleryMode || !screenshotCacheStatus?.available) {
+        if (
+            !isGalleryMode ||
+            !screenshotCacheStatus?.available ||
+            !isGalleryFolderPreferenceLoaded
+        ) {
             return;
         }
         refreshGallery(false);
-    }, [isGalleryMode, screenshotCacheStatus?.available]);
+    }, [
+        isGalleryFolderPreferenceLoaded,
+        isGalleryMode,
+        screenshotCacheStatus?.available
+    ]);
 
     useEffect(() => {
         if (!isGalleryMode || !folderTree) {
             return;
         }
-        setSelectedGalleryFolder(resolveGalleryFolder(folderTree, routeFolder));
-    }, [folderTree, isGalleryMode, routeFolder]);
+        setSelectedGalleryFolder(
+            resolveGalleryFolder(folderTree, [
+                routeFolder,
+                routeFolder ? '' : selectedGalleryFolder,
+                storedGalleryFolder
+            ])
+        );
+    }, [
+        folderTree,
+        isGalleryMode,
+        routeFolder,
+        selectedGalleryFolder,
+        storedGalleryFolder
+    ]);
 
     useEffect(() => {
         if (!isGalleryMode || !scanStatus?.running) {
@@ -476,9 +571,25 @@ export function ScreenshotMetadataPage() {
         setSearchParams(nextParams);
     }
 
+    const updateGalleryScrollPosition = useCallback(
+        (folder: any, scrollTop: any) => {
+            if (!folder) {
+                return;
+            }
+            galleryScrollPositionsRef.current.set(
+                folder,
+                Math.max(0, Number(scrollTop) || 0)
+            );
+        },
+        []
+    );
+
     async function browseForScreenshot() {
         try {
-            const defaultPath = await mediaRepository.getVrchatPhotosLocation();
+            const defaultPath =
+                selectedGalleryFolder ||
+                storedGalleryFolder ||
+                (await mediaRepository.getVrchatPhotosLocation());
             const filePath = await mediaRepository.openFileSelectorDialog(
                 defaultPath || '',
                 '.png',
@@ -805,6 +916,8 @@ export function ScreenshotMetadataPage() {
                         refreshGallery(true);
                     }}
                     onSelectFolder={selectGalleryFolder}
+                    onScrollPositionChange={updateGalleryScrollPosition}
+                    restoreScrollTop={selectedGalleryScrollTop}
                 />
             ) : (
                 <>
