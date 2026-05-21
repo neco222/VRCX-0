@@ -2,7 +2,7 @@
 
 [English](README.md) | 简体中文 | [日本語](README.ja-JP.md)
 
-VRCX-0 是 VRCX 的 fork 版本，使用 **Tauri + React** 构建，替代原有的 CefSharp + Vue 架构。
+VRCX-0 是 VRCX 的重写版本，使用 **Tauri + React** 重新构建，替代原有的 CefSharp + Vue 架构。
 它由 VRCX 前维护者之一开发。
 
 VRCX-0 关注玩家日常使用：更低占用、更小体积，以及持续推进的新功能开发和支持。

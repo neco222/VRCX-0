@@ -2,7 +2,7 @@
 
 English | [简体中文](README.zh-CN.md) | [日本語](README.ja-JP.md)
 
-VRCX-0 is a fork of VRCX that rebuilds the previous CefSharp + Vue architecture with **Tauri + React**. It is developed by one of VRCX's former maintainers.
+VRCX-0 is a rewrite of VRCX, rebuilt from the previous CefSharp + Vue architecture with **Tauri + React**. It is developed by one of VRCX's former maintainers.
 
 VRCX-0 focuses on players' everyday use: lower resource usage, a smaller app, and continued feature development and support.
 
