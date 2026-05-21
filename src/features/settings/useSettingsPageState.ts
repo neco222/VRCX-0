@@ -23,6 +23,7 @@ import {
     setYoutubeApiEnabledPreference,
     setZoomLevelPreference
 } from '@/services/preferencesService';
+import { openUGCPhotosFolder } from '@/services/shellIntegrationService';
 import { feedFiltersOptions } from '@/shared/constants/feedFilters';
 import {
     DEFAULT_MAX_TABLE_SIZE,
@@ -285,6 +286,51 @@ export function useSettingsPageState() {
             .map((group: any) => group.label)
             .join(', ');
 
+    function normalizeRecentActionCooldownMinutes(value: any) {
+        const parsed = Number.parseInt(value, 10);
+        if (!Number.isFinite(parsed)) {
+            return 60;
+        }
+        return Math.min(1440, Math.max(1, parsed));
+    }
+
+    async function saveInterfaceZoomLevel(value: any) {
+        let savedZoom = zoomLevel;
+        const saved = await commit(async () => {
+            savedZoom = await setZoomLevelPreference(value);
+        });
+        if (saved) {
+            setZoomInput(String(savedZoom));
+        }
+    }
+
+    function saveIntegrationBoolPreference(
+        key: any,
+        value: any,
+        action: any
+    ) {
+        commit(action, () => {
+            const previous = integrationPrefs[key];
+            setIntegrationValue(key, value);
+            return () => setIntegrationValue(key, previous);
+        });
+    }
+
+    function saveAvatarProviderEnabled(value: any) {
+        const previousConfig = avatarProviderConfigRef.current;
+        const nextConfig = {
+            ...previousConfig,
+            enabled: Boolean(value)
+        };
+        commit(
+            () => saveAvatarProviderConfig(nextConfig),
+            () => {
+                applyAvatarProviderConfig(nextConfig);
+                return () => applyAvatarProviderConfig(previousConfig);
+            }
+        );
+    }
+
     return {
         shell: {
             activeSettingsTab,
@@ -324,7 +370,120 @@ export function useSettingsPageState() {
             setIntConfigPreference,
             resetTrustColors,
             saveTrustColor,
-            setPrefs
+            setPrefs,
+            onLanguageChange: (value: any) => {
+                setAppLanguagePreference(value);
+            },
+            onFontFamilyChange: (value: any) => {
+                if (value === 'custom') {
+                    openCustomFontDialog();
+                    return;
+                }
+                saveFontFamilyPreference(value);
+            },
+            onCjkFontPackChange: (value: any) => {
+                selectCjkFontPack(value);
+            },
+            onZoomInputChange: (value: any) => {
+                setZoomInput(value);
+            },
+            onZoomBlur: (event: any) => {
+                saveInterfaceZoomLevel(event?.target?.value ?? zoomInput);
+            },
+            onDataTableStripedChange: (checked: any) => {
+                savePreferenceValue('dataTableStriped', checked, () =>
+                    setDataTableStripedPreference(checked)
+                );
+            },
+            onAccessibleStatusIndicatorsChange: (checked: any) => {
+                savePreferenceValue(
+                    'accessibleStatusIndicators',
+                    checked,
+                    () => setAccessibleStatusIndicatorsPreference(checked)
+                );
+            },
+            onShowInstanceIdInLocationChange: (checked: any) => {
+                saveBoolPreference(
+                    'showInstanceIdInLocation',
+                    'VRCX_showInstanceIdInLocation',
+                    checked
+                );
+            },
+            onAgeGatedInstancesVisibleChange: (checked: any) => {
+                saveBoolPreference(
+                    'isAgeGatedInstancesVisible',
+                    'VRCX_isAgeGatedInstancesVisible',
+                    checked
+                );
+            },
+            onHideNicknamesChange: (checked: any) => {
+                saveBoolPreference('hideNicknames', 'hideNicknames', !checked);
+            },
+            onDisplayVrcPlusIconsAsAvatarChange: (checked: any) => {
+                saveBoolPreference(
+                    'displayVRCPlusIconsAsAvatar',
+                    'displayVRCPlusIconsAsAvatar',
+                    checked
+                );
+            },
+            onShowNewDashboardButtonChange: (checked: any) => {
+                savePreferenceValue('showNewDashboardButton', checked, () =>
+                    setShowNewDashboardButtonPreference(checked)
+                );
+            },
+            onOpenTablePageSizes: () => {
+                openTablePageSizesDialog();
+            },
+            onOpenTableLimits: () => {
+                openTableLimitsDialog();
+            },
+            onHour12Change: (value: any) => {
+                saveBoolPreference('dtHour12', 'dtHour12', value === '12');
+            },
+            onIsoFormatChange: (checked: any) => {
+                saveBoolPreference('dtIsoFormat', 'dtIsoFormat', checked);
+            },
+            onWeekStartsOnChange: (value: any) => {
+                const nextValue = Number.parseInt(value, 10);
+                savePreferenceValue('weekStartsOn', nextValue, () =>
+                    setIntConfigPreference('weekStartsOn', nextValue, {
+                        min: 0,
+                        max: 6,
+                        fallback: 1
+                    })
+                );
+            },
+            onHideUserNotesChange: (checked: any) => {
+                saveBoolPreference('hideUserNotes', 'hideUserNotes', !checked);
+            },
+            onHideUserMemosChange: (checked: any) => {
+                saveBoolPreference('hideUserMemos', 'hideUserMemos', !checked);
+            },
+            onHideUnfriendsChange: (checked: any) => {
+                saveBoolPreference('hideUnfriends', 'hideUnfriends', checked);
+            },
+            onRandomUserColoursChange: (checked: any) => {
+                saveBoolPreference(
+                    'randomUserColours',
+                    'randomUserColours',
+                    checked
+                );
+            },
+            onResetTrustColors: () => {
+                resetTrustColors();
+            },
+            onSaveTrustColor: (key: any, value: any) => {
+                saveTrustColor(key, value);
+            },
+            onTrustColorDraftChange: (key: any, value: any) => {
+                setPrefs((current: any) => ({
+                    ...current,
+                    trustColor: {
+                        ...current.trustColor,
+                        [key]: value
+                    }
+                }));
+            }
         },
         media: {
             prefs,
@@ -339,7 +498,56 @@ export function useSettingsPageState() {
             handleCropInstancePrintsChange,
             setSaveInstanceStickersPreference,
             setSaveInstanceEmojiPreference,
-            setPrefs
+            setPrefs,
+            onScreenshotHelperChange: (checked: any) => {
+                savePreferenceValue('screenshotHelper', checked, () =>
+                    setScreenshotHelperPreference(checked)
+                );
+            },
+            onScreenshotHelperModifyFilenameChange: (checked: any) => {
+                savePreferenceValue(
+                    'screenshotHelperModifyFilename',
+                    checked,
+                    () => setScreenshotHelperModifyFilenamePreference(checked)
+                );
+            },
+            onScreenshotHelperCopyToClipboardChange: (checked: any) => {
+                savePreferenceValue(
+                    'screenshotHelperCopyToClipboard',
+                    checked,
+                    () => setScreenshotHelperCopyToClipboardPreference(checked)
+                );
+            },
+            onDeleteAllScreenshotMetadata: () => {
+                deleteAllScreenshotMetadata();
+            },
+            onOpenUgcPhotosFolder: () => {
+                commit(() => openUGCPhotosFolder(prefs.userGeneratedContentPath));
+            },
+            onOpenUgcFolderSelector: () => {
+                openUgcFolderSelector();
+            },
+            onResetUgcFolder: () => {
+                resetUgcFolder();
+            },
+            onSaveInstancePrintsChange: (checked: any) => {
+                savePreferenceValue('saveInstancePrints', checked, () =>
+                    setSaveInstancePrintsPreference(checked)
+                );
+            },
+            onCropInstancePrintsChange: (checked: any) => {
+                handleCropInstancePrintsChange(checked);
+            },
+            onSaveInstanceStickersChange: (checked: any) => {
+                savePreferenceValue('saveInstanceStickers', checked, () =>
+                    setSaveInstanceStickersPreference(checked)
+                );
+            },
+            onSaveInstanceEmojiChange: (checked: any) => {
+                savePreferenceValue('saveInstanceEmoji', checked, () =>
+                    setSaveInstanceEmojiPreference(checked)
+                );
+            }
         },
         integrations: {
             discordPrefs,
@@ -355,7 +563,56 @@ export function useSettingsPageState() {
             saveAvatarProviderConfig,
             avatarProviderConfigRef,
             applyAvatarProviderConfig,
-            setAvatarProviderDialogOpen
+            setAvatarProviderDialogOpen,
+            onDiscordActiveChange: (checked: any) => {
+                saveDiscordBoolPreference('discordActive', checked);
+            },
+            onDiscordWorldIntegrationChange: (checked: any) => {
+                saveDiscordBoolPreference('discordWorldIntegration', checked);
+            },
+            onDiscordInstanceChange: (checked: any) => {
+                saveDiscordBoolPreference('discordInstance', checked);
+            },
+            onDiscordShowPlatformChange: (checked: any) => {
+                saveDiscordBoolPreference('discordShowPlatform', checked);
+            },
+            onDiscordShowPrivateDetailsChange: (checked: any) => {
+                saveDiscordBoolPreference('discordHideInvite', !checked);
+            },
+            onDiscordJoinButtonChange: (checked: any) => {
+                saveDiscordBoolPreference('discordJoinButton', checked);
+            },
+            onDiscordShowImagesChange: (checked: any) => {
+                saveDiscordBoolPreference('discordHideImage', !checked);
+            },
+            onDiscordWorldNameAsStatusChange: (checked: any) => {
+                saveDiscordBoolPreference(
+                    'discordWorldNameAsDiscordStatus',
+                    checked
+                );
+            },
+            onTranslationApiEnabledChange: (checked: any) => {
+                saveIntegrationBoolPreference('translationAPI', checked, () =>
+                    setTranslationApiEnabledPreference(checked)
+                );
+            },
+            onOpenTranslationApiDialog: () => {
+                openTranslationApiDialog();
+            },
+            onYoutubeApiEnabledChange: (checked: any) => {
+                saveIntegrationBoolPreference('youtubeAPI', checked, () =>
+                    setYoutubeApiEnabledPreference(checked)
+                );
+            },
+            onOpenYoutubeApiDialog: () => {
+                openYoutubeApiDialog();
+            },
+            onAvatarProviderEnabledChange: (checked: any) => {
+                saveAvatarProviderEnabled(checked);
+            },
+            onOpenAvatarProviderDialog: () => {
+                setAvatarProviderDialogOpen(true);
+            }
         },
         social: {
             prefs,
@@ -368,7 +625,29 @@ export function useSettingsPageState() {
             setRecentActionCooldownEnabledPreference,
             setRecentActionCooldownMinutesPreference,
             toggleLocalFavoriteFriendsGroup,
-            setPrefs
+            setPrefs,
+            onRecentActionCooldownEnabledChange: (checked: any) => {
+                savePreferenceValue(
+                    'recentActionCooldownEnabled',
+                    checked,
+                    () => setRecentActionCooldownEnabledPreference(checked)
+                );
+            },
+            onRecentActionCooldownMinutesChange: (value: any) => {
+                setPrefs((current: any) => ({
+                    ...current,
+                    recentActionCooldownMinutes: value
+                }));
+            },
+            onRecentActionCooldownMinutesBlur: (value: any) => {
+                const nextValue = normalizeRecentActionCooldownMinutes(value);
+                savePreferenceValue('recentActionCooldownMinutes', nextValue, () =>
+                    setRecentActionCooldownMinutesPreference(nextValue)
+                );
+            },
+            onToggleLocalFavoriteFriendsGroup: (groupKey: any, checked: any) => {
+                toggleLocalFavoriteFriendsGroup(groupKey, checked);
+            }
         },
         notifications: {
             prefs,

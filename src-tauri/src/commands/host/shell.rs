@@ -3,7 +3,6 @@
 use std::path::PathBuf;
 
 use tauri::{AppHandle, State};
-use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 use crate::error::AppError;
 use crate::state::AppState;
@@ -50,24 +49,9 @@ pub fn app__read_config_file_safe() -> Result<String, AppError> {
 }
 
 #[tauri::command]
-pub fn app__write_config_file(app_handle: AppHandle, json: String) -> Result<(), AppError> {
+pub fn app__write_config_file(json: String) -> Result<(), AppError> {
     require_host_capability(HostCapability::VrchatPathDiscovery)?;
     let normalized_json = shell_actions::normalize_config_file_json(&json)?;
-    let confirmed = app_handle
-        .dialog()
-        .message("Write this JSON to the VRChat config file? This replaces the existing file.")
-        .title("Write VRChat config")
-        .kind(MessageDialogKind::Warning)
-        .buttons(MessageDialogButtons::OkCancelCustom(
-            "Write".into(),
-            "Cancel".into(),
-        ))
-        .blocking_show();
-    if !confirmed {
-        return Err(AppError::Custom(
-            "VRChat config write was cancelled.".into(),
-        ));
-    }
     Ok(shell_actions::write_config_file(&normalized_json)?)
 }
 
