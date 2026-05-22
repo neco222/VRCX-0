@@ -242,12 +242,14 @@
         }
     },
     "app_menu": {
-        "app": "App",
+        "app": "VRCX-0",
         "view": "View",
         "tools": "Tools",
         "help": "Help",
         "settings": "Settings...",
         "check_updates": "Check for Updates",
+        "restart": "Restart VRCX-0",
+        "start_background_mode": "Switch to Background Mode",
         "logout": "Log Out",
         "quit": "Quit VRCX-0",
         "quick_search": "Quick Search",
@@ -260,6 +262,7 @@
         "zoom_out": "Zoom Out",
         "reset_zoom": "Reset Zoom",
         "all_tools": "All Tools...",
+        "open_shortcut_folder": "Open App Launcher Shortcuts Folder",
         "github": "GitHub",
         "report_issue": "Report Issue",
         "open_source_licenses": "Open Source Licenses",
@@ -269,7 +272,9 @@
         "version": "Version",
         "messages": {
             "zoom_failed": "Failed to apply zoom",
-            "logout_failed": "Failed to sign out of VRCX-0"
+            "logout_failed": "Failed to sign out of VRCX-0",
+            "restart_failed": "Failed to restart VRCX-0",
+            "open_shortcut_folder_failed": "Failed to open the app launcher shortcuts folder"
         },
         "label": {
             "started_at": "Started at",
@@ -1304,7 +1309,7 @@
                     "vrc_photos_description": "Opens your VRChat photos folder",
                     "steam_screenshots_description": "Opens your Steam screenshots folder"
                 },
-                "header": "Pictures",
+                "header": "Media",
                 "screenshot": "Screenshot",
                 "screenshot_description": "View and manage screenshots",
                 "gallery": "Gallery",
@@ -1313,7 +1318,7 @@
                 "inventory_description": "Manage emojis, stickers, items, and cosmetics"
             },
             "shortcuts": {
-                "header": "Shortcuts",
+                "header": "Folders",
                 "vrcx_data": "VRCX-0 Data",
                 "vrcx_data_description": "Open the VRCX-0 data folder",
                 "vrchat_data": "VRChat Data",
@@ -1322,7 +1327,7 @@
                 "crash_dumps_description": "Open the VRChat crash dumps folder"
             },
             "system_tools": {
-                "header": "System Tools",
+                "header": "VRChat & System",
                 "vrchat_config": "VRChat Config",
                 "vrchat_config_description": "Open VRChat config.json settings",
                 "launch_options_description": "Edit VRChat launch options",

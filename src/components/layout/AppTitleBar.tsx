@@ -347,12 +347,6 @@ export function AppTitleBar() {
                     data-tauri-drag-region
                     className="flex h-full min-w-0 flex-1 items-center gap-2 px-3"
                 >
-                    <span
-                        data-tauri-drag-region
-                        className="text-foreground shrink-0 text-xs font-semibold"
-                    >
-                        {t('app.title')}
-                    </span>
                     {titleBarActionsVisible ? (
                         <div
                             data-titlebar-interactive="true"

@@ -242,12 +242,14 @@
         }
     },
     "app_menu": {
-        "app": "应用",
+        "app": "VRCX-0",
         "view": "视图",
         "tools": "工具",
         "help": "帮助",
         "settings": "设置...",
         "check_updates": "检查更新",
+        "restart": "重启 VRCX-0",
+        "start_background_mode": "切换到 Background Mode",
         "logout": "退出登录",
         "quit": "退出 VRCX-0",
         "quick_search": "快速搜索",
@@ -260,6 +262,7 @@
         "zoom_out": "缩小",
         "reset_zoom": "重置缩放",
         "all_tools": "所有工具...",
+        "open_shortcut_folder": "打开应用启动器快捷方式文件夹",
         "github": "在 GitHub 上查看",
         "report_issue": "反馈问题",
         "open_source_licenses": "开源许可证",
@@ -269,7 +272,9 @@
         "version": "当前程序版本",
         "messages": {
             "zoom_failed": "应用缩放失败",
-            "logout_failed": "退出 VRCX-0 登录失败"
+            "logout_failed": "退出 VRCX-0 登录失败",
+            "restart_failed": "重启 VRCX-0 失败",
+            "open_shortcut_folder_failed": "打开应用启动器快捷方式文件夹失败"
         },
         "label": {
             "started_at": "开始时间",
@@ -1304,7 +1309,7 @@
                     "vrc_photos_description": "打开你的 VRChat 照片文件夹",
                     "steam_screenshots_description": "打开你的 Steam 截图文件夹"
                 },
-                "header": "相册",
+                "header": "媒体",
                 "screenshot": "截图",
                 "screenshot_description": "查看和管理截图",
                 "gallery": "相册",
@@ -1313,7 +1318,7 @@
                 "inventory_description": "管理表情、贴纸、物品和装饰"
             },
             "shortcuts": {
-                "header": "文件直通车",
+                "header": "文件夹",
                 "vrcx_data": "VRCX-0 数据",
                 "vrcx_data_description": "打开 VRCX-0 的数据文件夹",
                 "vrchat_data": "VRChat 数据",
@@ -1322,7 +1327,7 @@
                 "crash_dumps_description": "打开崩溃转储文件夹"
             },
             "system_tools": {
-                "header": "实用工具",
+                "header": "VRChat 与系统",
                 "vrchat_config": "VRChat 配置选项",
                 "vrchat_config_description": "打开 VRChat 的 config.json 设置",
                 "launch_options_description": "编辑 VRChat 的启动选项",

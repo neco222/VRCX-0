@@ -8,6 +8,7 @@ import { OpenSourceNoticeDialog } from '@/features/settings/components/OpenSourc
 import { openExternalLink } from '@/services/entityMediaService';
 import { cn } from '@/lib/utils';
 import { logoutFromReactShell } from '@/services/authExecutionService';
+import { startBackgroundModeForCurrentSession } from '@/services/backgroundModeService';
 import {
     setSidebarCollapsedPreference,
     setTableDensityPreference,
@@ -15,7 +16,11 @@ import {
     setThemeModePreference,
     setZoomLevelPreference
 } from '@/services/preferencesService';
-import { exitApplication } from '@/services/shellIntegrationService';
+import {
+    exitApplication,
+    openShortcutFolder,
+    restartApplication
+} from '@/services/shellIntegrationService';
 import {
     formatZoomPercentage,
     normalizeZoomLevel
@@ -213,6 +218,41 @@ export function AppMenuBar({
         }
     }
 
+    async function runRestartApplication() {
+        try {
+            await restartApplication();
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : t('app_menu.messages.restart_failed')
+            );
+        }
+    }
+
+    async function runStartBackgroundMode() {
+        try {
+            await startBackgroundModeForCurrentSession();
+        } catch {
+            toast.error(
+                t('component.app_status_bar.toast.failed_to_start_background_mode')
+            );
+        }
+    }
+
+    async function runOpenShortcutFolder() {
+        try {
+            await openShortcutFolder();
+            toast.success(t('message.file.folder_opened'));
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : t('app_menu.messages.open_shortcut_folder_failed')
+            );
+        }
+    }
+
     function openLink(url: any) {
         openExternalLink(url);
     }
@@ -243,6 +283,20 @@ export function AppMenuBar({
                                 }
                             >
                                 {t('app_menu.check_updates')}
+                            </MenuItem>
+                            <MenuItem
+                                onSelect={() => {
+                                    runRestartApplication();
+                                }}
+                            >
+                                {t('app_menu.restart')}
+                            </MenuItem>
+                            <MenuItem
+                                onSelect={() => {
+                                    runStartBackgroundMode();
+                                }}
+                            >
+                                {t('app_menu.start_background_mode')}
                             </MenuItem>
                         </MenubarGroup>
                         <MenubarSeparator />
@@ -437,6 +491,13 @@ export function AppMenuBar({
                         <MenubarGroup>
                             <MenuItem onSelect={() => navigate('/tools')}>
                                 {t('app_menu.all_tools')}
+                            </MenuItem>
+                            <MenuItem
+                                onSelect={() => {
+                                    runOpenShortcutFolder();
+                                }}
+                            >
+                                {t('app_menu.open_shortcut_folder')}
                             </MenuItem>
                         </MenubarGroup>
                         {availableToolCategories.map((category: any) => (

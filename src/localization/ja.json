@@ -242,12 +242,14 @@
         }
     },
     "app_menu": {
-        "app": "アプリ",
+        "app": "VRCX-0",
         "view": "表示",
         "tools": "ツール",
         "help": "ヘルプ",
         "settings": "設定...",
         "check_updates": "アップデートを確認",
+        "restart": "VRCX-0 を再起動",
+        "start_background_mode": "Background Mode に切り替え",
         "logout": "ログアウト",
         "quit": "VRCX-0 を終了",
         "quick_search": "クイック検索",
@@ -260,6 +262,7 @@
         "zoom_out": "縮小",
         "reset_zoom": "ズームをリセット",
         "all_tools": "すべてのツール...",
+        "open_shortcut_folder": "アプリランチャーのショートカットフォルダーを開く",
         "github": "GitHub",
         "report_issue": "問題を報告",
         "open_source_licenses": "オープンソースライセンス",
@@ -269,7 +272,9 @@
         "version": "バージョン",
         "messages": {
             "zoom_failed": "ズームの適用に失敗しました",
-            "logout_failed": "VRCX-0 からのログアウトに失敗しました"
+            "logout_failed": "VRCX-0 からのログアウトに失敗しました",
+            "restart_failed": "VRCX-0 の再起動に失敗しました",
+            "open_shortcut_folder_failed": "アプリランチャーのショートカットフォルダーを開けませんでした"
         },
         "label": {
             "started_at": "開始時刻",
@@ -1304,7 +1309,7 @@
                     "vrc_photos_description": "VRChat の写真フォルダを開く",
                     "steam_screenshots_description": "Steam のスクリーンショットフォルダを開く"
                 },
-                "header": "写真",
+                "header": "メディア",
                 "screenshot": "スクリーンショット",
                 "screenshot_description": "スクリーンショットを表示・管理",
                 "gallery": "インベントリの管理",
@@ -1313,7 +1318,7 @@
                 "inventory_description": "Emoji、ステッカー、アイテム、装飾を管理"
             },
             "shortcuts": {
-                "header": "ショートカット",
+                "header": "フォルダー",
                 "vrcx_data": "VRCX-0 のデータ",
                 "vrcx_data_description": "VRCX-0 のデータフォルダを開く",
                 "vrchat_data": "VRChat のデータ",
@@ -1322,7 +1327,7 @@
                 "crash_dumps_description": "VRChat のクラッシュダンプフォルダを開く"
             },
             "system_tools": {
-                "header": "システムツール",
+                "header": "VRChat とシステム",
                 "vrchat_config": "VRChat 設定",
                 "vrchat_config_description": "VRChat の config.json を開く",
                 "launch_options_description": "VRChat の起動オプションを編集する",
