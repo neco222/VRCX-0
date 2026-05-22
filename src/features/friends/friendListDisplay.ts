@@ -3,39 +3,38 @@ import {
     userStatusIndicatorClassName,
     userStatusSortRank
 } from '@/shared/utils/userStatus';
-import { languageMappings } from '@/shared/constants/language';
+import { normalizeProfileLanguageRows } from '@/shared/utils/userLanguage';
 
-export function languageFlagLabel(languageKey: any) {
-    const countryCode =
-        languageMappings[String(languageKey || '').toLowerCase()];
-    if (!countryCode || !/^[a-z]{2}$/i.test(countryCode)) {
-        return (
-            String(languageKey || '?')
-                .slice(0, 3)
-                .toUpperCase() || '?'
-        );
-    }
-
-    return String.fromCodePoint(
-        ...countryCode
-            .toUpperCase()
-            .split('')
-            .map((letter: any) => 0x1f1e6 + letter.charCodeAt(0) - 65)
-    );
+export function languageCodeLabel(languageKey: any) {
+    const key = String(languageKey ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(/^language_/, '');
+    return key ? key.toUpperCase() : '';
 }
 
-export function languageTooltipLabel(entry: any) {
-    const value = entry?.value || entry?.key || '';
-    const key = entry?.key || '';
-    if (value && key) {
-        return `${value} (${key})`;
+export function languageTooltipLabel(entry: any, code: any) {
+    const value = String(
+        entry?.value || entry?.label || entry?.name || ''
+    ).trim();
+    return value || code;
+}
+
+export function resolveFriendLanguageRows(friend: any) {
+    return normalizeProfileLanguageRows(friend);
+}
+
+function resolveFriendStatusLabel(friend: any) {
+    const statusDescription = String(friend?.statusDescription ?? '').trim();
+    if (statusDescription) {
+        return statusDescription;
     }
-    return value || key;
+    const status = String(friend?.status ?? '').trim();
+    return status ? normalizeUserStatus(status) : '';
 }
 
 export function resolveFriendStatusMeta(friend: any) {
     const statusForIndicator = friend || {};
-    const normalizedStatus = normalizeUserStatus(statusForIndicator);
     const indicatorClassName = userStatusIndicatorClassName(
         statusForIndicator,
         {
@@ -46,9 +45,7 @@ export function resolveFriendStatusMeta(friend: any) {
     return {
         badgeVariant: 'outline',
         indicatorClassName,
-        label:
-            friend?.statusDescription ||
-            (normalizedStatus === 'state-active' ? 'Active' : normalizedStatus),
+        label: resolveFriendStatusLabel(friend),
         showIndicator: Boolean(indicatorClassName),
         sortRank: userStatusSortRank(statusForIndicator || 'offline')
     };

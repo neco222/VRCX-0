@@ -15,8 +15,9 @@ import { Checkbox } from '@/ui/shadcn/checkbox';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/shadcn/tooltip';
 
 import {
-    languageFlagLabel,
+    languageCodeLabel,
     languageTooltipLabel,
+    resolveFriendLanguageRows,
     resolveFriendStatusMeta as resolveStatusMeta
 } from '../friendListDisplay';
 import {
@@ -223,7 +224,11 @@ export function useFriendListColumns({
                             {status.showIndicator ? (
                                 <i className={status.indicatorClassName} />
                             ) : null}
-                            <span className="truncate">{status.label}</span>
+                            {status.label ? (
+                                <span className="truncate">
+                                    {status.label}
+                                </span>
+                            ) : null}
                         </span>
                     );
                 }
@@ -231,11 +236,9 @@ export function useFriendListColumns({
             {
                 id: 'language',
                 accessorFn: (row: any) =>
-                    Array.isArray(row?.$languages)
-                        ? row.$languages
-                              .map((entry: any) => entry?.value || '')
-                              .join('\u0000')
-                        : '',
+                    resolveFriendLanguageRows(row)
+                        .map((entry: any) => entry?.value || '')
+                        .join('\u0000'),
                 size: 160,
                 meta: { label: t('table.friendList.language') },
                 header: ({ column }: any) => (
@@ -245,24 +248,27 @@ export function useFriendListColumns({
                     />
                 ),
                 cell: ({ row }: any) => {
-                    const languages = Array.isArray(row.original?.$languages)
-                        ? row.original.$languages
-                        : [];
+                    const languages = resolveFriendLanguageRows(row.original);
                     return languages.length ? (
-                        <div className="flex items-center">
+                        <div className="flex flex-wrap items-center gap-1">
                             {languages.map((entry: any) => {
+                                const key = entry?.key || entry?.value || '';
+                                const code = languageCodeLabel(key);
                                 const tooltipLabel =
-                                    languageTooltipLabel(entry);
+                                    languageTooltipLabel(entry, code);
+                                if (!code) {
+                                    return null;
+                                }
                                 return (
                                     <Tooltip
-                                        key={`${entry?.key}-${entry?.value}`}
+                                        key={`${key}:${entry?.value || ''}`}
                                     >
                                         <TooltipTrigger asChild>
                                             <span
-                                                className="mr-1 inline-flex min-w-5 items-center justify-center text-sm leading-none"
+                                                className="border-border/70 bg-muted/70 text-muted-foreground inline-flex h-5 min-w-8 items-center justify-center rounded border px-1 font-mono text-[10px] leading-none font-semibold"
                                                 aria-label={tooltipLabel}
                                             >
-                                                {languageFlagLabel(entry?.key)}
+                                                {code}
                                             </span>
                                         </TooltipTrigger>
                                         <TooltipContent side="top">

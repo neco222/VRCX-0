@@ -1,22 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-    languageFlagLabel,
+    languageCodeLabel,
     languageTooltipLabel,
     resolveFriendStatusMeta
 } from './friendListDisplay';
 
 describe('friendListDisplay', () => {
-    it('shows language flags and readable fallbacks for the language column', () => {
-        expect(languageFlagLabel('eng')).toBe('🇺🇸');
-        expect(languageFlagLabel('unknown_language')).toBe('UNK');
-        expect(languageFlagLabel('')).toBe('?');
+    it('shows compact language codes and readable fallbacks for the language column', () => {
+        expect(languageCodeLabel('eng')).toBe('ENG');
+        expect(languageCodeLabel('language_jpn')).toBe('JPN');
+        expect(languageCodeLabel('')).toBe('');
 
-        expect(languageTooltipLabel({ value: 'English', key: 'eng' })).toBe(
-            'English (eng)'
-        );
-        expect(languageTooltipLabel({ key: 'jpn' })).toBe('jpn (jpn)');
-        expect(languageTooltipLabel({})).toBe('');
+        expect(
+            languageTooltipLabel({ value: 'English', key: 'eng' }, 'ENG')
+        ).toBe('English');
+        expect(languageTooltipLabel({ key: 'jpn' }, 'JPN')).toBe('JPN');
+        expect(languageTooltipLabel({}, '')).toBe('');
     });
 
     it('shows status text, indicator state, and sort rank for friend status badges', () => {
