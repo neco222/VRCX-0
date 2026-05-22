@@ -75,7 +75,10 @@ function FeedLocationLink({
                               })
                         : undefined
                 }
-                className={cn('text-primary max-w-full text-sm', className)}
+                className={cn(
+                    'text-muted-foreground max-w-full text-sm',
+                    className
+                )}
             />
         </span>
     );

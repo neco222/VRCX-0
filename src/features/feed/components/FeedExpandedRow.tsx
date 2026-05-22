@@ -44,6 +44,7 @@ function FeedExpandedRow({
                             onOpenPreviousInstances={onOpenPreviousInstances}
                             worldName={row.previousWorldName}
                             wrapperClassName="inline-block align-middle"
+                            className="text-primary"
                         />
                         {row.time ? (
                             <Badge variant="secondary" className="ml-1 w-fit">
@@ -65,6 +66,7 @@ function FeedExpandedRow({
                         onNewInstance={onNewInstance}
                         onOpenPreviousInstances={onOpenPreviousInstances}
                         worldName={row.worldName}
+                        className="text-primary"
                     />
                 ) : null}
             </div>

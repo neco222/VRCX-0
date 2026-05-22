@@ -88,7 +88,7 @@ function FeedUserName({ row, friend, className = '' }: any) {
     );
 }
 
-function FeedLocation({ row }: any) {
+function FeedLocation({ row, className = '' }: any) {
     if (!row?.location) {
         return null;
     }
@@ -100,7 +100,7 @@ function FeedLocation({ row }: any) {
                 grouphint={row.groupName || ''}
                 enableContextMenu
                 disableTooltip
-                className="text-primary"
+                className={className}
             />
         </div>
     );
@@ -143,7 +143,7 @@ export function FeedEntryContent({ row, friend }: any) {
                     <span className="text-muted-foreground mx-1 shrink-0">
                         →
                     </span>
-                    <FeedLocation row={row} />
+                    <FeedLocation row={row} className="text-primary" />
                 </div>
             );
         case 'Online':
