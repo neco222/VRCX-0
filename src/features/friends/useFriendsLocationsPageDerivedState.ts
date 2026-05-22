@@ -501,10 +501,15 @@ export function useFriendsLocationsPageDerivedState({
             0;
     const cardGridGap = densityConfig.gridGap;
     const cardGridMinWidth = densityConfig.gridMinWidth;
+    const cardGridEdgeInset = 1;
+    const cardGridAvailableWidth = Math.max(
+        0,
+        scrollMetrics.width - cardGridEdgeInset * 2
+    );
     const cardGridColumns = Math.max(
         1,
         Math.floor(
-            (scrollMetrics.width + cardGridGap) /
+            (cardGridAvailableWidth + cardGridGap) /
                 (cardGridMinWidth + cardGridGap)
         ) || 1
     );
