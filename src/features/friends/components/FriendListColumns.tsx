@@ -144,7 +144,11 @@ export function useFriendListColumns({
                 meta: { label: t('table.friendList.displayName') },
                 accessorFn: (row: any) => row?.displayName || '',
                 enableSorting: false,
-                header: () => t('table.friendList.displayName'),
+                header: () => (
+                    <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                        {t('table.friendList.displayName')}
+                    </span>
+                ),
                 cell: ({ row }: any) => {
                     const nameStyle =
                         randomUserColours && row.original?.id
