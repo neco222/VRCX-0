@@ -46,6 +46,7 @@ export const routePathByName = Object.freeze({
     gallery: '/tools/gallery',
     inventory: '/tools/inventory',
     'screenshot-metadata': '/tools/screenshot-metadata',
+    'vrchat-log': '/tools/vrchat-log',
     settings: '/settings'
 });
 

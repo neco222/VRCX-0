@@ -232,6 +232,15 @@ export const protectedRoutes = [
         )
     },
     {
+        path: '/tools/vrchat-log',
+        titleKey: 'app.routes.vrchat_log',
+        descriptionKey: 'app.routes.vrchat_log_viewer_for_local_output_logs',
+        element: lazyRouteElement(
+            () => import('@/features/tools/VrchatLogPage'),
+            'VrchatLogPage'
+        )
+    },
+    {
         path: '/settings',
         titleKey: 'app.routes.settings',
         descriptionKey: 'app.routes.settings_and_diagnostics',

@@ -10,7 +10,11 @@ type ToolCategoryKey =
 type ToolAction =
     | {
           type: 'route';
-          routeName: 'screenshot-metadata' | 'gallery' | 'inventory';
+          routeName:
+              | 'screenshot-metadata'
+              | 'gallery'
+              | 'inventory'
+              | 'vrchat-log';
       }
     | {
           type: 'app-api';
@@ -165,6 +169,17 @@ const toolDefinitions: ToolDefinition[] = [
             successMessageKey: 'message.file.folder_opened',
             errorMessageKey: 'message.file.folder_missing'
         }
+    },
+    {
+        key: 'vrchat-log',
+        category: 'system',
+        iconKey: 'file-text',
+        navIcon: 'lucide:FileText',
+        titleKey: 'view.tools.system_tools.vrchat_log',
+        descriptionKey: 'view.tools.system_tools.vrchat_log_description',
+        navEligible: true,
+        requiredCapability: 'vrchatPathDiscovery',
+        action: { type: 'route', routeName: 'vrchat-log' }
     },
     {
         key: 'crash-dumps',

@@ -83,6 +83,59 @@ export interface AppDataDirValidation {
     warning?: string | null;
 }
 
+export type VrchatLogLevel = 'Debug' | 'Warning' | 'Error';
+
+export interface VrchatLogFileOutput {
+    fileName: string;
+    modifiedAt?: string | null;
+    size: number;
+    latest: boolean;
+}
+
+export interface VrchatLogEntryOutput {
+    timestamp: string;
+    level: VrchatLogLevel | string;
+    category?: string | null;
+    message: string;
+    raw: string;
+    lineNumber: number;
+    endLineNumber: number;
+    fileName: string;
+    continuationLines: string[];
+}
+
+export interface VrchatLogEntriesReadInput {
+    fileName: string;
+    offset?: number;
+    limit?: number;
+    query?: string;
+    levels?: string[];
+    categories?: string[];
+}
+
+export interface VrchatLogTailReadInput {
+    fileName?: string;
+    afterLineNumber?: number;
+    fileSize?: number;
+    limit?: number;
+    query?: string;
+    levels?: string[];
+    categories?: string[];
+}
+
+export interface VrchatLogEntriesReadOutput {
+    fileName: string;
+    entries: VrchatLogEntryOutput[];
+    offset: number;
+    nextOffset?: number | null;
+    totalEntries: number;
+    totalLines: number;
+    lastLineNumber: number;
+    fileSize: number;
+    fileModifiedAt?: string | null;
+    resetRequired: boolean;
+}
+
 export interface LegacyVrcxMigrationStatus {
     detected: boolean;
     available: boolean;
@@ -577,6 +630,13 @@ export interface AppTauriCommandNamespace extends TauriCommandNamespace {
     ValidateAppDataDir(path: string): Promise<AppDataDirValidation>;
     SetAppDataDir(path: string): Promise<AppDataDirState>;
     ClearAppDataDir(): Promise<AppDataDirState>;
+    VrchatLogFilesList(): Promise<VrchatLogFileOutput[]>;
+    VrchatLogEntriesRead(
+        input: VrchatLogEntriesReadInput
+    ): Promise<VrchatLogEntriesReadOutput>;
+    VrchatLogTailRead(
+        input: VrchatLogTailReadInput
+    ): Promise<VrchatLogEntriesReadOutput>;
     RuntimeAppSnapshotGet(): Promise<RuntimeAppSnapshot>;
     RuntimeAuthScopeGet(): Promise<RuntimeAuthScopeSnapshot>;
     RuntimeAuthScopeSet(input: {
