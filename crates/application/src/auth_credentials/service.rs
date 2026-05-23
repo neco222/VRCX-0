@@ -175,8 +175,12 @@ pub async fn saved_credential_login_start(
     }
 
     let endpoint = normalize_text(input.endpoint);
-    web.execute_api(config_get_input(endpoint.clone()), ApiScope::Vrchat, db)
+    let config_response = web
+        .execute_api(config_get_input(endpoint.clone()), ApiScope::Vrchat, db)
         .await?;
+    if config_response.status == 403 {
+        return Ok(config_response);
+    }
     let (_, request) = login_basic_input(
         endpoint,
         username,

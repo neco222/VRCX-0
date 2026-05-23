@@ -226,13 +226,16 @@ pub async fn app__vrchat_auth_login_basic_start(
         "VrchatAuthLoginBasicStart requires username.",
         "VrchatAuthLoginBasicStart requires password.",
     )?;
-    execute_auth_api(
+    let config_response = execute_auth_api(
         state.clone(),
         "app__vrchat_auth_login_basic_start_config",
         "Preparing VRChat config before basic login.",
         config_get_input(endpoint.clone()),
     )
     .await?;
+    if config_response.status == 403 {
+        return Ok(config_response);
+    }
     execute_auth_api(
         state,
         "app__vrchat_auth_login_basic_start",

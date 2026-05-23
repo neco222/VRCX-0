@@ -19,13 +19,13 @@ use crate::{
 use vrcx_0_application::{
     build_background_discord_presence_command, build_background_presence_facts,
     build_favorites_baseline, build_friend_roster_baseline, record_login_success,
-    refresh_background_current_user, refresh_background_group_instances,
+    record_logout, refresh_background_current_user, refresh_background_group_instances,
     refresh_player_moderations, run_background_presence_automation, saved_credential_login_start,
     saved_snapshot, BackendRuntime, BackendRuntimeMode, BackendRuntimePhase,
     BackendRuntimeSnapshot, BackendRuntimeTelemetry, BackgroundCapabilitySession,
     BackgroundDiscordPresenceCommand, BackgroundDiscordPresenceState,
     BackgroundPresenceAutomationState, BackgroundPresenceFactsInput, GameProcessEventSink,
-    ImageCache, LoginSuccessRecordInput, ModerationSyncDeps, ModerationSyncRefreshInput,
+    ImageCache, LoginSuccessRecordInput, LogoutRecordInput, ModerationSyncDeps, ModerationSyncRefreshInput,
     ProcessMonitor, RealtimeHostRuntime, RealtimeHostRuntimeDeps, RealtimeStopRequest,
     RegistryBackupMaintenanceMode, RegistryBackupMaintenanceResult, RegistryBackupSnapshot,
     RuntimeBackgroundJobs, RuntimeEventSink, SavedCredentialLoginStartInput, SessionHostRuntime,
@@ -589,7 +589,11 @@ impl RuntimeHostState {
         self.backend_runtime.set_authenticating();
         let auth_scope = self.runtime_context.auth_scope.snapshot();
         let auth_result = if auth_scope.active {
-            self.current_user_from_cookie(auth_scope.endpoint.clone(), String::new())
+            self.current_user_from_cookie(
+                auth_scope.current_user_id.clone(),
+                auth_scope.endpoint.clone(),
+                String::new(),
+            )
                 .await
         } else {
             self.authenticate_non_interactive().await
@@ -599,6 +603,10 @@ impl RuntimeHostState {
             Err(NonInteractiveAuthError::InteractionRequired(reason)) => {
                 self.backend_runtime
                     .set_auth_interaction_required(reason.clone());
+                return Err(crate::Error::Custom(reason));
+            }
+            Err(NonInteractiveAuthError::SessionInvalidated { user_id, reason }) => {
+                self.clear_invalid_non_interactive_auth_session(&user_id, &reason);
                 return Err(crate::Error::Custom(reason));
             }
             Err(NonInteractiveAuthError::Failed(reason)) => {
@@ -686,12 +694,15 @@ impl RuntimeHostState {
                 tracing::warn!(error = %error, "failed to restore saved auth cookies");
             } else {
                 match self
-                    .current_user_from_cookie(endpoint.clone(), websocket.clone())
+                    .current_user_from_cookie(last_user.clone(), endpoint.clone(), websocket.clone())
                     .await
                 {
                     Ok(session) => return Ok(session),
                     Err(NonInteractiveAuthError::InteractionRequired(reason)) => {
                         return Err(NonInteractiveAuthError::InteractionRequired(reason));
+                    }
+                    Err(NonInteractiveAuthError::SessionInvalidated { user_id, reason }) => {
+                        return Err(NonInteractiveAuthError::SessionInvalidated { user_id, reason });
                     }
                     Err(NonInteractiveAuthError::Failed(reason)) => {
                         tracing::warn!(reason, "saved cookie auth restore failed");
@@ -715,12 +726,24 @@ impl RuntimeHostState {
             self.web.as_ref(),
             self.db.as_ref(),
             SavedCredentialLoginStartInput {
-                user_id: last_user,
+                user_id: last_user.clone(),
                 endpoint: endpoint.clone(),
             },
         )
         .await
         .map_err(|error| NonInteractiveAuthError::Failed(error.to_string()))?;
+        if response.status == 403 {
+            return Err(NonInteractiveAuthError::SessionInvalidated {
+                user_id: last_user.clone(),
+                reason: auth_response_error_message(
+                    &response,
+                    format!(
+                        "VRChat config request failed with HTTP {}.",
+                        response.status
+                    ),
+                ),
+            });
+        }
         let user = parse_current_user_response(response)?;
         record_login_success(
             self.runtime_context.config(),
@@ -743,6 +766,7 @@ impl RuntimeHostState {
 
     async fn current_user_from_cookie(
         &self,
+        user_id: String,
         endpoint: String,
         websocket: String,
     ) -> std::result::Result<AuthenticatedRuntimeSession, NonInteractiveAuthError> {
@@ -755,11 +779,17 @@ impl RuntimeHostState {
             )
             .await
             .map_err(|error| NonInteractiveAuthError::Failed(error.to_string()))?;
-        if config_response.status == 403 {
-            return Err(NonInteractiveAuthError::Failed(format!(
-                "VRChat config request failed with HTTP {}.",
-                config_response.status
-            )));
+        if matches!(config_response.status, 401 | 403) {
+            return Err(NonInteractiveAuthError::SessionInvalidated {
+                user_id: user_id.clone(),
+                reason: auth_response_error_message(
+                    &config_response,
+                    format!(
+                        "VRChat config request failed with HTTP {}.",
+                        config_response.status
+                    ),
+                ),
+            });
         }
 
         let response = self
@@ -771,10 +801,50 @@ impl RuntimeHostState {
             )
             .await
             .map_err(|error| NonInteractiveAuthError::Failed(error.to_string()))?;
+        if matches!(response.status, 401 | 403) {
+            return Err(NonInteractiveAuthError::SessionInvalidated {
+                user_id,
+                reason: auth_response_error_message(
+                    &response,
+                    format!(
+                        "VRChat current-user request failed with HTTP {}.",
+                        response.status
+                    ),
+                ),
+            });
+        }
         let user = parse_current_user_response(response)?;
         Ok(AuthenticatedRuntimeSession::from_user(
             user, endpoint, websocket,
         ))
+    }
+
+    fn clear_invalid_non_interactive_auth_session(
+        &self,
+        user_id: &str,
+        reason: &str,
+    ) -> BackendRuntimeSnapshot {
+        self.web.clear_cookies();
+        self.web.save_cookies(&self.db);
+        self.runtime_context.auth_scope.set("", "");
+        if !user_id.trim().is_empty() {
+            if let Err(error) = record_logout(
+                self.runtime_context.config(),
+                self.web.as_ref(),
+                LogoutRecordInput {
+                    user_or_user_id: Value::String(user_id.trim().to_string()),
+                    clear_last_user_logged_in: Some(true),
+                    cookies: Some(Value::Null),
+                },
+            ) {
+                tracing::warn!(
+                    error = %error,
+                    user_id = %user_id,
+                    "failed to clear saved auth after invalid VRChat session"
+                );
+            }
+        }
+        self.clear_backend_authenticated_session(reason)
     }
 
     async fn build_backend_friend_baseline(
@@ -2487,7 +2557,25 @@ impl AuthenticatedRuntimeSession {
 
 enum NonInteractiveAuthError {
     InteractionRequired(String),
+    SessionInvalidated { user_id: String, reason: String },
     Failed(String),
+}
+
+fn auth_response_error_message(response: &HttpApiExecuteResponse, fallback: String) -> String {
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(&response.data) else {
+        return fallback;
+    };
+    string_field(&json, "message")
+        .or_else(|| {
+            json.get("error").and_then(|error| {
+                if let Some(message) = string_field(error, "message") {
+                    Some(message)
+                } else {
+                    error.as_str().map(ToOwned::to_owned)
+                }
+            })
+        })
+        .unwrap_or(fallback)
 }
 
 fn parse_current_user_response(
