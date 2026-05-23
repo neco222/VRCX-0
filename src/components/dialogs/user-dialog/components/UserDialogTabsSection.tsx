@@ -146,6 +146,7 @@ export function UserDialogTabsSection(props: any) {
         currentAvatarTarget,
         currentAvatarDialogArgs,
         currentAvatarDisplayName,
+        isCurrentUser,
         openAvatarDialog,
         representedGroupStatus,
         representedGroup,

@@ -65,6 +65,8 @@ function applyOptimisticCurrentAvatar(avatar: MyAvatarRow, avatarId: string) {
     const nextSnapshot = {
         ...previousSnapshot,
         currentAvatar: avatarId,
+        currentAvatarName:
+            typeof avatar.name === 'string' ? avatar.name.trim() : '',
         currentAvatarImageUrl:
             avatar.imageUrl ||
             avatar.thumbnailImageUrl ||

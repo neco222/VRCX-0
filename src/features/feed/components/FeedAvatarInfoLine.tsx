@@ -7,6 +7,7 @@ import avatarProfileRepository from '@/repositories/avatarProfileRepository';
 import avatarSearchProviderRepository from '@/repositories/avatarSearchProviderRepository';
 import favoritePersistenceRepository from '@/repositories/favoritePersistenceRepository';
 import { openAvatarDialog, openUserDialog } from '@/services/dialogService';
+import { cn } from '@/lib/utils';
 import { extractFileId } from '@/shared/utils/fileUtils';
 import { useRuntimeStore } from '@/state/runtimeStore';
 import { Button } from '@/ui/shadcn/button';
@@ -148,6 +149,7 @@ function avatarTagsEqual(left: any, right: any) {
 export const AvatarInfoLine = memo(function AvatarInfoLine({
     avatarName,
     avatarTags,
+    compact = false,
     imageUrl,
     ownerId,
     userId
@@ -345,7 +347,10 @@ export const AvatarInfoLine = memo(function AvatarInfoLine({
             <Button
                 type="button"
                 variant="ghost"
-                className="text-muted-foreground hover:text-primary h-auto w-fit justify-start p-0 text-left font-normal"
+                className={cn(
+                    'text-muted-foreground hover:text-primary h-auto w-fit justify-start p-0 text-left font-normal',
+                    compact && 'text-xs leading-snug'
+                )}
                 disabled={!imageUrl}
                 onClick={() => {
                     openAvatarAuthorTarget();
@@ -353,7 +358,10 @@ export const AvatarInfoLine = memo(function AvatarInfoLine({
             >
                 {label}
                 {avatarType === 'own' ? (
-                    <LockIcon data-icon="inline-end" />
+                    <LockIcon
+                        data-icon="inline-end"
+                        className={compact ? 'size-3' : undefined}
+                    />
                 ) : null}
             </Button>
             {Array.isArray(avatarTags) && avatarTags.length ? (

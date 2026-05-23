@@ -78,6 +78,10 @@ interface AvatarPageOptions extends AvatarRequestOptions {
     n?: number;
 }
 
+interface AvatarByIdOptions extends AvatarRequestOptions {
+    avatarId?: unknown;
+}
+
 interface MyAvatarsOptions extends AvatarRequestOptions {
     currentUserId?: string;
     currentAvatarId?: string;
@@ -130,6 +134,45 @@ async function getAvatarsPage({
         }),
         'avatars'
     );
+}
+
+function avatarIdFromValue(value: unknown): string {
+    return typeof value === 'string'
+        ? value.trim()
+        : String(value ?? '').trim();
+}
+
+async function getMyAvatarById({
+    avatarId,
+    endpoint = ''
+}: AvatarByIdOptions = {}) {
+    const normalizedAvatarId = avatarIdFromValue(avatarId);
+    if (!normalizedAvatarId) {
+        throw new Error(
+            'MyAvatarRepository.getMyAvatarById requires an avatar id.'
+        );
+    }
+
+    for (let offset = 0; offset <= MAX_OFFSET; offset += PAGE_SIZE) {
+        const response = await getAvatarsPage({
+            endpoint,
+            offset,
+            n: PAGE_SIZE
+        });
+        const page = Array.isArray(response.json) ? response.json : [];
+        const match = page.find(
+            (avatar) => avatarIdFromValue(avatar?.id) === normalizedAvatarId
+        );
+        if (match) {
+            return match;
+        }
+
+        if (page.length < PAGE_SIZE) {
+            break;
+        }
+    }
+
+    return null;
 }
 
 async function getMyAvatars({
@@ -303,6 +346,7 @@ async function getAvailableAvatarStyles({
 
 const myAvatarRepository = Object.freeze({
     getAvatarsPage,
+    getMyAvatarById,
     getMyAvatars,
     updateAvatarTags,
     saveAvatar,
@@ -312,6 +356,7 @@ const myAvatarRepository = Object.freeze({
 
 export {
     getAvatarsPage,
+    getMyAvatarById,
     getMyAvatars,
     updateAvatarTags,
     saveAvatar,

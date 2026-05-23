@@ -1,14 +1,14 @@
 import {
     ChevronRightIcon,
     ExternalLinkIcon,
-    LanguagesIcon,
-    UserIcon
+    LanguagesIcon
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { InstanceActionBar } from '@/components/instances/InstanceActionBar';
 import { Location } from '@/components/Location';
 import { LocationWorld } from '@/components/LocationWorld';
+import { AvatarInfoLine } from '@/features/feed/components/FeedAvatarInfoLine';
 import {
     convertFileUrlToImageUrl,
     openExternalLink
@@ -59,6 +59,7 @@ export type UserDialogProfileLinksSectionProps = {
     currentAvatarTarget: any;
     currentAvatarDialogArgs: any;
     currentAvatarDisplayName: string;
+    isCurrentUser: boolean;
     openAvatarDialog: DialogAction;
     representedGroupStatus: string;
     representedGroup: DialogRecord | null;
@@ -384,10 +385,8 @@ function buildRepresentedGroupSeedData(representedGroup: any) {
 }
 
 function UserDialogProfileLinksPanel({
-    currentAvatarTarget,
-    currentAvatarDialogArgs,
     currentAvatarDisplayName,
-    openAvatarDialog,
+    isCurrentUser,
     representedGroupStatus,
     representedGroup,
     openGroupDialog,
@@ -395,28 +394,26 @@ function UserDialogProfileLinksPanel({
     visibleHomeLocationTarget
 }: UserDialogProfileLinksSectionProps) {
     const { t } = useTranslation();
+    const avatarInfoTitle =
+        !isCurrentUser &&
+        profile?.profilePicOverride &&
+        profile?.currentAvatarImageUrl
+            ? t('dialog.user.info.avatar_info_last_seen')
+            : t('dialog.user.info.avatar_info');
+    const currentAvatarImageUrl =
+        profile?.currentAvatarImageUrl ||
+        profile?.currentAvatarThumbnailImageUrl;
 
     return (
         <InfoPanel title={t('dialog.user.info.profile_details')}>
-            <InfoStat label={t('dialog.user.info.avatar_info')}>
-                {currentAvatarTarget ? (
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        className="hover:text-primary h-auto max-w-full justify-start p-0 text-left text-xs"
-                        onClick={() =>
-                            openAvatarDialog(currentAvatarDialogArgs)
-                        }
-                    >
-                        <UserIcon data-icon="inline-start" />
-                        <span className="truncate">
-                            {currentAvatarDisplayName ||
-                                t('dialog.user.info.unknown_avatar')}
-                        </span>
-                    </Button>
-                ) : (
-                    <span className="block truncate text-xs">{'\u2014'}</span>
-                )}
+            <InfoStat label={avatarInfoTitle}>
+                <AvatarInfoLine
+                    avatarName={currentAvatarDisplayName}
+                    avatarTags={profile?.currentAvatarTags}
+                    compact
+                    imageUrl={currentAvatarImageUrl}
+                    userId={profile?.id}
+                />
             </InfoStat>
 
             <Separator />
@@ -688,6 +685,7 @@ export function UserDialogInfoTab({
                         currentAvatarDisplayName={
                             profileLinksSection.currentAvatarDisplayName
                         }
+                        isCurrentUser={profileLinksSection.isCurrentUser}
                         openAvatarDialog={profileLinksSection.openAvatarDialog}
                         representedGroupStatus={
                             profileLinksSection.representedGroupStatus
