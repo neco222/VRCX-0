@@ -5,11 +5,11 @@ import {
     Share2Icon,
     StarIcon
 } from 'lucide-react';
+import { format } from 'date-fns';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
-import dayjs from '@/lib/dayjs';
 import { convertFileUrlToImageUrl } from '@/services/entityMediaService';
 import { userFacingErrorMessage } from '@/lib/errorDisplay';
 import vrchatToolsRepository from '@/repositories/vrchatToolsRepository';
@@ -124,9 +124,9 @@ function formatEventTimeRange(event: any, mode: any = 'timeline') {
     if (!event?.startsAt) {
         return '';
     }
-    const dateFormat = mode === 'grid' ? 'MM-DD ddd HH:mm' : 'HH:mm';
-    const start = dayjs(event.startsAt).format(dateFormat);
-    const end = event.endsAt ? dayjs(event.endsAt).format(dateFormat) : '';
+    const dateFormat = mode === 'grid' ? 'MM-dd EEE HH:mm' : 'HH:mm';
+    const start = format(new Date(event.startsAt), dateFormat);
+    const end = event.endsAt ? format(new Date(event.endsAt), dateFormat) : '';
     return end ? `${start} - ${end}` : start;
 }
 
@@ -407,8 +407,9 @@ export function GroupEventCard({
                         </div>
                         <div className="font-medium">
                             {event.createdAt
-                                ? dayjs(event.createdAt).format(
-                                      'YYYY-MM-DD HH:mm'
+                                ? format(
+                                      new Date(event.createdAt),
+                                      'yyyy-MM-dd HH:mm'
                                   )
                                 : '\u2014'}
                         </div>

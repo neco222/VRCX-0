@@ -9,10 +9,10 @@ import {
     UsersIcon,
     XIcon
 } from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 
 import { Location } from '@/components/Location';
-import dayjs from '@/lib/dayjs';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/ui/shadcn/avatar';
 import { Badge } from '@/ui/shadcn/badge';
@@ -67,12 +67,24 @@ function getNotificationTypeLabel(notification: any, t: any) {
 
 function getNotificationAbsoluteTime(notification: any) {
     const timestamp = notification?.createdAt || notification?.created_at;
-    return timestamp ? dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss') : '';
+    if (!timestamp) {
+        return '';
+    }
+    const date = new Date(timestamp);
+    return Number.isNaN(date.getTime())
+        ? ''
+        : format(date, 'yyyy-MM-dd HH:mm:ss');
 }
 
 function getNotificationRelativeTime(notification: any) {
     const timestamp = notification?.createdAt || notification?.created_at;
-    return timestamp ? dayjs(timestamp).fromNow(true) : '';
+    if (!timestamp) {
+        return '';
+    }
+    const date = new Date(timestamp);
+    return Number.isNaN(date.getTime())
+        ? ''
+        : formatDistanceToNow(date, { addSuffix: false });
 }
 
 function getGroupDisplayName(notification: any) {

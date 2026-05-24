@@ -1,4 +1,4 @@
-import dayjs from '@/lib/dayjs';
+import { format } from 'date-fns';
 import memoPersistenceRepository from '@/repositories/memoPersistenceRepository';
 import { formatCsvField } from '@/shared/utils/csv';
 import { useRuntimeStore } from '@/state/runtimeStore';
@@ -114,5 +114,5 @@ export function getEventId(event: any) {
 }
 
 export function selectedDateKey(value: any) {
-    return dayjs(value || new Date()).format('YYYY-MM-DD');
+    return format(value || new Date(), 'yyyy-MM-dd');
 }

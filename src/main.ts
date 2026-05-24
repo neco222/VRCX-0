@@ -10,7 +10,6 @@ installDevPerformanceTimelineGuard();
 installErrorLogging();
 
 async function bootstrap() {
-    await import('@/lib/dayjs');
     await import('@/services/i18nService');
 
     const { App } = await import('./app/App');

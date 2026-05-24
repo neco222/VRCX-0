@@ -1,4 +1,17 @@
 import { ChevronDownIcon, RefreshCwIcon } from 'lucide-react';
+import {
+    addYears,
+    compareAsc,
+    endOfYear,
+    format,
+    isSameMonth,
+    isValid,
+    parse,
+    startOfDay,
+    startOfMonth,
+    startOfYear,
+    subYears
+} from 'date-fns';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { enUS } from 'react-day-picker/locale/en-US';
 import { ja } from 'react-day-picker/locale/ja';
@@ -7,7 +20,6 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { replaceBioSymbols } from '@/shared/utils/string';
 
-import dayjs from '@/lib/dayjs';
 import { userFacingErrorMessage } from '@/lib/errorDisplay';
 import { cn } from '@/lib/utils';
 import configRepository from '@/repositories/configRepository';
@@ -39,17 +51,21 @@ import {
     updateArrayValue
 } from './toolsDialogUtils';
 
+const DATE_KEY_FORMAT = 'yyyy-MM-dd';
+
 function getLocalTimeZone() {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
 function dateKeyToLocalDate(dateKey: any) {
-    const parsed = dayjs(dateKey, 'YYYY-MM-DD', true);
-    return (parsed.isValid() ? parsed : dayjs()).startOf('day').toDate();
+    const value = String(dateKey || '');
+    const parsed = parse(value, DATE_KEY_FORMAT, new Date());
+    const valid = isValid(parsed) && format(parsed, DATE_KEY_FORMAT) === value;
+    return startOfDay(valid ? parsed : new Date());
 }
 
 function monthDateFromKey(dateKey: any) {
-    return dayjs(dateKeyToLocalDate(dateKey)).startOf('month').toDate();
+    return startOfMonth(dateKeyToLocalDate(dateKey));
 }
 
 function calendarDateKey(value: any, timeZone: any) {
@@ -69,13 +85,13 @@ function calendarDateKey(value: any, timeZone: any) {
             return `${values.year}-${values.month}-${values.day}`;
         }
     } catch {
-        // Fall back to dayjs local formatting if Intl cannot resolve the zone.
+        // Fall back to local formatting if Intl cannot resolve the zone.
     }
     return selectedDateKey(value || new Date());
 }
 
 function formatCalendarRequestDate(value: any) {
-    return dayjs(value).format('YYYY-MM-DDTHH:mm:ss[Z]');
+    return format(value, "yyyy-MM-dd'T'HH:mm:ss'Z'");
 }
 
 function calendarLocaleForLanguage(language: any) {
@@ -133,7 +149,7 @@ function GroupCalendarDayButton({
                     isOutsideDay && 'text-muted-foreground/50'
                 )}
             >
-                {dayjs(dateKeyToLocalDate(dateKey)).format('D')}
+                {format(dateKeyToLocalDate(dateKey), 'd')}
             </div>
             <div className="grid h-3.5 w-full grid-cols-2 items-center gap-1.5 text-[10px] leading-none tabular-nums sm:gap-2 sm:text-[11px]">
                 {visibleEventCount ? (
@@ -183,10 +199,9 @@ export function GroupCalendarDialog({ open, onOpenChange }: any) {
     const loadRequestRef = useRef(0);
 
     const calendarNavigationRange = useMemo(() => {
-        const anchor = dayjs(visibleMonthDate);
         return {
-            startMonth: anchor.subtract(100, 'year').startOf('year').toDate(),
-            endMonth: anchor.add(10, 'year').endOf('year').toDate()
+            startMonth: startOfYear(subYears(visibleMonthDate, 100)),
+            endMonth: endOfYear(addYears(visibleMonthDate, 10))
         };
     }, [visibleMonthDate]);
     const selectedDateValue = useMemo(
@@ -204,7 +219,7 @@ export function GroupCalendarDialog({ open, onOpenChange }: any) {
         }
         for (const rows of Object.values(result) as any[]) {
             rows.sort((left: any, right: any) =>
-                dayjs(left.startsAt).diff(dayjs(right.startsAt))
+                compareAsc(new Date(left.startsAt), new Date(right.startsAt))
             );
         }
         return result;
@@ -257,7 +272,7 @@ export function GroupCalendarDialog({ open, onOpenChange }: any) {
                 groupId,
                 groupName: groupNames[groupId] || groupId,
                 events: groupEvents.sort((left: any, right: any) =>
-                    dayjs(left.startsAt).diff(dayjs(right.startsAt))
+                    compareAsc(new Date(left.startsAt), new Date(right.startsAt))
                 )
             }))
             .sort((left: any, right: any) =>
@@ -430,7 +445,7 @@ export function GroupCalendarDialog({ open, onOpenChange }: any) {
         setSelectedDate(nextDateKey);
         setVisibleMonthDate((current: any) => {
             const nextMonthDate = monthDateFromKey(nextDateKey);
-            return dayjs(current).isSame(nextMonthDate, 'month')
+            return isSameMonth(current, nextMonthDate)
                 ? current
                 : nextMonthDate;
         });
@@ -447,7 +462,9 @@ export function GroupCalendarDialog({ open, onOpenChange }: any) {
         const nextDateKey = calendarDateKey(nextMonth, calendarTimeZone);
         setVisibleMonthDate(monthDateFromKey(nextDateKey));
         setSelectedDate((current: any) =>
-            dayjs(current).isSame(nextDateKey, 'month') ? current : nextDateKey
+            isSameMonth(dateKeyToLocalDate(current), monthDateFromKey(nextDateKey))
+                ? current
+                : nextDateKey
         );
     }
 
