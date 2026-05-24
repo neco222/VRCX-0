@@ -17,6 +17,11 @@ import type { FeedLoadStatus, FeedRow } from '../feedTypes';
 
 const FEED_COLUMN_PAGE_SIZE = 80;
 
+export function resolveFeedColumnInitialLiveSequence(value: unknown) {
+    const sequence = Number(value);
+    return Number.isFinite(sequence) && sequence > 0 ? sequence : 0;
+}
+
 function resolveFeedCursor(row: FeedRow): FeedCursor | null {
     const createdAt = normalizeId(row?.created_at || row?.createdAt);
     const sourceRank = Number(row?.sourceRank ?? row?.source_rank);
@@ -178,6 +183,11 @@ export function useFeedColumnRows(column: FeedColumnConfig) {
         }
 
         setLoadStatus('running');
+        const liveFeedSequenceAtRequestStart =
+            resolveFeedColumnInitialLiveSequence(
+                useFeedLiveStore.getState().version
+            );
+        liveSequenceRef.current = liveFeedSequenceAtRequestStart;
         const requestIsCurrent = () => requestIdRef.current === requestId;
 
         feedRepository
@@ -198,14 +208,17 @@ export function useFeedColumnRows(column: FeedColumnConfig) {
                 );
                 setHasMore(pageRows.length >= FEED_COLUMN_PAGE_SIZE);
                 const merged = await mergeWithLiveRows({
-                    minLiveSequence: 0,
+                    minLiveSequence: liveFeedSequenceAtRequestStart,
                     requestIsCurrent,
                     rows: pageRows
                 });
                 if (!merged) {
                     return;
                 }
-                liveSequenceRef.current = merged.maxSequence;
+                liveSequenceRef.current = Math.max(
+                    merged.maxSequence,
+                    liveFeedSequenceAtRequestStart
+                );
                 setRows(merged.rows);
                 setLoadStatus('ready');
             })
