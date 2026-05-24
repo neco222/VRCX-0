@@ -9,9 +9,7 @@ use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::time::{sleep, Instant};
-use vrcx_0_persistence::mutual_graph::{
-    MutualGraphMetaInput, MutualGraphSnapshotEntryInput,
-};
+use vrcx_0_persistence::mutual_graph::{MutualGraphMetaInput, MutualGraphSnapshotEntryInput};
 use vrcx_0_persistence::DatabaseService;
 
 use crate::vrchat_api::users::user_mutual_friends_get_input;

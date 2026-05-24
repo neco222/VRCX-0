@@ -12,7 +12,7 @@ pub use types::{
     ActivityBucketCacheInput, ActivityBucketCacheOutput, ActivityBucketCacheQueryInput,
     ActivityFriendPresenceAfterInput, ActivityFriendPresenceSliceInput, ActivityPresenceOutput,
     ActivitySelfSessionsRefreshInput, ActivitySelfSessionsRefreshOutput,
-    ActivitySelfSourceAfterInput, ActivitySelfSourceSliceInput, ActivitySessionInput,
-    ActivitySessionOutput, ActivitySelfSourceBoundsOutput, ActivitySourceLocationOutput,
+    ActivitySelfSourceAfterInput, ActivitySelfSourceBoundsOutput, ActivitySelfSourceSliceInput,
+    ActivitySessionInput, ActivitySessionOutput, ActivitySourceLocationOutput,
     ActivitySyncStateInput, ActivitySyncStateOutput,
 };

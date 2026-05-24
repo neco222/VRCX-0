@@ -18,18 +18,19 @@ use crate::{
 };
 use vrcx_0_application::{
     build_background_discord_presence_command, build_background_presence_facts,
-    build_favorites_baseline, build_friend_roster_baseline, record_login_success,
-    record_logout, refresh_background_current_user, refresh_background_group_instances,
+    build_favorites_baseline, build_friend_roster_baseline, record_login_success, record_logout,
+    refresh_background_current_user, refresh_background_group_instances,
     refresh_player_moderations, run_background_presence_automation, saved_credential_login_start,
     saved_snapshot, BackendRuntime, BackendRuntimeMode, BackendRuntimePhase,
     BackendRuntimeSnapshot, BackendRuntimeTelemetry, BackgroundCapabilitySession,
     BackgroundDiscordPresenceCommand, BackgroundDiscordPresenceState,
     BackgroundPresenceAutomationState, BackgroundPresenceFactsInput, GameProcessEventSink,
-    ImageCache, LoginSuccessRecordInput, LogoutRecordInput, ModerationSyncDeps, ModerationSyncRefreshInput,
-    ProcessMonitor, RealtimeHostRuntime, RealtimeHostRuntimeDeps, RealtimeStopRequest,
-    RegistryBackupMaintenanceMode, RegistryBackupMaintenanceResult, RegistryBackupSnapshot,
-    RuntimeBackgroundJobs, RuntimeEventSink, SavedCredentialLoginStartInput, SessionHostRuntime,
-    SocialBaselineDeps, SocialFavoritesBaselineInput, SocialFriendRosterBaselineInput, WebClient,
+    ImageCache, LoginSuccessRecordInput, LogoutRecordInput, ModerationSyncDeps,
+    ModerationSyncRefreshInput, ProcessMonitor, RealtimeHostRuntime, RealtimeHostRuntimeDeps,
+    RealtimeStopRequest, RegistryBackupMaintenanceMode, RegistryBackupMaintenanceResult,
+    RegistryBackupSnapshot, RuntimeBackgroundJobs, RuntimeEventSink,
+    SavedCredentialLoginStartInput, SessionHostRuntime, SocialBaselineDeps,
+    SocialFavoritesBaselineInput, SocialFriendRosterBaselineInput, WebClient,
 };
 use vrcx_0_core::friends::FriendRecord;
 use vrcx_0_core::json::RawJson;
@@ -641,7 +642,7 @@ impl RuntimeHostState {
                 auth_scope.endpoint.clone(),
                 String::new(),
             )
-                .await
+            .await
         } else {
             self.authenticate_non_interactive().await
         };
@@ -741,7 +742,11 @@ impl RuntimeHostState {
                 tracing::warn!(error = %error, "failed to restore saved auth cookies");
             } else {
                 match self
-                    .current_user_from_cookie(last_user.clone(), endpoint.clone(), websocket.clone())
+                    .current_user_from_cookie(
+                        last_user.clone(),
+                        endpoint.clone(),
+                        websocket.clone(),
+                    )
                     .await
                 {
                     Ok(session) => return Ok(session),
@@ -749,7 +754,10 @@ impl RuntimeHostState {
                         return Err(NonInteractiveAuthError::InteractionRequired(reason));
                     }
                     Err(NonInteractiveAuthError::SessionInvalidated { user_id, reason }) => {
-                        return Err(NonInteractiveAuthError::SessionInvalidated { user_id, reason });
+                        return Err(NonInteractiveAuthError::SessionInvalidated {
+                            user_id,
+                            reason,
+                        });
                     }
                     Err(NonInteractiveAuthError::Failed(reason)) => {
                         tracing::warn!(reason, "saved cookie auth restore failed");
@@ -2043,11 +2051,7 @@ async fn run_background_group_instance_refresh(
         Ok(refresh) => {
             if !background_capability_session_matches(session_slot, &session) {
                 tracing::warn!("ignored stale background group instance refresh");
-                emit_stale_group_instance_refresh_idle(
-                    session_slot,
-                    runtime_context,
-                    &session,
-                );
+                emit_stale_group_instance_refresh_idle(session_slot, runtime_context, &session);
                 background_jobs.mark_scheduled(
                     BACKGROUND_FACTS_REFRESH_JOB,
                     "Stale background group instance refresh ignored.",
@@ -2073,11 +2077,7 @@ async fn run_background_group_instance_refresh(
         Err(error) => {
             if !background_capability_session_matches(session_slot, &session) {
                 tracing::warn!("ignored stale background group instance refresh error");
-                emit_stale_group_instance_refresh_idle(
-                    session_slot,
-                    runtime_context,
-                    &session,
-                );
+                emit_stale_group_instance_refresh_idle(session_slot, runtime_context, &session);
                 background_jobs.mark_scheduled(
                     BACKGROUND_FACTS_REFRESH_JOB,
                     "Stale background group instance refresh error ignored.",
@@ -2240,7 +2240,11 @@ async fn run_background_social_baseline_refresh(
         }
     };
     let detail = format!("friend and favorite facts refreshed: {friend_count} friends.");
-    emit_background_info(context.runtime_context, context.backend_runtime, detail.clone());
+    emit_background_info(
+        context.runtime_context,
+        context.backend_runtime,
+        detail.clone(),
+    );
     context
         .background_jobs
         .mark_completed(BACKGROUND_FACTS_REFRESH_JOB, detail);

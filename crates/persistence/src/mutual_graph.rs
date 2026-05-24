@@ -207,7 +207,9 @@ fn replace_mutual_graph_snapshot_entries(
         }
         tx.execute_non_query(
             &format!("DELETE FROM {user_prefix}_mutual_graph_links WHERE friend_id = @friend_id"),
-            &ParamsBuilder::new().set("friend_id", friend_id.clone()).build(),
+            &ParamsBuilder::new()
+                .set("friend_id", friend_id.clone())
+                .build(),
         )?;
         insert_mutual_graph_friend(tx, user_prefix, &friend_id)?;
         for mutual_id in &entry.mutual_ids {

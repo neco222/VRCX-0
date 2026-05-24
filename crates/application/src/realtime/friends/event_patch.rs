@@ -152,37 +152,79 @@ pub(super) fn apply_friend_event(
                 .friends_by_id
                 .get(&user_id)
                 .cloned();
-            let patch = offline_like_patch(content, &user_id, next_state);
-            if let Some(previous) = previous_record
-                .as_ref()
-                .filter(|previous| is_online_state(previous))
-            {
-                if state.pending_offline.contains_key(&user_id) {
-                    return None;
-                }
-                state.timer_token = state.timer_token.saturating_add(1);
-                let token = state.timer_token;
-                state.pending_offline.insert(
-                    user_id.clone(),
-                    PendingOffline {
-                        token,
-                        patch: patch.clone(),
-                        previous: previous.clone(),
-                    },
-                );
-                let pending_patch = json!({
-                    "id": user_id,
-                    "pendingOffline": true,
-                });
-                apply_patch_to_state(state, &mut output, &user_id, pending_patch, "online");
-                output.timer_action = PendingOfflineTimerAction::Schedule {
-                    user_id,
-                    token,
-                    delay_ms: PENDING_OFFLINE_DELAY_MS,
-                };
+            let user_patch =
+                event_user_patch(content, &user_id).unwrap_or_else(|| json!({ "id": user_id }));
+            let resolved_state = if message_type == "friend-active" {
+                resolve_state_bucket(content, &user_patch, None, next_state)
             } else {
-                state.recent_gps.remove(&user_id);
-                apply_patch_to_state(state, &mut output, &user_id, patch, next_state);
+                next_state.to_string()
+            };
+            if resolved_state == "online" {
+                let canceled_pending = state.pending_offline.remove(&user_id).is_some();
+                let previous = previous_record.as_ref().map(record_to_value);
+                let patch = online_patch(content, user_patch, previous.as_ref(), now, "online");
+                if !canceled_pending
+                    && !previous_record
+                        .as_ref()
+                        .map(is_online_state)
+                        .unwrap_or(false)
+                {
+                    output
+                        .persistence
+                        .feed_entries
+                        .push(online_offline_feed_entry(
+                            "Online",
+                            &user_id,
+                            &patch,
+                            previous.as_ref().unwrap_or(&Value::Null),
+                            &string_field(patch.get("location")),
+                            0,
+                            &now.iso,
+                        ));
+                } else if let Some(previous) = previous.as_ref() {
+                    add_gps_feed_entry_if_not_repeated(
+                        state,
+                        &mut output,
+                        &user_id,
+                        &patch,
+                        previous,
+                        now,
+                    );
+                }
+                apply_patch_to_state(state, &mut output, &user_id, patch, "online");
+            } else {
+                let patch = offline_like_patch(content, &user_id, &resolved_state);
+                if let Some(previous) = previous_record
+                    .as_ref()
+                    .filter(|previous| is_online_state(previous))
+                {
+                    if state.pending_offline.contains_key(&user_id) {
+                        return None;
+                    }
+                    state.timer_token = state.timer_token.saturating_add(1);
+                    let token = state.timer_token;
+                    state.pending_offline.insert(
+                        user_id.clone(),
+                        PendingOffline {
+                            token,
+                            patch: patch.clone(),
+                            previous: previous.clone(),
+                        },
+                    );
+                    let pending_patch = json!({
+                        "id": user_id,
+                        "pendingOffline": true,
+                    });
+                    apply_patch_to_state(state, &mut output, &user_id, pending_patch, "online");
+                    output.timer_action = PendingOfflineTimerAction::Schedule {
+                        user_id,
+                        token,
+                        delay_ms: PENDING_OFFLINE_DELAY_MS,
+                    };
+                } else {
+                    state.recent_gps.remove(&user_id);
+                    apply_patch_to_state(state, &mut output, &user_id, patch, &resolved_state);
+                }
             }
         }
         "friend-location" => {

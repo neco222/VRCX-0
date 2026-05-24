@@ -577,14 +577,9 @@ pub async fn refresh_background_group_instances(
     let instances = value
         .as_array()
         .cloned()
-        .or_else(|| {
-            value.get("instances")
-                .and_then(Value::as_array)
-                .cloned()
-        })
+        .or_else(|| value.get("instances").and_then(Value::as_array).cloned())
         .unwrap_or_default();
-    let instances =
-        hydrate_background_group_instances(web, db, &session.endpoint, instances).await;
+    let instances = hydrate_background_group_instances(web, db, &session.endpoint, instances).await;
     Ok(BackgroundGroupInstancesRefresh {
         instances,
         fetched_at,
@@ -672,9 +667,11 @@ fn hydrate_group_instance(mut instance: Value, groups_by_id: &HashMap<String, Va
 }
 
 fn group_instance_group(instance: &Value) -> Option<&Value> {
-    instance
-        .get("group")
-        .or_else(|| instance.get("instance").and_then(|value| value.get("group")))
+    instance.get("group").or_else(|| {
+        instance
+            .get("instance")
+            .and_then(|value| value.get("group"))
+    })
 }
 
 fn group_fallback(group_id: &str) -> Option<Value> {

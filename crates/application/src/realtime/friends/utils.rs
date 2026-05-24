@@ -742,6 +742,59 @@ mod tests {
     }
 
     #[test]
+    fn friend_active_embedded_online_user_keeps_online_like_vue_spread_order() {
+        let runtime = RealtimeFriendsRuntime::new();
+        runtime.set_baseline(
+            FriendRosterBaseline {
+                current_user_id: "usr_self".into(),
+                friends_by_id: [(
+                    "usr_friend".to_string(),
+                    FriendRecord {
+                        id: "usr_friend".into(),
+                        display_name: "Friend".into(),
+                        state: "online".into(),
+                        state_bucket: "online".into(),
+                        location: "wrld_1:123".into(),
+                        ..FriendRecord::default()
+                    },
+                )]
+                .into_iter()
+                .collect(),
+                ..FriendRosterBaseline::default()
+            },
+            1,
+            0,
+        );
+
+        let RealtimeFriendApplyResult::Output(output) =
+            runtime.apply_ws_message(&RealtimeWsMessagePayload {
+                json: json!({
+                    "type": "friend-active",
+                    "content": {
+                        "userId": "usr_friend",
+                        "user": {
+                            "id": "usr_friend",
+                            "displayName": "Friend",
+                            "state": "online",
+                            "location": "wrld_2:456"
+                        }
+                    }
+                }),
+                raw: "{}".into(),
+                received_at: "2026-05-15T00:00:00Z".into(),
+            })
+        else {
+            panic!("friend-active should produce an output");
+        };
+
+        let patch = &output.projection.patches[0].patch;
+        assert_eq!(output.projection.patches[0].state_bucket, "online");
+        assert_eq!(patch["stateBucket"], "online");
+        assert_eq!(patch["pendingOffline"], false);
+        assert_eq!(output.timer_action, PendingOfflineTimerAction::None);
+    }
+
+    #[test]
     fn pending_offline_timer_writes_offline_feed_when_it_fires() {
         let runtime = RealtimeFriendsRuntime::new();
         runtime.set_baseline(

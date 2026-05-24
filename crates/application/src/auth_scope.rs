@@ -77,10 +77,7 @@ mod tests {
         assert!(!scope.matches("usr_other", "https://api.example.test/api/1"));
 
         let default_endpoint = scope.set("usr_current", "");
-        assert_eq!(
-            default_endpoint.endpoint,
-            "https://api.vrchat.cloud/api/1"
-        );
+        assert_eq!(default_endpoint.endpoint, "https://api.vrchat.cloud/api/1");
         assert!(scope.matches("usr_current", ""));
 
         let cleared = scope.set("", "");

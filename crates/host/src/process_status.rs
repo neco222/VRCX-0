@@ -78,8 +78,7 @@ fn is_vrchat_process_name(name: &str) -> bool {
 
 #[cfg(not(target_os = "linux"))]
 fn is_vrchat_process_name(name: &str) -> bool {
-    name.eq_ignore_ascii_case("VRChat.exe")
-        || name.eq_ignore_ascii_case("VRChat")
+    name.eq_ignore_ascii_case("VRChat.exe") || name.eq_ignore_ascii_case("VRChat")
 }
 
 #[cfg(target_os = "linux")]
