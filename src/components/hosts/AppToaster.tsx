@@ -13,14 +13,31 @@ import { Spinner } from '@/ui/shadcn/spinner';
 
 const TITLE_BAR_TOAST_OFFSET: any = { top: 'calc(2rem + 32px)' };
 const VRCHAT_API_UNAVAILABLE_TOAST_DURATION_MS = 12000;
+const VRCHAT_STATUS_HOST = 'status.vrchat.com';
+const URL_PATTERN = /\bhttps?:\/\/[^\s"'<>]+/gi;
 let sonnerErrorToastPatched = false;
+
+function hasVrchatStatusUrl(message: string) {
+    const urls = message.match(URL_PATTERN);
+    if (!urls) {
+        return false;
+    }
+
+    return urls.some((urlText) => {
+        try {
+            return new URL(urlText).hostname.toLowerCase() === VRCHAT_STATUS_HOST;
+        } catch {
+            return false;
+        }
+    });
+}
 
 function isVrchatApiUnavailableMessage(message: unknown) {
     if (typeof message !== 'string') {
         return false;
     }
     return (
-        message.includes('status.vrchat.com') ||
+        hasVrchatStatusUrl(message) ||
         message.includes('VRChat API services are currently unavailable')
     );
 }
