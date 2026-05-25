@@ -112,6 +112,17 @@ export function resolveCommunityThemeAssetUrl(
     }
 }
 
+export function resolveCommunityThemeCssUrl(
+    catalogUrl: string,
+    themeId: string
+): string {
+    return resolveCommunityThemeAssetUrl(
+        normalizeCommunityThemeCatalogUrl(catalogUrl),
+        themeId,
+        COMMUNITY_THEME_CSS_FILE_NAME
+    );
+}
+
 function normalizeCommunityThemeManifest(
     value: unknown,
     catalogUrl: string,
@@ -213,12 +224,14 @@ export async function loadCommunityThemeCss(
     catalogUrl: string,
     theme: CommunityThemeManifest
 ): Promise<string> {
-    const normalizedCatalogUrl = normalizeCommunityThemeCatalogUrl(catalogUrl);
-    const cssUrl = resolveCommunityThemeAssetUrl(
-        normalizedCatalogUrl,
-        theme.id,
-        COMMUNITY_THEME_CSS_FILE_NAME
-    );
+    return loadCommunityThemeCssById(catalogUrl, theme.id);
+}
+
+export async function loadCommunityThemeCssById(
+    catalogUrl: string,
+    themeId: string
+): Promise<string> {
+    const cssUrl = resolveCommunityThemeCssUrl(catalogUrl, themeId);
     const response = await fetch(cssUrl, {
         cache: 'no-cache'
     });

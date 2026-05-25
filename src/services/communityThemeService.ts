@@ -10,7 +10,6 @@ import {
     COMMUNITY_THEME_CATALOG_URL,
     COMMUNITY_THEME_CSS_FILE_NAME,
     loadCommunityThemeCatalog,
-    loadCommunityThemeCss,
     resolveCommunityThemeAssetUrl
 } from '@/repositories/communityThemeRepository';
 import configRepository from '@/repositories/configRepository';
@@ -28,6 +27,10 @@ import {
     resolveThemeColor,
     setCommunityThemeAppearanceControl
 } from './themeService';
+import {
+    refreshDynamicCommunityThemeCssSnapshot,
+    resolveCommunityThemeCssSnapshot
+} from './communityThemeProviderService';
 
 const INSTALLED_THEME_LAYER = 'installed-theme';
 const LOCAL_PREVIEW_LAYER = 'local-theme-preview';
@@ -339,6 +342,25 @@ async function persistCommunityThemeInstallState({
     ]);
 }
 
+async function refreshDynamicInstallRecord(
+    record: CommunityThemeInstalledSnapshot
+): Promise<CommunityThemeInstalledSnapshot> {
+    const cssSnapshot = await refreshDynamicCommunityThemeCssSnapshot(
+        COMMUNITY_THEME_CATALOG_URL,
+        record
+    );
+    if (!cssSnapshot || cssSnapshot === record.cssSnapshot) {
+        return record;
+    }
+
+    return {
+        ...record,
+        cssSnapshot,
+        sha256: await sha256Hex(cssSnapshot),
+        updatedAt: currentTimestamp()
+    };
+}
+
 export async function loadCatalog(): Promise<CommunityThemeCatalog> {
     const store = useCommunityThemeStore.getState();
     store.setLoading(true);
@@ -387,14 +409,31 @@ export async function initializeCommunityThemes(): Promise<void> {
                   cssSnapshot: String(legacyCssSnapshot || '')
               }
             : null;
-    const records = mergeInstallRecords([
+    let records = mergeInstallRecords([
         ...normalizeInstallRecords(installedThemeRecords),
         ...(legacyInstallRecord ? [legacyInstallRecord] : [])
     ]).filter(isInstallRecordFromCurrentCatalog);
-    const activeRecord =
+    let activeRecord =
         records.find((record) => record.themeId === activeThemeId) ??
         records.find((record) => record.themeId === legacyInstallMetadata?.themeId) ??
         null;
+
+    if (enabled && activeRecord) {
+        try {
+            activeRecord = await refreshDynamicInstallRecord(activeRecord);
+            records = mergeInstallRecords([
+                ...records.filter(
+                    (record) => record.themeId !== activeRecord?.themeId
+                ),
+                activeRecord
+            ]).filter(isInstallRecordFromCurrentCatalog);
+        } catch (error) {
+            console.warn(
+                'Unable to refresh dynamic community theme snapshot:',
+                error
+            );
+        }
+    }
 
     if (
         (legacyInstallMetadata || Array.isArray(installedThemeRecords)) &&
@@ -435,7 +474,10 @@ export async function installCommunityTheme(
     store.setError(null);
     try {
         const catalogUrl = COMMUNITY_THEME_CATALOG_URL;
-        const cssText = await loadCommunityThemeCss(catalogUrl, theme);
+        const cssText = await resolveCommunityThemeCssSnapshot(
+            catalogUrl,
+            theme
+        );
         const now = currentTimestamp();
         const previous = store.installedThemes.find(
             (installedTheme) => installedTheme.themeId === theme.id
@@ -513,21 +555,26 @@ export async function enableInstalledCommunityTheme(themeId?: string): Promise<v
     ).filter(isInstallRecordFromCurrentCatalog);
     const targetThemeId =
         themeId || store.installedTheme?.themeId || records[0]?.themeId || '';
-    const activeRecord =
+    let activeRecord =
         records.find((record) => record.themeId === targetThemeId) ?? null;
     if (!activeRecord) {
         return;
     }
+    activeRecord = await refreshDynamicInstallRecord(activeRecord);
+    const nextRecords = mergeInstallRecords([
+        ...records.filter((record) => record.themeId !== activeRecord.themeId),
+        activeRecord
+    ]).filter(isInstallRecordFromCurrentCatalog);
     installedThemeCssSnapshot = activeRecord.cssSnapshot;
     await persistCommunityThemeInstallState({
-        records,
+        records: nextRecords,
         enabled: true,
         activeRecord
     });
     store.setInstalledState({
         enabled: true,
         installedTheme: stripCssSnapshot(activeRecord),
-        installedThemes: records.map(stripCssSnapshot)
+        installedThemes: nextRecords.map(stripCssSnapshot)
     });
     syncCommunityStyleLayers();
     await syncCommunityThemeAppearanceControl();
