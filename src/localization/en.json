@@ -1699,7 +1699,7 @@
                     "disable_vr_overlay_gpu_acceleration": "Disable VR Overlay GPU Acceleration",
                     "proxy": "Proxy Settings",
                     "proxy_description": "Set the proxy server used by VRCX-0. Restart is required to apply a changed proxy.",
-                    "startup_linux": "Add \"--startup\" arg to startup VRCX-0.desktop file to start VRCX-0 minimized at system startup"
+                    "startup_linux": "Add \"--autostart\" arg to startup VRCX-0.desktop file to start VRCX-0 minimized at system startup"
                 },
                 "favorites": {
                     "header": "Favorite Groups Filter",

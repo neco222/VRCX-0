@@ -1692,14 +1692,14 @@
                     "startup": "Windows と一緒に起動",
                     "startup_system": "システム起動時に開始",
                     "startup_system_description": "--autostart 付きで VRCX-0 を起動するデスクトップ自動起動エントリを作成します。",
-                    "minimized": "タスクバーに最小化した状態で起動",
-                    "tray": "タスクトレイに格納した状態で起動",
+                    "minimized": "システム起動時に最小化して起動",
+                    "tray": "閉じるときにタスクトレイへ最小化",
                     "background_mode": "トレイ格納時にバックグラウンドモードへ切り替える",
                     "background_mode_description": "VRCX-0 をタスクトレイに閉じるとき、バックグラウンドモードへ切り替え、メモリ使用量を約 10 分の 1 まで抑えます。復元後、一部のページ状態がリセットされる場合があります。",
                     "disable_vr_overlay_gpu_acceleration": "VRオーバーレイのGPUアクセラレーション無効化",
                     "proxy": "プロキシ設定",
                     "proxy_description": "VRCX-0 で使用するプロキシサーバーを設定します。変更したプロキシを適用するには再起動が必要です。",
-                    "startup_linux": "システム起動時に VRCX-0 を最小化して起動するため、VRCX-0.desktop に \"--startup\" 引数を追加します"
+                    "startup_linux": "システム起動時に VRCX-0 を最小化して起動するため、VRCX-0.desktop に \"--autostart\" 引数を追加します"
                 },
                 "favorites": {
                     "header": "お気に入りのグループ",

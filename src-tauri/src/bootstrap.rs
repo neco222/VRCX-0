@@ -584,7 +584,7 @@ pub fn setup_app_with_data_dir(
         .runtime
         .record_phase("tray", "completed", "System tray configured.");
     sync_autostart_from_db(app, &state);
-    hide_autostart_window_if_needed(app, &state);
+    apply_autostart_window_state_if_needed(app, &state);
     start_host_services(app.handle(), &state);
     open_devtools_if_enabled(app);
     state
@@ -773,10 +773,10 @@ fn tray_labels(state: &AppState) -> TrayLabels {
 fn sync_autostart_from_db(app: &tauri::App, state: &AppState) {
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     {
-        if db_config_bool(state, "config:vrcx_startatwindowsstartup") == Some(true)
-            && !app.autolaunch().is_enabled().unwrap_or(false)
-        {
-            let _ = app.autolaunch().enable();
+        if db_config_bool(state, "config:vrcx_startatwindowsstartup") == Some(true) {
+            if let Err(error) = app.autolaunch().enable() {
+                tracing::warn!(error = %error, "failed to synchronize autostart preference");
+            }
         }
         state.runtime_context.runtime.record_phase(
             "autostart",
@@ -796,16 +796,22 @@ fn sync_autostart_from_db(app: &tauri::App, state: &AppState) {
     }
 }
 
-fn hide_autostart_window_if_needed(app: &tauri::App, state: &AppState) {
+fn apply_autostart_window_state_if_needed(app: &tauri::App, state: &AppState) {
     if state.launched_from_autostart
         && state.storage.get("VRCX_StartAsMinimizedState").as_deref() == Some("true")
     {
+        let close_to_tray = state.storage.get("VRCX_CloseToTray").as_deref() == Some("true");
         if let Some(window) = app.get_webview_window("main") {
             let window = window.clone();
             tauri::async_runtime::spawn(async move {
                 tokio::time::sleep(Duration::from_millis(100)).await;
-                let _ = window.hide();
-                let _ = window.set_skip_taskbar(true);
+                if close_to_tray {
+                    let _ = window.hide();
+                    let _ = window.set_skip_taskbar(true);
+                } else {
+                    let _ = window.set_skip_taskbar(false);
+                    let _ = window.minimize();
+                }
             });
         }
     }
