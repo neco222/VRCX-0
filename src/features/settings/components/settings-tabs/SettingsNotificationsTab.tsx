@@ -25,6 +25,7 @@ export function SettingsNotificationsTab({
     onNotificationLayoutChange,
     onNotificationIconDotChange,
     onOpenFeedFilterDialog,
+    onOpenWristFeedNotificationsDialog,
     onTestDesktopNotification,
     onDesktopToastChange,
     onAfkDesktopToastChange,
@@ -102,6 +103,22 @@ export function SettingsNotificationsTab({
                         >
                             {t(
                                 'view.settings.notifications.notifications.notification_filter'
+                            )}
+                        </Button>
+                    </Field>
+
+                    <Field
+                        label={t(
+                            'view.settings.notifications.notifications.wrist_feed_notifications'
+                        )}
+                    >
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onOpenWristFeedNotificationsDialog}
+                        >
+                            {t(
+                                'view.settings.notifications.notifications.wrist_feed_notifications'
                             )}
                         </Button>
                     </Field>

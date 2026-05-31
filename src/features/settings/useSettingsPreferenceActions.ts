@@ -26,6 +26,7 @@ export function useSettingsPreferenceActions({
     setIntegrationPrefs,
     setLocalFavoriteFriendsGroups,
     setLocalFavoriteFriendsGroupsPreference,
+    setOverlayActivityFiltersPreference,
     setOnlineVisitCount,
     setPrefs,
     setProxyServerPreference,
@@ -213,9 +214,7 @@ export function useSettingsPreferenceActions({
             toast.error(
                 error instanceof Error
                     ? error.message
-                    : t(
-                          'view.settings.toast.failed_to_save_trust_color'
-                      )
+                    : t('view.settings.toast.failed_to_save_trust_color')
             );
             await restorePersistedTrustColors();
         }
@@ -232,9 +231,7 @@ export function useSettingsPreferenceActions({
             toast.error(
                 error instanceof Error
                     ? error.message
-                    : t(
-                          'view.settings.toast.failed_to_save_trust_color'
-                      )
+                    : t('view.settings.toast.failed_to_save_trust_color')
             );
         }
     }
@@ -282,9 +279,7 @@ export function useSettingsPreferenceActions({
             toast.error(
                 error instanceof Error
                     ? error.message
-                    : t(
-                          'view.settings.toast.failed_to_refresh_config_json'
-                      )
+                    : t('view.settings.toast.failed_to_refresh_config_json')
             );
         }
     }
@@ -323,9 +318,7 @@ export function useSettingsPreferenceActions({
             toast.error(
                 error instanceof Error
                     ? error.message
-                    : t(
-                          'view.settings.toast.failed_to_load_proxy_settings'
-                      )
+                    : t('view.settings.toast.failed_to_load_proxy_settings')
             );
             return;
         }
@@ -340,9 +333,7 @@ export function useSettingsPreferenceActions({
             toast.error(
                 error instanceof Error
                     ? error.message
-                    : t(
-                          'view.settings.toast.failed_to_save_proxy_settings'
-                      )
+                    : t('view.settings.toast.failed_to_save_proxy_settings')
             );
         }
     }
@@ -391,11 +382,16 @@ export function useSettingsPreferenceActions({
         setTableLimitsDialogOpen(false);
         toast.success(t('common.settings_saved'));
     }
-    async function toggleLocalFavoriteFriendsGroup(groupKey: any, checked: any) {
+    async function toggleLocalFavoriteFriendsGroup(
+        groupKey: any,
+        checked: any
+    ) {
         const previousGroups = localFavoriteFriendsGroups;
         const nextGroups = checked
             ? Array.from(new Set([...localFavoriteFriendsGroups, groupKey]))
-            : localFavoriteFriendsGroups.filter((value: any) => value !== groupKey);
+            : localFavoriteFriendsGroups.filter(
+                  (value: any) => value !== groupKey
+              );
         await commit(
             () => setLocalFavoriteFriendsGroupsPreference(nextGroups),
             () => {
@@ -405,6 +401,35 @@ export function useSettingsPreferenceActions({
                 };
             }
         );
+    }
+    async function saveOverlayActivityFilters(value: any) {
+        let savedFilters;
+        const previousFilters = prefs.overlayActivityFilters;
+        const saved = await commit(
+            async () => {
+                savedFilters = await setOverlayActivityFiltersPreference(value);
+            },
+            () => {
+                setPrefs((current: any) => ({
+                    ...current,
+                    overlayActivityFilters: value
+                }));
+                return () =>
+                    setPrefs((current: any) => ({
+                        ...current,
+                        overlayActivityFilters: previousFilters
+                    }));
+            }
+        );
+        if (!saved) {
+            return null;
+        }
+        setPrefs((current: any) => ({
+            ...current,
+            overlayActivityFilters: savedFilters
+        }));
+        toast.success(t('common.settings_saved'));
+        return savedFilters;
     }
     function speakNotificationTts(
         text: any,
@@ -420,9 +445,7 @@ export function useSettingsPreferenceActions({
         const voices = window.speechSynthesis.getVoices();
         if (!voices.length) {
             toast.warning(
-                t(
-                    'view.settings.empty.no_text_to_speech_voices_are_available'
-                )
+                t('view.settings.empty.no_text_to_speech_voices_are_available')
             );
             return;
         }
@@ -453,6 +476,7 @@ export function useSettingsPreferenceActions({
         openTableLimitsDialog,
         saveTableLimitsDialog,
         toggleLocalFavoriteFriendsGroup,
+        saveOverlayActivityFilters,
         speakNotificationTts
     };
 }

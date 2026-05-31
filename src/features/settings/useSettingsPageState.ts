@@ -111,6 +111,10 @@ export function useSettingsPageState() {
     const [activeSettingsTab, setActiveSettingsTab] = useState('system');
     const [feedFilterMode, setFeedFilterMode] = useState('noty');
     const [feedFilterDialogOpen, setFeedFilterDialogOpen] = useState(false);
+    const [
+        wristFeedNotificationsDialogOpen,
+        setWristFeedNotificationsDialogOpen
+    ] = useState(false);
     const [sharedFeedFilters, setSharedFeedFilters] = useState(() =>
         normalizeSharedFeedFilters()
     );
@@ -204,6 +208,7 @@ export function useSettingsPageState() {
         restartForAppDataDir,
         updateSharedFeedFilter,
         resetSharedFeedFilters,
+        saveOverlayActivityFilters,
         refreshRuntimeAppSnapshot,
         searchLimitError,
         tableLimitsSaveDisabled,
@@ -280,11 +285,12 @@ export function useSettingsPageState() {
         ],
         [localFavoriteFriendGroupOptions, remoteFavoriteFriendGroupOptions]
     );
-    const selectedFavoriteFriendGroupLabel =
-        favoriteFriendGroupOptions
-            .filter((group: any) => localFavoriteFriendsGroups.includes(group.value))
-            .map((group: any) => group.label)
-            .join(', ');
+    const selectedFavoriteFriendGroupLabel = favoriteFriendGroupOptions
+        .filter((group: any) =>
+            localFavoriteFriendsGroups.includes(group.value)
+        )
+        .map((group: any) => group.label)
+        .join(', ');
 
     function normalizeRecentActionCooldownMinutes(value: any) {
         const parsed = Number.parseInt(value, 10);
@@ -304,11 +310,7 @@ export function useSettingsPageState() {
         }
     }
 
-    function saveIntegrationBoolPreference(
-        key: any,
-        value: any,
-        action: any
-    ) {
+    function saveIntegrationBoolPreference(key: any, value: any, action: any) {
         commit(action, () => {
             const previous = integrationPrefs[key];
             setIntegrationValue(key, value);
@@ -396,10 +398,8 @@ export function useSettingsPageState() {
                 );
             },
             onAccessibleStatusIndicatorsChange: (checked: any) => {
-                savePreferenceValue(
-                    'accessibleStatusIndicators',
-                    checked,
-                    () => setAccessibleStatusIndicatorsPreference(checked)
+                savePreferenceValue('accessibleStatusIndicators', checked, () =>
+                    setAccessibleStatusIndicatorsPreference(checked)
                 );
             },
             onShowInstanceIdInLocationChange: (checked: any) => {
@@ -530,7 +530,9 @@ export function useSettingsPageState() {
                 deleteAllScreenshotMetadata();
             },
             onOpenUgcPhotosFolder: () => {
-                commit(() => openUGCPhotosFolder(prefs.userGeneratedContentPath));
+                commit(() =>
+                    openUGCPhotosFolder(prefs.userGeneratedContentPath)
+                );
             },
             onOpenUgcFolderSelector: () => {
                 openUgcFolderSelector();
@@ -649,11 +651,16 @@ export function useSettingsPageState() {
             },
             onRecentActionCooldownMinutesBlur: (value: any) => {
                 const nextValue = normalizeRecentActionCooldownMinutes(value);
-                savePreferenceValue('recentActionCooldownMinutes', nextValue, () =>
-                    setRecentActionCooldownMinutesPreference(nextValue)
+                savePreferenceValue(
+                    'recentActionCooldownMinutes',
+                    nextValue,
+                    () => setRecentActionCooldownMinutesPreference(nextValue)
                 );
             },
-            onToggleLocalFavoriteFriendsGroup: (groupKey: any, checked: any) => {
+            onToggleLocalFavoriteFriendsGroup: (
+                groupKey: any,
+                checked: any
+            ) => {
                 toggleLocalFavoriteFriendsGroup(groupKey, checked);
             }
         },
@@ -669,6 +676,7 @@ export function useSettingsPageState() {
             setNotificationLayoutPreference,
             setPrefs,
             setFeedFilterDialogOpen,
+            setWristFeedNotificationsDialogOpen,
             saveStringPreference,
             saveBoolPreference,
             saveNotificationTtsMode,
@@ -757,7 +765,11 @@ export function useSettingsPageState() {
             currentSharedFeedFilterOptions,
             sharedFeedFilters,
             updateSharedFeedFilter,
-            resetSharedFeedFilters
+            resetSharedFeedFilters,
+            wristFeedNotificationsDialogOpen,
+            setWristFeedNotificationsDialogOpen,
+            overlayActivityFilters: prefs.overlayActivityFilters,
+            saveOverlayActivityFilters
         }
     };
 }

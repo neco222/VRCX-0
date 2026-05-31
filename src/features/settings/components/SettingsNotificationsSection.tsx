@@ -18,6 +18,7 @@ export function SettingsNotificationsSection({ notifications }: any) {
         setNotificationLayoutPreference,
         setPrefs,
         setFeedFilterDialogOpen,
+        setWristFeedNotificationsDialogOpen,
         saveStringPreference,
         saveBoolPreference,
         saveNotificationTtsMode,
@@ -68,6 +69,9 @@ export function SettingsNotificationsSection({ notifications }: any) {
                 );
             }}
             onOpenFeedFilterDialog={() => setFeedFilterDialogOpen(true)}
+            onOpenWristFeedNotificationsDialog={() =>
+                setWristFeedNotificationsDialogOpen(true)
+            }
             onTestDesktopNotification={() => {
                 showDesktopNotification(
                     'VRCX-0',

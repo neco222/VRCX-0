@@ -1886,6 +1886,7 @@
                     "layout_notification_center": "Notification Center",
                     "layout_table": "Notifications Page",
                     "notification_filter": "Notification Filters",
+                    "wrist_feed_notifications": "Wrist Feed Notifications",
                     "test_notification": "Send Test Notification",
                     "test_message": "Test notification",
                     "steamvr_notifications": {
@@ -4387,6 +4388,102 @@
             "everyone": "Everyone",
             "reset": "Reset",
             "close": "Close"
+        },
+        "wrist_feed_notifications": {
+            "title": "Wrist Feed Notifications",
+            "description": "Choose what appears on the wrist feed. Desktop notifications use separate filters.",
+            "reset_recommended": "Reset Recommended",
+            "scopes": {
+                "off": "Off",
+                "on": "On",
+                "friends": "Friends",
+                "selectedFavorites": "Selected favorites",
+                "allFavorites": "All favorites",
+                "everyoneInInstance": "Everyone in instance"
+            },
+            "categories": {
+                "actionRequired": {
+                    "label": "Action Required",
+                    "description": "Requests and responses that may need attention while in VR.",
+                    "example": "Invites, requests"
+                },
+                "currentInstance": {
+                    "label": "Current Instance",
+                    "description": "Activity happening in the instance you are currently in.",
+                    "example": "Joins, leaves"
+                },
+                "favoriteMovement": {
+                    "label": "Favorite Movement",
+                    "description": "Online, offline, location, and status changes for favorite friends.",
+                    "example": "Online, GPS"
+                },
+                "profileChange": {
+                    "label": "Profile Changes",
+                    "description": "Name, trust, avatar, bio, friend, and unfriend changes.",
+                    "example": "Names, avatars"
+                },
+                "groupSocial": {
+                    "label": "Group & Social",
+                    "description": "Group announcements, invites, join requests, and ownership changes.",
+                    "example": "Groups"
+                },
+                "systemSafety": {
+                    "label": "System & Safety",
+                    "description": "System events, external app items, and moderation-related activity.",
+                    "example": "Events, moderation"
+                },
+                "media": {
+                    "label": "Media",
+                    "description": "Video playback activity from the current session.",
+                    "example": "Video"
+                }
+            },
+            "types": {
+                "invite": "Invite",
+                "requestInvite": "Request Invite",
+                "inviteResponse": "Invite Response",
+                "requestInviteResponse": "Request Invite Response",
+                "friendRequest": "Friend Request",
+                "boop": "Boop",
+                "group_queueReady": "Instance Queue Ready",
+                "instance_closed": "Instance Closed",
+                "OnPlayerJoining": "Player Joining",
+                "OnPlayerJoined": "Player Joined",
+                "OnPlayerLeft": "Player Left",
+                "AvatarChange": "Avatar Change",
+                "Online": "Online",
+                "Offline": "Offline",
+                "GPS": "Location Change",
+                "Status": "Status Change",
+                "Friend": "New Friend",
+                "Unfriend": "Unfriend",
+                "DisplayName": "Display Name Change",
+                "TrustLevel": "Trust Level Change",
+                "Bio": "Bio Change",
+                "groupChange": "Group Change",
+                "group_announcement": "Group Announcement",
+                "group_informative": "Group Join Approved",
+                "group_invite": "Group Invite",
+                "group_joinRequest": "Group Join Request",
+                "group_transfer": "Group Transfer Request",
+                "Event": "Misc Event",
+                "External": "External App",
+                "Blocked": "Blocked",
+                "Unblocked": "Unblocked",
+                "Muted": "Muted",
+                "Unmuted": "Unmuted",
+                "BlockedOnPlayerJoined": "Blocked Player Joined",
+                "BlockedOnPlayerLeft": "Blocked Player Left",
+                "MutedOnPlayerJoined": "Muted Player Joined",
+                "MutedOnPlayerLeft": "Muted Player Left",
+                "VideoPlay": "Video Play"
+            },
+            "favorite_groups": {
+                "menu_label": "Favorite groups",
+                "all_groups": "All favorite groups",
+                "group_count": "{count} groups",
+                "empty": "No favorite friend groups are available."
+            }
         },
         "previous_instances": {
             "header": "Instance History",

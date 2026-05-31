@@ -52,7 +52,11 @@ export function SettingsDialogsSection({ dialogs }: any) {
         currentSharedFeedFilterOptions,
         sharedFeedFilters,
         updateSharedFeedFilter,
-        resetSharedFeedFilters
+        resetSharedFeedFilters,
+        wristFeedNotificationsDialogOpen,
+        setWristFeedNotificationsDialogOpen,
+        overlayActivityFilters,
+        saveOverlayActivityFilters
     } = dialogs;
 
     return (
@@ -128,6 +132,12 @@ export function SettingsDialogsSection({ dialogs }: any) {
                 filters: sharedFeedFilters,
                 onUpdate: updateSharedFeedFilter,
                 onReset: resetSharedFeedFilters
+            }}
+            wristFeedNotifications={{
+                open: wristFeedNotificationsDialogOpen,
+                setOpen: setWristFeedNotificationsDialogOpen,
+                value: overlayActivityFilters,
+                onSave: saveOverlayActivityFilters
             }}
         />
     );

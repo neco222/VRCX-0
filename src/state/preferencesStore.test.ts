@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
     DEFAULT_PREFERENCES,
+    normalizeOverlayActivityFilters,
     normalizePreferenceSnapshot,
     normalizeSharedFeedFilters,
     normalizeTableLimits,
@@ -65,6 +66,39 @@ describe('preferencesStore normalizers', () => {
         );
     });
 
+    it('normalizes overlay activity filters from persisted snapshots', () => {
+        const filters = normalizeOverlayActivityFilters({
+            wrist: {
+                types: {
+                    OnPlayerJoined: {
+                        scope: 'everyoneInInstance',
+                        favoriteGroupKeys: ['group_2', '', 'group_2']
+                    },
+                    Online: {
+                        scope: 'everyoneInInstance'
+                    },
+                    'group.queueReady': {
+                        scope: 'selectedFavorites',
+                        favoriteGroupKeys: ['group_3']
+                    }
+                }
+            }
+        });
+
+        expect(filters.wrist.types.OnPlayerJoined).toEqual({
+            scope: 'everyoneInInstance',
+            favoriteGroupKeys: 'all'
+        });
+        expect(filters.wrist.types.Online).toEqual({
+            scope: 'friends',
+            favoriteGroupKeys: 'all'
+        });
+        expect(filters.wrist.types['group.queueReady']).toEqual({
+            scope: 'on',
+            favoriteGroupKeys: 'all'
+        });
+    });
+
     it('coerces persisted preference snapshots into safe runtime values', () => {
         const snapshot = normalizePreferenceSnapshot({
             notificationLayout: 'table',
@@ -83,6 +117,27 @@ describe('preferencesStore normalizers', () => {
             sharedFeedFilters: JSON.stringify({
                 noty: {
                     Online: 'Friends'
+                }
+            }),
+            overlayActivityFilters: JSON.stringify({
+                wrist: {
+                    favoriteGroupKeys: ['group_1'],
+                    categories: {
+                        profileChange: {
+                            scope: 'allFavorites',
+                            favoriteGroupKeys: ['group_2'],
+                            typeOverrides: {
+                                Avatar: {
+                                    scope: 'off'
+                                },
+                                Bio: {
+                                    scope: 'selectedFavorites',
+                                    favoriteGroupKeys: ['group_3']
+                                }
+                            },
+                            priority: 'low'
+                        }
+                    }
                 }
             }),
             trustColor: {
@@ -115,6 +170,22 @@ describe('preferencesStore normalizers', () => {
             translationAPIPrompt: ''
         });
         expect(snapshot.sharedFeedFilters.noty.Online).toBe('Friends');
+        expect(snapshot.overlayActivityFilters.wrist).toMatchObject({
+            types: {
+                DisplayName: {
+                    scope: 'allFavorites',
+                    favoriteGroupKeys: 'all'
+                },
+                AvatarChange: {
+                    scope: 'off',
+                    favoriteGroupKeys: 'all'
+                },
+                Bio: {
+                    scope: 'selectedFavorites',
+                    favoriteGroupKeys: ['group_3']
+                }
+            }
+        });
         expect(snapshot.trustColor.basic).toBe('#ABCDEF');
         expect(snapshot.trustColor.known).toBe(
             (DEFAULT_PREFERENCES.trustColor as any).known

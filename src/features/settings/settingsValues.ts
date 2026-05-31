@@ -1,4 +1,20 @@
 import { sharedFeedFiltersDefaults } from '@/shared/constants/feedFilters';
+export {
+    DEFAULT_OVERLAY_ACTIVITY_FILTERS,
+    OVERLAY_ACTIVITY_CATEGORIES,
+    OVERLAY_ACTIVITY_RAW_TYPES,
+    OVERLAY_ACTIVITY_SCOPES,
+    OVERLAY_ACTIVITY_TYPE_DEFINITIONS,
+    OVERLAY_ACTIVITY_TYPE_DEFINITION_BY_KEY,
+    normalizeOverlayActivityFilters,
+    overlayActivityTypeLabelKey,
+    parseOverlayActivityFilters,
+    type OverlayActivityCategory,
+    type OverlayActivityFavoriteGroupKeys,
+    type OverlayActivityFiltersPreference,
+    type OverlayActivityRule,
+    type OverlayActivityScope
+} from '@/shared/constants/overlayActivityFilters';
 
 export const TABLE_PAGE_SIZE_SUGGESTIONS = [
     5, 10, 15, 20, 25, 30, 50, 75, 100, 150, 200, 250, 500, 1000

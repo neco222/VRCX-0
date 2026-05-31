@@ -1,4 +1,3 @@
-import { TRUST_COLOR_DEFAULTS } from '@/shared/utils/trustColors';
 import {
     APP_CJK_FONT_PACK_DEFAULT_KEY,
     APP_FONT_DEFAULT_KEY
@@ -8,10 +7,12 @@ import {
     DEFAULT_MAX_TABLE_SIZE,
     DEFAULT_SEARCH_LIMIT
 } from '@/shared/constants/settings';
+import { TRUST_COLOR_DEFAULTS } from '@/shared/utils/trustColors';
 
 import {
     DEFAULT_TRANSLATION_ENDPOINT,
     DEFAULT_TRANSLATION_MODEL,
+    DEFAULT_OVERLAY_ACTIVITY_FILTERS,
     normalizeSharedFeedFilters,
     TABLE_PAGE_SIZE_DEFAULTS
 } from './settingsValues';
@@ -78,6 +79,7 @@ export function createDefaultSettingsPrefs() {
         sharedFeedFilters: normalizeSharedFeedFilters(
             sharedFeedFiltersDefaults
         ),
+        overlayActivityFilters: DEFAULT_OVERLAY_ACTIVITY_FILTERS,
         feedTimeDisplayMode: 'relative',
         youtubeAPI: false,
         translationAPI: false,

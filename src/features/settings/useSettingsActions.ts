@@ -1,6 +1,3 @@
-import { useSettingsMaintenanceActions } from './useSettingsMaintenanceActions';
-import { useSettingsPreferenceActions } from './useSettingsPreferenceActions';
-
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
@@ -21,6 +18,7 @@ import {
     setCropInstancePrintsPreference,
     setIntConfigPreference,
     setLocalFavoriteFriendsGroupsPreference,
+    setOverlayActivityFiltersPreference,
     setProxyServerPreference,
     setSharedFeedFiltersPreference,
     setStringConfigPreference,
@@ -36,6 +34,7 @@ import {
     normalizeAppCjkFontPack,
     normalizeAppFontFamily
 } from '@/services/themeService';
+import { sharedFeedFiltersDefaults } from '@/shared/constants/feedFilters';
 import {
     DEFAULT_MAX_TABLE_SIZE,
     DEFAULT_SEARCH_LIMIT,
@@ -51,19 +50,22 @@ import {
 } from '@/state/preferencesStore';
 import { useRuntimeStore } from '@/state/runtimeStore';
 
-import { sharedFeedFiltersDefaults } from '@/shared/constants/feedFilters';
 import {
     formatByteSize,
     isValidFontFamilyList,
     normalizeSharedFeedFilters,
     parseIntegerInput
 } from './settingsValues';
+import { useSettingsMaintenanceActions } from './useSettingsMaintenanceActions';
+import { useSettingsPreferenceActions } from './useSettingsPreferenceActions';
 
 export function useSettingsActions(deps: any) {
     const { t } = useTranslation();
     const confirm = useModalStore((state: any) => state.confirm);
     const prompt = useModalStore((state: any) => state.prompt);
-    const currentUserId = useRuntimeStore((state: any) => state.auth.currentUserId);
+    const currentUserId = useRuntimeStore(
+        (state: any) => state.auth.currentUserId
+    );
     const currentUserEndpoint = useRuntimeStore(
         (state: any) => state.auth.currentUserEndpoint
     );
@@ -137,6 +139,7 @@ export function useSettingsActions(deps: any) {
         setCropInstancePrintsPreference,
         setIntConfigPreference,
         setLocalFavoriteFriendsGroupsPreference,
+        setOverlayActivityFiltersPreference,
         setProxyServerPreference,
         setSharedFeedFiltersPreference,
         setStringConfigPreference,
@@ -162,9 +165,7 @@ export function useSettingsActions(deps: any) {
                 await runtimeDiagnosticsRepository.getAppSnapshot()
             );
         } catch (error) {
-            toast.error(
-                error instanceof Error ? error.message : String(error)
-            );
+            toast.error(error instanceof Error ? error.message : String(error));
         }
     }
     return {

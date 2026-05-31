@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 
-import {
-    TRUST_COLOR_DEFAULTS,
-    normalizeTrustColors
-} from '@/shared/utils/trustColors';
 import { sharedFeedFiltersDefaults } from '@/shared/constants/feedFilters';
+import {
+    DEFAULT_OVERLAY_ACTIVITY_FILTERS,
+    normalizeOverlayActivityFilters,
+    parseOverlayActivityFilters
+} from '@/shared/constants/overlayActivityFilters';
 import {
     DEFAULT_MAX_TABLE_SIZE,
     DEFAULT_SEARCH_LIMIT,
@@ -13,6 +14,10 @@ import {
     TABLE_MAX_SIZE_MAX,
     TABLE_MAX_SIZE_MIN
 } from '@/shared/constants/settings';
+import {
+    TRUST_COLOR_DEFAULTS,
+    normalizeTrustColors
+} from '@/shared/utils/trustColors';
 
 import { normalizeNavWidth, normalizeTableDensity } from './shellStore';
 
@@ -50,6 +55,8 @@ export interface SharedFeedFiltersPreference {
     noty: Record<string, unknown>;
     wrist: Record<string, unknown>;
 }
+
+export { normalizeOverlayActivityFilters, parseOverlayActivityFilters };
 
 type BoundedIntOptions = {
     min?: number;
@@ -247,6 +254,7 @@ export const DEFAULT_PREFERENCES: PreferenceInputSnapshot = Object.freeze({
         noty: { ...sharedFeedFiltersDefaults.noty },
         wrist: { ...sharedFeedFiltersDefaults.wrist }
     },
+    overlayActivityFilters: DEFAULT_OVERLAY_ACTIVITY_FILTERS,
     feedTimeDisplayMode: 'relative',
     trustColor: { ...TRUST_COLOR_DEFAULTS },
     youtubeAPI: false,
@@ -324,9 +332,7 @@ export function normalizePreferenceSnapshot(
         notificationIconDot: normalizeBool(next.notificationIconDot),
         desktopToast: next.desktopToast || 'Never',
         afkDesktopToast: normalizeBool(next.afkDesktopToast),
-        desktopNotificationSound: normalizeBool(
-            next.desktopNotificationSound
-        ),
+        desktopNotificationSound: normalizeBool(next.desktopNotificationSound),
         notificationTTS: next.notificationTTS || 'Never',
         notificationTTSNickName: normalizeBool(next.notificationTTSNickName),
         notificationTTSVoice: String(next.notificationTTSVoice ?? '0'),
@@ -338,9 +344,7 @@ export function normalizePreferenceSnapshot(
         ),
         gameLogDisabled: normalizeBool(next.gameLogDisabled),
         avatarAutoCleanup: next.avatarAutoCleanup || 'Off',
-        defaultLaunchMode: normalizeDefaultLaunchMode(
-            next.defaultLaunchMode
-        ),
+        defaultLaunchMode: normalizeDefaultLaunchMode(next.defaultLaunchMode),
         udonExceptionLogging: normalizeBool(next.udonExceptionLogging),
         logResourceLoad: normalizeBool(next.logResourceLoad),
         autoLoginDelayEnabled: normalizeBool(next.autoLoginDelayEnabled),
@@ -365,6 +369,9 @@ export function normalizePreferenceSnapshot(
             ? next.localFavoriteFriendsGroups.filter(Boolean)
             : [],
         sharedFeedFilters: parseSharedFeedFilters(next.sharedFeedFilters),
+        overlayActivityFilters: parseOverlayActivityFilters(
+            next.overlayActivityFilters
+        ),
         feedTimeDisplayMode: normalizeFeedTimeDisplayMode(
             next.feedTimeDisplayMode
         ),
@@ -392,7 +399,9 @@ export function normalizePreferenceSnapshot(
     };
 }
 
-export type PreferencesSnapshot = ReturnType<typeof normalizePreferenceSnapshot>;
+export type PreferencesSnapshot = ReturnType<
+    typeof normalizePreferenceSnapshot
+>;
 
 export type PreferencesStoreState = PreferencesSnapshot & {
     preferencesHydrated: boolean;
@@ -401,29 +410,33 @@ export type PreferencesStoreState = PreferencesSnapshot & {
     setPreferenceValue(key: string, value: unknown): void;
 };
 
-export const usePreferencesStore = create<PreferencesStoreState>((set: any) => ({
-    ...normalizePreferenceSnapshot(DEFAULT_PREFERENCES),
-    preferencesHydrated: false,
-    hydratePreferences(snapshot: unknown) {
-        set({
-            ...normalizePreferenceSnapshot(snapshot as PreferenceInputSnapshot),
-            preferencesHydrated: true
-        });
-    },
-    patchPreferences(patch: Record<string, unknown>) {
-        set((state: any) =>
-            normalizePreferenceSnapshot({
-                ...state,
-                ...patch
-            } as PreferenceInputSnapshot)
-        );
-    },
-    setPreferenceValue(key: string, value: unknown) {
-        set((state: any) =>
-            normalizePreferenceSnapshot({
-                ...state,
-                [key]: value
-            } as PreferenceInputSnapshot)
-        );
-    }
-}));
+export const usePreferencesStore = create<PreferencesStoreState>(
+    (set: any) => ({
+        ...normalizePreferenceSnapshot(DEFAULT_PREFERENCES),
+        preferencesHydrated: false,
+        hydratePreferences(snapshot: unknown) {
+            set({
+                ...normalizePreferenceSnapshot(
+                    snapshot as PreferenceInputSnapshot
+                ),
+                preferencesHydrated: true
+            });
+        },
+        patchPreferences(patch: Record<string, unknown>) {
+            set((state: any) =>
+                normalizePreferenceSnapshot({
+                    ...state,
+                    ...patch
+                } as PreferenceInputSnapshot)
+            );
+        },
+        setPreferenceValue(key: string, value: unknown) {
+            set((state: any) =>
+                normalizePreferenceSnapshot({
+                    ...state,
+                    [key]: value
+                } as PreferenceInputSnapshot)
+            );
+        }
+    })
+);

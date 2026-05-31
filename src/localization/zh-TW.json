@@ -1886,6 +1886,7 @@
                     "layout_notification_center": "通知中心",
                     "layout_table": "通知頁面",
                     "notification_filter": "通知篩選器",
+                    "wrist_feed_notifications": "手腕動態通知",
                     "test_notification": "發送測試用通知",
                     "test_message": "測試通知。",
                     "steamvr_notifications": {
@@ -4387,6 +4388,102 @@
             "everyone": "所有人",
             "reset": "重設",
             "close": "關閉"
+        },
+        "wrist_feed_notifications": {
+            "title": "手腕動態通知",
+            "description": "選擇哪些內容顯示在手腕動態中。桌面通知使用單獨的篩選設定。",
+            "reset_recommended": "重置為建議值",
+            "scopes": {
+                "off": "關閉",
+                "on": "開啟",
+                "friends": "好友",
+                "selectedFavorites": "選取的收藏好友",
+                "allFavorites": "所有收藏好友",
+                "everyoneInInstance": "目前房間所有人"
+            },
+            "categories": {
+                "actionRequired": {
+                    "label": "需要處理",
+                    "description": "在 VR 中可能需要注意的請求和回覆。",
+                    "example": "邀請、請求"
+                },
+                "currentInstance": {
+                    "label": "目前房間",
+                    "description": "目前所在房間內發生的活動。",
+                    "example": "加入、離開"
+                },
+                "favoriteMovement": {
+                    "label": "收藏好友動態",
+                    "description": "收藏好友的上線、離線、位置和狀態變更。",
+                    "example": "上線、位置"
+                },
+                "profileChange": {
+                    "label": "資料變更",
+                    "description": "名稱、信任等級、Avatar、簡介、新增好友和取消好友變更。",
+                    "example": "名稱、Avatar"
+                },
+                "groupSocial": {
+                    "label": "群組與社交",
+                    "description": "群組公告、邀請、加入請求和所有權變更。",
+                    "example": "群組"
+                },
+                "systemSafety": {
+                    "label": "系統與安全",
+                    "description": "系統事件、外部應用程式項目和封鎖/靜音相關活動。",
+                    "example": "事件、封鎖"
+                },
+                "media": {
+                    "label": "媒體",
+                    "description": "目前工作階段中的影片播放活動。",
+                    "example": "影片"
+                }
+            },
+            "types": {
+                "invite": "邀請",
+                "requestInvite": "請求邀請",
+                "inviteResponse": "邀請回覆",
+                "requestInviteResponse": "請求邀請回覆",
+                "friendRequest": "好友請求",
+                "boop": "Boop",
+                "group_queueReady": "房間排隊就緒",
+                "instance_closed": "房間已關閉",
+                "OnPlayerJoining": "玩家正在加入",
+                "OnPlayerJoined": "玩家已加入",
+                "OnPlayerLeft": "玩家已離開",
+                "AvatarChange": "Avatar 變更",
+                "Online": "上線",
+                "Offline": "離線",
+                "GPS": "位置變更",
+                "Status": "狀態變更",
+                "Friend": "新好友",
+                "Unfriend": "取消好友",
+                "DisplayName": "名稱變更",
+                "TrustLevel": "信任等級變更",
+                "Bio": "簡介變更",
+                "groupChange": "群組變更",
+                "group_announcement": "群組公告",
+                "group_informative": "加入群組已通過",
+                "group_invite": "群組邀請",
+                "group_joinRequest": "群組加入請求",
+                "group_transfer": "群組轉讓請求",
+                "Event": "事件",
+                "External": "外部應用程式",
+                "Blocked": "封鎖",
+                "Unblocked": "取消封鎖",
+                "Muted": "靜音",
+                "Unmuted": "取消靜音",
+                "BlockedOnPlayerJoined": "已封鎖玩家加入",
+                "BlockedOnPlayerLeft": "已封鎖玩家離開",
+                "MutedOnPlayerJoined": "已靜音玩家加入",
+                "MutedOnPlayerLeft": "已靜音玩家離開",
+                "VideoPlay": "影片播放"
+            },
+            "favorite_groups": {
+                "menu_label": "收藏分組",
+                "all_groups": "所有收藏分組",
+                "group_count": "{count} 個分組",
+                "empty": "沒有可用的收藏好友分組。"
+            }
         },
         "previous_instances": {
             "header": "過去的房間",

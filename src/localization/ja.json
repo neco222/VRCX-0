@@ -1886,6 +1886,7 @@
                     "layout_notification_center": "通知センター",
                     "layout_table": "通知タブ",
                     "notification_filter": "通知フィルター",
+                    "wrist_feed_notifications": "手首フィード通知",
                     "test_notification": "テスト通知を送る",
                     "test_message": "これはテスト通知です",
                     "steamvr_notifications": {
@@ -4387,6 +4388,102 @@
             "everyone": "全員",
             "reset": "リセット",
             "close": "閉じる"
+        },
+        "wrist_feed_notifications": {
+            "title": "手首フィード通知",
+            "description": "手首フィードに表示する内容を選択します。デスクトップ通知は別のフィルターを使用します。",
+            "reset_recommended": "推奨にリセット",
+            "scopes": {
+                "off": "オフ",
+                "on": "オン",
+                "friends": "フレンド",
+                "selectedFavorites": "選択したお気に入り",
+                "allFavorites": "すべてのお気に入り",
+                "everyoneInInstance": "現在のインスタンスの全員"
+            },
+            "categories": {
+                "actionRequired": {
+                    "label": "対応が必要",
+                    "description": "VR中に注意が必要なリクエストや返信です。",
+                    "example": "招待、リクエスト"
+                },
+                "currentInstance": {
+                    "label": "現在のインスタンス",
+                    "description": "現在いるインスタンス内で発生したアクティビティです。",
+                    "example": "参加、退出"
+                },
+                "favoriteMovement": {
+                    "label": "お気に入りの動き",
+                    "description": "お気に入りフレンドのオンライン、オフライン、位置、ステータスの変化です。",
+                    "example": "オンライン、位置"
+                },
+                "profileChange": {
+                    "label": "プロフィール変更",
+                    "description": "名前、トラスト、Avatar、Bio、フレンド追加、フレンド解除の変化です。",
+                    "example": "名前、Avatar"
+                },
+                "groupSocial": {
+                    "label": "グループとソーシャル",
+                    "description": "グループ告知、招待、参加リクエスト、所有者変更です。",
+                    "example": "グループ"
+                },
+                "systemSafety": {
+                    "label": "システムと安全",
+                    "description": "システムイベント、外部アプリ項目、ブロック/ミュート関連のアクティビティです。",
+                    "example": "イベント、ブロック"
+                },
+                "media": {
+                    "label": "メディア",
+                    "description": "現在のセッションでの動画再生活動です。",
+                    "example": "動画"
+                }
+            },
+            "types": {
+                "invite": "招待",
+                "requestInvite": "招待リクエスト",
+                "inviteResponse": "招待への返信",
+                "requestInviteResponse": "招待リクエストへの返信",
+                "friendRequest": "フレンドリクエスト",
+                "boop": "Boop",
+                "group_queueReady": "インスタンスキュー準備完了",
+                "instance_closed": "インスタンス終了",
+                "OnPlayerJoining": "プレイヤー参加中",
+                "OnPlayerJoined": "プレイヤー参加",
+                "OnPlayerLeft": "プレイヤー退出",
+                "AvatarChange": "Avatar 変更",
+                "Online": "オンライン",
+                "Offline": "オフライン",
+                "GPS": "位置変更",
+                "Status": "ステータス変更",
+                "Friend": "新しいフレンド",
+                "Unfriend": "フレンド解除",
+                "DisplayName": "表示名変更",
+                "TrustLevel": "トラストレベル変更",
+                "Bio": "Bio 変更",
+                "groupChange": "グループ変更",
+                "group_announcement": "グループ告知",
+                "group_informative": "グループ参加承認",
+                "group_invite": "グループ招待",
+                "group_joinRequest": "グループ参加リクエスト",
+                "group_transfer": "グループ譲渡リクエスト",
+                "Event": "イベント",
+                "External": "外部アプリ",
+                "Blocked": "ブロック",
+                "Unblocked": "ブロック解除",
+                "Muted": "ミュート",
+                "Unmuted": "ミュート解除",
+                "BlockedOnPlayerJoined": "ブロック中プレイヤー参加",
+                "BlockedOnPlayerLeft": "ブロック中プレイヤー退出",
+                "MutedOnPlayerJoined": "ミュート中プレイヤー参加",
+                "MutedOnPlayerLeft": "ミュート中プレイヤー退出",
+                "VideoPlay": "動画再生"
+            },
+            "favorite_groups": {
+                "menu_label": "お気に入りグループ",
+                "all_groups": "すべてのお気に入りグループ",
+                "group_count": "{count} グループ",
+                "empty": "利用できるお気に入りフレンドグループがありません。"
+            }
         },
         "previous_instances": {
             "header": "インスタンス履歴",

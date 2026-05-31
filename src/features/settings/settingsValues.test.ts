@@ -9,8 +9,11 @@ import {
     filterTablePageSizeOptions,
     formatByteSize,
     isValidFontFamilyList,
+    normalizeOverlayActivityFilters,
     normalizeSharedFeedFilters,
     normalizeTablePageSizes,
+    overlayActivityTypeLabelKey,
+    OVERLAY_ACTIVITY_TYPE_DEFINITIONS,
     parseIntegerInput,
     parseWebJson,
     TABLE_PAGE_SIZE_DEFAULTS
@@ -49,6 +52,148 @@ describe('settingsValues', () => {
             displayName: 'Never'
         });
         expect(filters.wrist).toEqual(sharedFeedFiltersDefaults.wrist);
+    });
+
+    it('normalizes wrist activity filters with type-specific scopes', () => {
+        const filters = normalizeOverlayActivityFilters({
+            wrist: {
+                types: {
+                    invite: {
+                        scope: 'selectedFavorites',
+                        favoriteGroupKeys: ['group_2', '', 'group_2']
+                    },
+                    friendRequest: {
+                        scope: 'friends',
+                        favoriteGroupKeys: ['group_3']
+                    },
+                    'group.queueReady': {
+                        scope: 'everyoneInInstance',
+                        favoriteGroupKeys: ['group_4']
+                    },
+                    OnPlayerJoined: {
+                        scope: 'everyoneInInstance',
+                        favoriteGroupKeys: ['group_5']
+                    },
+                    Avatar: {
+                        scope: 'selectedFavorites',
+                        favoriteGroupKeys: ['group_avatar']
+                    },
+                    PortalSpawn: {
+                        scope: 'everyoneInInstance'
+                    },
+                    unknown: {
+                        scope: 'on'
+                    }
+                }
+            }
+        });
+
+        expect(filters).toMatchObject({
+            version: 1,
+            wrist: {
+                types: {
+                    invite: {
+                        scope: 'selectedFavorites',
+                        favoriteGroupKeys: ['group_2']
+                    },
+                    friendRequest: {
+                        scope: 'on',
+                        favoriteGroupKeys: 'all'
+                    },
+                    'group.queueReady': {
+                        scope: 'on',
+                        favoriteGroupKeys: 'all'
+                    },
+                    OnPlayerJoined: {
+                        scope: 'everyoneInInstance',
+                        favoriteGroupKeys: 'all'
+                    },
+                    AvatarChange: {
+                        scope: 'selectedFavorites',
+                        favoriteGroupKeys: ['group_avatar']
+                    }
+                }
+            }
+        });
+        expect(Object.keys(filters.wrist.types)).toHaveLength(
+            OVERLAY_ACTIVITY_TYPE_DEFINITIONS.length
+        );
+        expect(filters.wrist.types.Avatar).toBeUndefined();
+        expect(filters.wrist.types.PortalSpawn).toBeUndefined();
+        expect(filters.wrist.types.unknown).toBeUndefined();
+    });
+
+    it('migrates legacy wrist category rules into per-type rules', () => {
+        const filters = normalizeOverlayActivityFilters({
+            wrist: {
+                favoriteGroupKeys: ['group_1'],
+                categories: {
+                    actionRequired: {
+                        scope: 'direct',
+                        typeOverrides: {
+                            boop: {
+                                scope: 'off'
+                            },
+                            'group.queueReady': {
+                                scope: 'criticalOnly'
+                            }
+                        }
+                    },
+                    currentInstance: {
+                        scope: 'everyone',
+                        favoriteGroupKeys: ['group_2']
+                    },
+                    profileChange: {
+                        scope: 'allFavorites',
+                        typeOverrides: {
+                            Avatar: {
+                                scope: 'selectedFavorites',
+                                favoriteGroupKeys: ['group_3']
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        expect(filters.wrist.types.invite).toEqual({
+            scope: 'on',
+            favoriteGroupKeys: 'all'
+        });
+        expect(filters.wrist.types.boop).toEqual({
+            scope: 'off',
+            favoriteGroupKeys: 'all'
+        });
+        expect(filters.wrist.types['group.queueReady']).toEqual({
+            scope: 'on',
+            favoriteGroupKeys: 'all'
+        });
+        expect(filters.wrist.types.OnPlayerJoined).toEqual({
+            scope: 'everyoneInInstance',
+            favoriteGroupKeys: 'all'
+        });
+        expect(filters.wrist.types.DisplayName).toEqual({
+            scope: 'allFavorites',
+            favoriteGroupKeys: 'all'
+        });
+        expect(filters.wrist.types.AvatarChange).toEqual({
+            scope: 'selectedFavorites',
+            favoriteGroupKeys: ['group_3']
+        });
+        expect(filters.wrist.types.Avatar).toBeUndefined();
+        expect(filters.wrist.types.PortalSpawn).toBeUndefined();
+    });
+
+    it('maps wrist activity raw type keys to locale-safe label keys', () => {
+        expect(overlayActivityTypeLabelKey('group.queueReady')).toBe(
+            'group_queueReady'
+        );
+        expect(overlayActivityTypeLabelKey('instance.closed')).toBe(
+            'instance_closed'
+        );
+        expect(overlayActivityTypeLabelKey('OnPlayerJoined')).toBe(
+            'OnPlayerJoined'
+        );
     });
 
     it('builds the OpenAI models endpoint from chat completion endpoints users enter', () => {

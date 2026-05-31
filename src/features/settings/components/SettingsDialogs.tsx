@@ -4,6 +4,7 @@ import { FeedFilterDialog } from './settings-dialogs/FeedFilterDialog';
 import { PurgeConfirmDialog } from './settings-dialogs/PurgeConfirmDialog';
 import { TableLimitsDialog } from './settings-dialogs/TableLimitsDialog';
 import { TranslationApiDialog } from './settings-dialogs/TranslationApiDialog';
+import { WristFeedNotificationsDialog } from './settings-dialogs/WristFeedNotificationsDialog';
 import { YoutubeApiDialog } from './settings-dialogs/YoutubeApiDialog';
 import { TablePageSizesDialog } from './SettingsViewParts';
 
@@ -15,7 +16,8 @@ export function SettingsDialogs({
     tableLimits,
     avatarProvider,
     purge,
-    feedFilter
+    feedFilter,
+    wristFeedNotifications
 }: any) {
     return (
         <>
@@ -86,6 +88,12 @@ export function SettingsDialogs({
                 filters={feedFilter.filters}
                 onUpdate={feedFilter.onUpdate}
                 onReset={feedFilter.onReset}
+            />
+            <WristFeedNotificationsDialog
+                open={wristFeedNotifications.open}
+                onOpenChange={wristFeedNotifications.setOpen}
+                value={wristFeedNotifications.value}
+                onSave={wristFeedNotifications.onSave}
             />
         </>
     );

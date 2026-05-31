@@ -1,3 +1,7 @@
+import { normalizeLanguageCode } from '@/localization/locales';
+import { tauriClient } from '@/platform/tauri/client';
+import configRepository from '@/repositories/configRepository';
+import storageRepository from '@/repositories/storageRepository';
 import {
     normalizePreferenceKey,
     publishPreferenceChanged
@@ -7,16 +11,14 @@ import {
     normalizeTrustColors,
     TRUST_COLOR_DEFAULTS
 } from '@/shared/utils/trustColors';
-import { normalizeLanguageCode } from '@/localization/locales';
-import { tauriClient } from '@/platform/tauri/client';
-import configRepository from '@/repositories/configRepository';
-import storageRepository from '@/repositories/storageRepository';
 import {
     DEFAULT_PREFERENCES,
     normalizeDefaultLaunchMode,
     normalizeFeedTimeDisplayMode,
+    parseOverlayActivityFilters,
     parseSharedFeedFilters,
     normalizeSharedFeedFilters,
+    normalizeOverlayActivityFilters,
     normalizeTableLimits,
     normalizeTablePageSize,
     normalizeTablePageSizes,
@@ -191,6 +193,7 @@ export async function loadPreferenceSnapshot() {
         searchLimit,
         localFavoriteFriendsGroups,
         sharedFeedFilters,
+        overlayActivityFilters,
         feedTimeDisplayMode,
         youtubeAPI,
         translationAPI,
@@ -285,6 +288,10 @@ export async function loadPreferenceSnapshot() {
         configRepository.getString(
             'sharedFeedFilters',
             JSON.stringify(DEFAULT_PREFERENCES.sharedFeedFilters)
+        ),
+        configRepository.getString(
+            'overlayActivityFilters',
+            JSON.stringify(DEFAULT_PREFERENCES.overlayActivityFilters)
         ),
         configRepository.getString('feedTimeDisplayMode', 'relative'),
         configRepository.getBool('youtubeAPI', false),
@@ -419,8 +426,10 @@ export async function loadPreferenceSnapshot() {
             localFavoriteFriendsGroups
         ),
         sharedFeedFilters: parseSharedFeedFilters(sharedFeedFilters),
-        feedTimeDisplayMode:
-            normalizeFeedTimeDisplayMode(feedTimeDisplayMode),
+        overlayActivityFilters: parseOverlayActivityFilters(
+            overlayActivityFilters
+        ),
+        feedTimeDisplayMode: normalizeFeedTimeDisplayMode(feedTimeDisplayMode),
         youtubeAPI: Boolean(youtubeAPI),
         translationAPI: Boolean(translationAPI),
         bioLanguage: normalizeBioLanguage(bioLanguage),
@@ -853,6 +862,17 @@ export async function setSharedFeedFiltersPreference(value: any) {
     patchPreferences({ sharedFeedFilters });
     publishPreferenceChanged('sharedFeedFilters', sharedFeedFilters);
     return sharedFeedFilters;
+}
+
+export async function setOverlayActivityFiltersPreference(value: any) {
+    const overlayActivityFilters = normalizeOverlayActivityFilters(value);
+    await configRepository.setString(
+        'overlayActivityFilters',
+        JSON.stringify(overlayActivityFilters)
+    );
+    patchPreferences({ overlayActivityFilters });
+    publishPreferenceChanged('overlayActivityFilters', overlayActivityFilters);
+    return overlayActivityFilters;
 }
 
 export async function setLocalFavoriteFriendsGroupsPreference(value: any) {
