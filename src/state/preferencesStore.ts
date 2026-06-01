@@ -35,6 +35,10 @@ export type TableDensityPreference = 'standard' | 'compact';
 export type FeedTimeDisplayModePreference = 'exact' | 'relative';
 export type TranslationApiType = 'google' | 'openai';
 export type DefaultLaunchModePreference = 'vr' | 'desktop';
+export type WristOverlayHandPreference = 'left' | 'right' | 'both';
+export type WristOverlaySizePreference = 'compact' | 'normal' | 'large';
+export type WristOverlayStartModePreference = 'steamvr' | 'vrchatVrMode';
+export type WristOverlayButtonPreference = 'grip' | 'menu';
 export type TrustColorKey = keyof typeof TRUST_COLOR_DEFAULTS;
 export type TrustColorsPreference = Record<TrustColorKey, string>;
 export type DiscordPreferenceKey =
@@ -141,6 +145,30 @@ export function normalizeFeedTimeDisplayMode(
     return value === 'exact' ? 'exact' : 'relative';
 }
 
+export function normalizeWristOverlayHand(
+    value: unknown
+): WristOverlayHandPreference {
+    return value === 'right' || value === 'both' ? value : 'left';
+}
+
+export function normalizeWristOverlaySize(
+    value: unknown
+): WristOverlaySizePreference {
+    return value === 'compact' || value === 'large' ? value : 'normal';
+}
+
+export function normalizeWristOverlayStartMode(
+    value: unknown
+): WristOverlayStartModePreference {
+    return value === 'steamvr' ? 'steamvr' : 'vrchatVrMode';
+}
+
+export function normalizeWristOverlayButton(
+    value: unknown
+): WristOverlayButtonPreference {
+    return value === 'menu' ? 'menu' : 'grip';
+}
+
 export function normalizeTablePageSizes(value: unknown): number[] {
     const source = Array.isArray(value) ? value : DEFAULT_TABLE_PAGE_SIZES;
     const nextSizes = source
@@ -245,6 +273,15 @@ export const DEFAULT_PREFERENCES: PreferenceInputSnapshot = Object.freeze({
     notificationTTS: 'Never',
     notificationTTSNickName: false,
     notificationTTSVoice: '0',
+    wristOverlayEnabled: false,
+    wristOverlayStartMode: 'vrchatVrMode',
+    wristOverlayButton: 'grip',
+    wristOverlayHand: 'left',
+    wristOverlaySize: 'normal',
+    wristOverlayHidePrivateWorlds: false,
+    wristOverlayDarkBackground: true,
+    wristOverlayShowDevices: true,
+    wristOverlayShowBatteryPercent: false,
     relaunchVRChatAfterCrash: false,
     vrcQuitFix: true,
     autoSweepVRChatCache: false,
@@ -296,11 +333,10 @@ export const DEFAULT_PREFERENCES: PreferenceInputSnapshot = Object.freeze({
 export function normalizePreferenceSnapshot(
     snapshot: PreferenceInputSnapshot = {}
 ) {
-    const hasOverlayActivityFiltersInput =
-        Object.prototype.hasOwnProperty.call(
-            snapshot,
-            'overlayActivityFilters'
-        );
+    const hasOverlayActivityFiltersInput = Object.prototype.hasOwnProperty.call(
+        snapshot,
+        'overlayActivityFilters'
+    );
     const next: any = {
         ...DEFAULT_PREFERENCES,
         ...snapshot
@@ -360,6 +396,25 @@ export function normalizePreferenceSnapshot(
         notificationTTS: next.notificationTTS || 'Never',
         notificationTTSNickName: normalizeBool(next.notificationTTSNickName),
         notificationTTSVoice: String(next.notificationTTSVoice ?? '0'),
+        wristOverlayEnabled: normalizeBool(next.wristOverlayEnabled),
+        wristOverlayStartMode: normalizeWristOverlayStartMode(
+            next.wristOverlayStartMode
+        ),
+        wristOverlayButton: normalizeWristOverlayButton(
+            next.wristOverlayButton
+        ),
+        wristOverlayHand: normalizeWristOverlayHand(next.wristOverlayHand),
+        wristOverlaySize: normalizeWristOverlaySize(next.wristOverlaySize),
+        wristOverlayHidePrivateWorlds: normalizeBool(
+            next.wristOverlayHidePrivateWorlds
+        ),
+        wristOverlayDarkBackground: normalizeBool(
+            next.wristOverlayDarkBackground
+        ),
+        wristOverlayShowDevices: normalizeBool(next.wristOverlayShowDevices),
+        wristOverlayShowBatteryPercent: normalizeBool(
+            next.wristOverlayShowBatteryPercent
+        ),
         relaunchVRChatAfterCrash: normalizeBool(next.relaunchVRChatAfterCrash),
         vrcQuitFix: normalizeBool(next.vrcQuitFix),
         autoSweepVRChatCache: normalizeBool(next.autoSweepVRChatCache),

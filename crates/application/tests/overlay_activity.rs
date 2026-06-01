@@ -1,8 +1,37 @@
 use serde_json::json;
 use vrcx_0_application::{
-    OverlayActivityCandidate, OverlayActivityFavoriteGroupKeys, OverlayActivityFilters,
-    OverlayActivityRule, OverlayActivityRuntime, OverlayActivityScope, OverlayFavoriteGroups,
+    overlay_activity_type_definitions, OverlayActivityCandidate, OverlayActivityCategory,
+    OverlayActivityFavoriteGroupKeys, OverlayActivityFilters, OverlayActivityRule,
+    OverlayActivityRuntime, OverlayActivityScope, OverlayFavoriteGroups,
 };
+
+#[test]
+fn activity_type_definitions_are_exported_from_backend() {
+    let definitions = overlay_activity_type_definitions();
+    let invite = definitions
+        .iter()
+        .find(|definition| definition.key == "invite")
+        .expect("invite definition");
+    let queue_ready = definitions
+        .iter()
+        .find(|definition| definition.key == "group.queueReady")
+        .expect("queue ready definition");
+    let avatar_change = definitions
+        .iter()
+        .find(|definition| definition.key == "AvatarChange")
+        .expect("avatar definition");
+
+    assert_eq!(invite.category, OverlayActivityCategory::ActionRequired);
+    assert!(invite.allowed_scopes.contains(&OverlayActivityScope::Friends));
+    assert_eq!(
+        queue_ready.allowed_scopes,
+        [OverlayActivityScope::Off, OverlayActivityScope::On]
+    );
+    assert_eq!(avatar_change.aliases, ["Avatar"]);
+    assert!(definitions
+        .iter()
+        .all(|definition| definition.key != "PortalSpawn"));
+}
 
 #[test]
 fn selected_favorite_groups_are_applied_per_activity_type() {

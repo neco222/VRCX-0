@@ -33,16 +33,21 @@ pub enum OverlayActivityScope {
     EveryoneInInstance,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum OverlayActivityFavoriteGroupKeys {
-    All,
-    Selected(Vec<String>),
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OverlayActivityTypeDefinition {
+    pub key: String,
+    pub category: OverlayActivityCategory,
+    pub allowed_scopes: Vec<OverlayActivityScope>,
+    pub default_scope: OverlayActivityScope,
+    pub aliases: Vec<String>,
 }
 
-impl Default for OverlayActivityFavoriteGroupKeys {
-    fn default() -> Self {
-        Self::All
-    }
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum OverlayActivityFavoriteGroupKeys {
+    #[default]
+    All,
+    Selected(Vec<String>),
 }
 
 impl Serialize for OverlayActivityFavoriteGroupKeys {

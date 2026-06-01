@@ -33,6 +33,24 @@ impl OverlayActivitySink for OverlayActivityRuntimeEventSink {
     }
 }
 
+struct OverlayActivityFanoutSink {
+    sinks: Vec<Arc<dyn OverlayActivitySink>>,
+}
+
+impl OverlayActivityFanoutSink {
+    fn new(sinks: Vec<Arc<dyn OverlayActivitySink>>) -> Self {
+        Self { sinks }
+    }
+}
+
+impl OverlayActivitySink for OverlayActivityFanoutSink {
+    fn emit_overlay_activity_snapshot(&self, snapshot: OverlayActivitySnapshot) {
+        for sink in &self.sinks {
+            sink.emit_overlay_activity_snapshot(snapshot.clone());
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct RuntimeHostContext {
     pub db: Arc<DatabaseService>,
@@ -94,6 +112,16 @@ impl RuntimeHostContext {
 
     pub fn reload_overlay_activity_filters(&self) {
         load_overlay_activity_filters(&self.config, &self.overlay_activity);
+    }
+
+    pub fn set_overlay_activity_extra_sink(&self, extra_sink: Arc<dyn OverlayActivitySink>) {
+        self.overlay_activity
+            .set_sink(OverlayActivityFanoutSink::new(vec![
+                Arc::new(OverlayActivityRuntimeEventSink {
+                    event_bus: self.event_bus.clone(),
+                }),
+                extra_sink,
+            ]));
     }
 
     pub fn game_log_snapshot_handle(&self) -> Arc<Mutex<RuntimeSnapshot>> {

@@ -209,6 +209,7 @@ export function useSettingsPageState() {
         updateSharedFeedFilter,
         resetSharedFeedFilters,
         saveOverlayActivityFilters,
+        saveWristOverlayEnabled,
         refreshRuntimeAppSnapshot,
         searchLimitError,
         tableLimitsSaveDisabled,
@@ -674,7 +675,6 @@ export function useSettingsPageState() {
             setNotificationLayoutPreference,
             setPrefs,
             setFeedFilterDialogOpen,
-            setWristFeedNotificationsDialogOpen,
             saveStringPreference,
             saveBoolPreference,
             saveNotificationTtsMode,
@@ -682,6 +682,13 @@ export function useSettingsPageState() {
             setNotificationTtsTestVisible,
             setNotificationTtsTest,
             speakNotificationTts
+        },
+        vr: {
+            prefs,
+            setWristFeedNotificationsDialogOpen,
+            saveStringPreference,
+            saveBoolPreference,
+            saveWristOverlayEnabled
         },
         advanced: {
             prefs,

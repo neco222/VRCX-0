@@ -4,7 +4,7 @@ use serde_json::{Map, Value};
 
 use super::types::{
     OverlayActivityCategory, OverlayActivityFavoriteGroupKeys, OverlayActivityFilters,
-    OverlayActivityRule, OverlayActivityScope,
+    OverlayActivityRule, OverlayActivityScope, OverlayActivityTypeDefinition,
 };
 
 #[derive(Clone, Copy)]
@@ -328,12 +328,25 @@ pub(super) fn known_definition_for_type(
     activity_type: &str,
 ) -> Option<&'static ActivityTypeDefinition> {
     ACTIVITY_TYPES.iter().find(|definition| {
-        definition.key == activity_type
-            || definition
+        definition.key == activity_type || definition.aliases.contains(&activity_type)
+    })
+}
+
+pub(super) fn activity_type_definitions() -> Vec<OverlayActivityTypeDefinition> {
+    ACTIVITY_TYPES
+        .iter()
+        .map(|definition| OverlayActivityTypeDefinition {
+            key: definition.key.to_string(),
+            category: definition.category,
+            allowed_scopes: definition.allowed_scopes.to_vec(),
+            default_scope: definition.default_scope,
+            aliases: definition
                 .aliases
                 .iter()
-                .any(|alias| *alias == activity_type)
-    })
+                .map(|alias| (*alias).to_string())
+                .collect(),
+        })
+        .collect()
 }
 
 pub(super) fn default_activity_rules() -> BTreeMap<String, OverlayActivityRule> {
