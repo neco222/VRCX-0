@@ -57,14 +57,39 @@ pub async fn app__vrchat_user_get(
     state: State<'_, AppState>,
     input: VrchatUserInput,
 ) -> Result<VrchatApiResponse, AppError> {
+    let endpoint = input.endpoint.clone();
+    let realtime_runtime = state.realtime_runtime.clone();
     let (user_id, request) = user_get_input(input.endpoint, input.user_id)?;
-    execute_user_read_api(
+    let response = execute_user_read_api(
         state,
         "app__vrchat_user_get",
         format!("Getting user {user_id}."),
         request,
     )
-    .await
+    .await?;
+    if (200..300).contains(&response.status) {
+        match serde_json::from_str::<serde_json::Value>(&response.data) {
+            Ok(profile) => {
+                let profile_user_id = profile
+                    .get("id")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("")
+                    .trim()
+                    .to_string();
+                if profile_user_id == user_id {
+                    if let Err(error) =
+                        realtime_runtime.apply_friend_profile_refresh(endpoint, user_id, profile)
+                    {
+                        tracing::warn!("User profile realtime cache merge failed: {error}");
+                    }
+                }
+            }
+            Err(error) => {
+                tracing::warn!("User profile realtime cache json decode failed: {error}");
+            }
+        }
+    }
+    Ok(response)
 }
 
 #[tauri::command]

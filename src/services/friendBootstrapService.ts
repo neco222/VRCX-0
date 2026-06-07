@@ -647,11 +647,13 @@ function buildSeedRosterFriendsById(
 async function seedFriendRosterFromCurrentUserSnapshot({
     normalizedUserId,
     endpoint,
+    websocket,
     currentUserSnapshot,
     detail
 }: {
     normalizedUserId: string;
     endpoint: string;
+    websocket: string;
     currentUserSnapshot: any;
     detail: string;
 }) {
@@ -669,7 +671,7 @@ async function seedFriendRosterFromCurrentUserSnapshot({
         console.warn('Failed to seed friend roster from friend log:', error);
     }
 
-    if (!isCurrentBootstrapTarget(normalizedUserId, endpoint)) {
+    if (!isCurrentBootstrapTarget(normalizedUserId, endpoint, websocket)) {
         return false;
     }
 
@@ -684,12 +686,14 @@ async function seedFriendRosterFromCurrentUserSnapshot({
 async function fetchSupplementalFriendProfile({
     normalizedUserId,
     endpoint,
+    websocket,
     userId,
     stateBucket,
     detail
 }: {
     normalizedUserId: string;
     endpoint: string;
+    websocket: string;
     userId: string;
     stateBucket: string;
     detail: string;
@@ -702,7 +706,7 @@ async function fetchSupplementalFriendProfile({
     if (!isValidUserProfile(profile)) {
         return false;
     }
-    if (!isCurrentBootstrapTarget(normalizedUserId, endpoint)) {
+    if (!isCurrentBootstrapTarget(normalizedUserId, endpoint, websocket)) {
         return false;
     }
 
@@ -731,12 +735,14 @@ async function fetchSupplementalFriendProfile({
 async function runFriendRosterBackgroundSupplements({
     normalizedUserId,
     endpoint,
+    websocket,
     currentUserSnapshot,
     fastFriendsById,
     detail
 }: {
     normalizedUserId: string;
     endpoint: string;
+    websocket: string;
     currentUserSnapshot: any;
     fastFriendsById: Record<string, any>;
     detail: string;
@@ -754,13 +760,14 @@ async function runFriendRosterBackgroundSupplements({
     }
 
     for (const userId of fetchIds) {
-        if (!isCurrentBootstrapTarget(normalizedUserId, endpoint)) {
+        if (!isCurrentBootstrapTarget(normalizedUserId, endpoint, websocket)) {
             return;
         }
         try {
             await fetchSupplementalFriendProfile({
                 normalizedUserId,
                 endpoint,
+                websocket,
                 userId,
                 stateBucket: stateById.get(userId) || 'offline',
                 detail
@@ -789,12 +796,14 @@ async function confirmRemovedFriend({
 async function runFriendLogStartupReconciliation({
     normalizedUserId,
     endpoint,
+    websocket,
     currentUserSnapshot,
     fastFriendsById,
     nowIso = () => new Date().toJSON()
 }: {
     normalizedUserId: string;
     endpoint: string;
+    websocket: string;
     currentUserSnapshot: any;
     fastFriendsById: Record<string, any>;
     nowIso?: () => string;
@@ -811,7 +820,7 @@ async function runFriendLogStartupReconciliation({
         const existingRows = (await friendLogRepository.getFriendLogCurrent(
             normalizedUserId
         )) as Record<string, any>[];
-        if (!isCurrentBootstrapTarget(normalizedUserId, endpoint)) {
+        if (!isCurrentBootstrapTarget(normalizedUserId, endpoint, websocket)) {
             return;
         }
 
@@ -844,7 +853,7 @@ async function runFriendLogStartupReconciliation({
                         friendNumber: index + 1
                     })
                 );
-            if (!isCurrentBootstrapTarget(normalizedUserId, endpoint)) {
+            if (!isCurrentBootstrapTarget(normalizedUserId, endpoint, websocket)) {
                 return;
             }
             await friendLogRepository.replaceFriendLogCurrent(
@@ -860,7 +869,7 @@ async function runFriendLogStartupReconciliation({
                     );
                 }
             }
-            if (!isCurrentBootstrapTarget(normalizedUserId, endpoint)) {
+            if (!isCurrentBootstrapTarget(normalizedUserId, endpoint, websocket)) {
                 return;
             }
             await configRepository.setBool(
@@ -871,7 +880,7 @@ async function runFriendLogStartupReconciliation({
         }
 
         for (const friendId of currentFriendIds) {
-            if (!isCurrentBootstrapTarget(normalizedUserId, endpoint)) {
+            if (!isCurrentBootstrapTarget(normalizedUserId, endpoint, websocket)) {
                 return;
             }
             if (friendId === normalizedUserId || existingRowsById.has(friendId)) {
@@ -903,7 +912,7 @@ async function runFriendLogStartupReconciliation({
 
         if (initialized) {
             for (const row of existingRows) {
-                if (!isCurrentBootstrapTarget(normalizedUserId, endpoint)) {
+                if (!isCurrentBootstrapTarget(normalizedUserId, endpoint, websocket)) {
                     return;
                 }
                 const friendId = normalizeUserId(row?.userId);
@@ -925,7 +934,7 @@ async function runFriendLogStartupReconciliation({
                 }
                 if (
                     !confirmedRemoved ||
-                    !isCurrentBootstrapTarget(normalizedUserId, endpoint)
+                    !isCurrentBootstrapTarget(normalizedUserId, endpoint, websocket)
                 ) {
                     continue;
                 }
@@ -941,7 +950,7 @@ async function runFriendLogStartupReconciliation({
             }
         }
 
-        if (!isCurrentBootstrapTarget(normalizedUserId, endpoint)) {
+        if (!isCurrentBootstrapTarget(normalizedUserId, endpoint, websocket)) {
             return;
         }
         await configRepository.setBool(
@@ -954,12 +963,14 @@ async function runFriendLogStartupReconciliation({
 function startFriendRosterBackgroundTasks({
     normalizedUserId,
     endpoint,
+    websocket,
     currentUserSnapshot,
     fastFriendsById,
     detail
 }: {
     normalizedUserId: string;
     endpoint: string;
+    websocket: string;
     currentUserSnapshot: any;
     fastFriendsById: Record<string, any>;
     detail: string;
@@ -967,6 +978,7 @@ function startFriendRosterBackgroundTasks({
     void runFriendRosterBackgroundSupplements({
         normalizedUserId,
         endpoint,
+        websocket,
         currentUserSnapshot,
         fastFriendsById,
         detail
@@ -976,6 +988,7 @@ function startFriendRosterBackgroundTasks({
     void runFriendLogStartupReconciliation({
         normalizedUserId,
         endpoint,
+        websocket,
         currentUserSnapshot,
         fastFriendsById
     }).catch((error) => {
@@ -983,17 +996,32 @@ function startFriendRosterBackgroundTasks({
     });
 }
 
-function bootstrapTargetKey(userId: any, endpoint: any = '') {
-    return `${normalizeUserId(userId)}\u0000${String(endpoint || '')}`;
+function bootstrapTargetKey(
+    userId: any,
+    endpoint: any = '',
+    websocket: any = ''
+) {
+    const normalizedUserId = normalizeUserId(userId);
+    const normalizedEndpoint = String(endpoint || '');
+    const normalizedWebsocket = String(websocket || '');
+    return `${normalizedUserId}\u0000${normalizedEndpoint}\u0000${normalizedWebsocket}`;
 }
 
-function isCurrentBootstrapTarget(userId: any, endpoint: any = '') {
+function isCurrentBootstrapTarget(
+    userId: any,
+    endpoint: any = '',
+    websocket: any = null
+) {
     const runtimeState = useRuntimeStore.getState();
     const sessionState = useSessionStore.getState();
+    const expectedWebsocket =
+        websocket === null ? null : String(websocket || '');
 
     return (
         runtimeState.auth.currentUserId === userId &&
         runtimeState.auth.currentUserEndpoint === String(endpoint || '') &&
+        (expectedWebsocket === null ||
+            runtimeState.auth.currentUserWebsocket === expectedWebsocket) &&
         sessionState.isLoggedIn &&
         sessionState.sessionPhase === 'ready'
     );
@@ -1002,6 +1030,7 @@ function isCurrentBootstrapTarget(userId: any, endpoint: any = '') {
 async function runFriendBootstrap({
     userId,
     endpoint = '',
+    websocket = null,
     currentUserSnapshot,
     preserveLoadedState = false
 }: any) {
@@ -1009,6 +1038,9 @@ async function runFriendBootstrap({
     if (!normalizedUserId) {
         throw new Error('Friend bootstrap requires an authenticated user id.');
     }
+    const realtimeWebsocket = String(
+        websocket ?? useRuntimeStore.getState().auth.currentUserWebsocket ?? ''
+    );
 
     const displayName = getDisplayName(currentUserSnapshot) || normalizedUserId;
 
@@ -1030,6 +1062,7 @@ async function runFriendBootstrap({
         await seedFriendRosterFromCurrentUserSnapshot({
             normalizedUserId,
             endpoint,
+            websocket: realtimeWebsocket,
             currentUserSnapshot,
             detail: `Loading the full friend roster baseline for ${displayName}.`
         });
@@ -1039,6 +1072,7 @@ async function runFriendBootstrap({
         .SocialFriendRosterBaselineGet({
             userId: normalizedUserId,
             endpoint,
+            websocket: realtimeWebsocket,
             currentUserSnapshot
         })
         .catch((error: any) => {
@@ -1055,7 +1089,7 @@ async function runFriendBootstrap({
     const detail = String(result.detail || snapshot?.detail || '');
 
     if (result.stale || !snapshot) {
-        if (isCurrentBootstrapTarget(normalizedUserId, endpoint)) {
+        if (isCurrentBootstrapTarget(normalizedUserId, endpoint, realtimeWebsocket)) {
             throw new Error(
                 `Friend roster baseline was stale for ${normalizedUserId}.`
             );
@@ -1069,7 +1103,7 @@ async function runFriendBootstrap({
         };
     }
 
-    if (!isCurrentBootstrapTarget(normalizedUserId, endpoint)) {
+    if (!isCurrentBootstrapTarget(normalizedUserId, endpoint, realtimeWebsocket)) {
         return {
             userId: normalizedUserId,
             count: result.count ?? 0,
@@ -1096,6 +1130,7 @@ async function runFriendBootstrap({
     startFriendRosterBackgroundTasks({
         normalizedUserId,
         endpoint,
+        websocket: realtimeWebsocket,
         currentUserSnapshot,
         fastFriendsById: snapshot.friendsById || {},
         detail
@@ -1125,14 +1160,25 @@ export function bootstrapFriendRoster(options: any) {
         );
     }
 
-    const activeKey = bootstrapTargetKey(normalizedUserId, options?.endpoint);
+    const activeKey = bootstrapTargetKey(
+        normalizedUserId,
+        options?.endpoint,
+        options?.websocket ?? useRuntimeStore.getState().auth.currentUserWebsocket
+    );
     if (activeBootstraps.has(activeKey)) {
         return activeBootstraps.get(activeKey);
     }
 
     const promise = runFriendBootstrap(options)
         .catch((error: any) => {
-            if (isCurrentBootstrapTarget(normalizedUserId, options?.endpoint)) {
+            if (
+                isCurrentBootstrapTarget(
+                    normalizedUserId,
+                    options?.endpoint,
+                    options?.websocket ??
+                        useRuntimeStore.getState().auth.currentUserWebsocket
+                )
+            ) {
                 useFriendRosterStore
                     .getState()
                     .setRosterError(

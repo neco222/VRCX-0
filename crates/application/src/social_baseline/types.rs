@@ -31,6 +31,8 @@ pub struct SocialFriendRosterBaselineInput {
     #[serde(default)]
     pub endpoint: String,
     #[serde(default)]
+    pub websocket: String,
+    #[serde(default)]
     pub current_user_snapshot: RawJson,
 }
 

@@ -57,14 +57,14 @@ function applyLocalFriendDelete(userId: string): void {
     useShellStore.getState().notifyMenu('friend-log');
 }
 
-async function syncRealtimeFriendSnapshotAfterLocalMutation() {
+async function refreshRustFriendSnapshotAfterLocalMutation() {
     try {
-        const { syncRuntimeRealtimeFriendSnapshot } = await import(
-            './realtimeTransportService'
+        const { refreshFriendAndFavoriteSnapshots } = await import(
+            './backgroundMaintenanceService'
         );
-        await syncRuntimeRealtimeFriendSnapshot();
+        await refreshFriendAndFavoriteSnapshots({ syncRealtime: false });
     } catch (error) {
-        console.warn('Realtime friend snapshot sync failed:', error);
+        console.warn('Realtime friend snapshot refresh failed:', error);
     }
 }
 
@@ -99,7 +99,7 @@ async function deleteFriend({
         targetUserId: normalizedUserId
     });
     applyLocalFriendDelete(normalizedUserId);
-    await syncRealtimeFriendSnapshotAfterLocalMutation();
+    await refreshRustFriendSnapshotAfterLocalMutation();
 
     return {
         stale: false,

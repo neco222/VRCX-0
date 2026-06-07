@@ -27,6 +27,7 @@ pub(super) struct RealtimeFriendState {
     pub(super) baseline: Option<RealtimeFriendSnapshot>,
     pub(super) pending_offline: HashMap<String, PendingOffline>,
     pub(super) recent_gps: HashMap<String, RecentGps>,
+    pub(super) friend_presence_updated_ms: HashMap<String, i64>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -45,6 +46,21 @@ impl RealtimeFriendsRuntime {
         realtime_generation: u64,
         baseline_revision: u64,
     ) -> FriendBaselineResult {
+        self.set_baseline_with_started_at(
+            baseline,
+            realtime_generation,
+            baseline_revision,
+            Utc::now().timestamp_millis(),
+        )
+    }
+
+    pub fn set_baseline_with_started_at(
+        &self,
+        baseline: FriendRosterBaseline,
+        realtime_generation: u64,
+        baseline_revision: u64,
+        baseline_started_ms: i64,
+    ) -> FriendBaselineResult {
         let mut baseline = baseline.normalized();
         let mut state = self.lock_state();
         let generation = realtime_generation;
@@ -54,6 +70,20 @@ impl RealtimeFriendsRuntime {
             .is_some_and(|snapshot| snapshot.generation == generation);
         state.generation = state.generation.max(generation);
         if same_generation {
+            if let Some(existing_snapshot) = state.baseline.as_ref() {
+                for (user_id, record) in baseline.friends_by_id.iter_mut() {
+                    let Some(updated_ms) = state.friend_presence_updated_ms.get(user_id) else {
+                        continue;
+                    };
+                    if *updated_ms <= baseline_started_ms {
+                        continue;
+                    }
+                    let Some(existing_record) = existing_snapshot.friends_by_id.get(user_id) else {
+                        continue;
+                    };
+                    preserve_newer_presence_fields(record, existing_record);
+                }
+            }
             state.pending_offline.retain(|user_id, _pending| {
                 let Some(record) = baseline.friends_by_id.get_mut(user_id) else {
                     return false;
@@ -69,9 +99,13 @@ impl RealtimeFriendsRuntime {
             state
                 .recent_gps
                 .retain(|user_id, _recent| baseline.friends_by_id.contains_key(user_id));
+            state
+                .friend_presence_updated_ms
+                .retain(|user_id, _updated_ms| baseline.friends_by_id.contains_key(user_id));
         } else {
             state.pending_offline.clear();
             state.recent_gps.clear();
+            state.friend_presence_updated_ms.clear();
         }
         let friend_count = baseline.friends_by_id.len();
         state.baseline = Some(RealtimeFriendSnapshot {
@@ -97,6 +131,7 @@ impl RealtimeFriendsRuntime {
         state.baseline = None;
         state.pending_offline.clear();
         state.recent_gps.clear();
+        state.friend_presence_updated_ms.clear();
         state.generation
     }
 
@@ -114,12 +149,25 @@ impl RealtimeFriendsRuntime {
             state.baseline = None;
             state.pending_offline.clear();
             state.recent_gps.clear();
+            state.friend_presence_updated_ms.clear();
         }
         should_clear
     }
 
     pub fn snapshot(&self) -> Option<RealtimeFriendSnapshot> {
         self.lock_state().baseline.clone()
+    }
+
+    pub fn has_friend(&self, generation: u64, user_id: &str) -> bool {
+        let normalized_user_id = user_id.trim();
+        if normalized_user_id.is_empty() {
+            return false;
+        }
+        self.lock_state()
+            .baseline
+            .as_ref()
+            .filter(|baseline| baseline.generation == generation)
+            .is_some_and(|baseline| baseline.friends_by_id.contains_key(normalized_user_id))
     }
 
     pub fn apply_ws_message(
@@ -160,6 +208,9 @@ impl RealtimeFriendsRuntime {
         }
         let normalized_user_id = user_id.trim();
         if normalized_user_id.is_empty() {
+            return RealtimeFriendApplyResult::Ignored;
+        }
+        if !baseline.friends_by_id.contains_key(normalized_user_id) {
             return RealtimeFriendApplyResult::Ignored;
         }
         let content = json!({
@@ -231,5 +282,39 @@ impl RealtimeFriendsRuntime {
 
     fn lock_state(&self) -> std::sync::MutexGuard<'_, RealtimeFriendState> {
         self.state.lock().unwrap_or_else(|error| error.into_inner())
+    }
+}
+
+fn preserve_newer_presence_fields(incoming: &mut FriendRecord, existing: &FriendRecord) {
+    incoming.state = existing.state.clone();
+    incoming.state_bucket = existing.state_bucket.clone();
+    incoming.location = existing.location.clone();
+    incoming.traveling_to_location = existing.traveling_to_location.clone();
+    incoming.world_id = existing.world_id.clone();
+    incoming.platform = existing.platform.clone();
+    incoming.last_platform = existing.last_platform.clone();
+    incoming.status = existing.status.clone();
+    incoming.status_description = existing.status_description.clone();
+
+    for key in [
+        "pendingOffline",
+        "$location",
+        "$location_at",
+        "locationUpdatedAt",
+        "instanceId",
+        "travelingToWorld",
+        "travelingToInstance",
+        "$travelingToLocation",
+        "$travelingToTime",
+        "travelingToLocation",
+    ] {
+        match existing.extra.get(key) {
+            Some(value) => {
+                incoming.extra.insert(key.to_string(), value.clone());
+            }
+            None => {
+                incoming.extra.remove(key);
+            }
+        }
     }
 }

@@ -1,7 +1,7 @@
 use super::message_dispatch::json_string_field;
 use super::types::{
-    ActiveRealtimeContext, RealtimeHostRuntimeMessageSink, RealtimeHostRuntimeState,
-    MAX_QUEUED_FRIEND_MESSAGES,
+    ActiveRealtimeContext, PendingFriendBaseline, RealtimeHostRuntimeMessageSink,
+    RealtimeHostRuntimeState, MAX_QUEUED_FRIEND_MESSAGES,
 };
 use super::*;
 
@@ -34,7 +34,8 @@ impl RealtimeHostRuntime {
                 "Runtime realtime transport requires an authenticated user.".into(),
             ));
         }
-        let friend_user_ids = friends_by_id.keys().cloned().collect::<Vec<_>>();
+        let mut friends_by_id = friends_by_id;
+        let mut baseline_started_ms = chrono::Utc::now().timestamp_millis();
         let generation = {
             let mut state = self
                 .state
@@ -62,12 +63,19 @@ impl RealtimeHostRuntime {
                 client_run_id,
                 session_generation,
             });
+            if let Some(pending) = state.pending_friend_baseline.take() {
+                if pending.session == session {
+                    baseline_started_ms = pending.baseline_started_ms;
+                    friends_by_id = pending.friends_by_id;
+                }
+            }
             state.friend_messages_paused = false;
             state.queued_friend_messages.clear();
             state.friend_profile_refetches.clear();
             self.friends.clear();
             self.current_user.clear();
-            self.friends.set_baseline(
+            let friend_user_ids = friends_by_id.keys().cloned().collect::<Vec<_>>();
+            self.friends.set_baseline_with_started_at(
                 FriendRosterBaseline {
                     current_user_id: session.user_id.clone(),
                     endpoint: session.endpoint.clone(),
@@ -76,6 +84,7 @@ impl RealtimeHostRuntime {
                 },
                 generation,
                 0,
+                baseline_started_ms,
             );
             self.deps
                 .overlay_activity
@@ -143,22 +152,55 @@ impl RealtimeHostRuntime {
         generation: Option<u64>,
         friends_by_id: HashMap<String, FriendRecord>,
     ) -> Result<FriendBaselineResult> {
+        self.sync_friend_snapshot_with_started_at(
+            user_id,
+            endpoint,
+            websocket,
+            generation,
+            0,
+            friends_by_id,
+        )
+    }
+
+    pub fn sync_friend_snapshot_with_started_at(
+        self: &Arc<Self>,
+        user_id: String,
+        endpoint: String,
+        websocket: String,
+        generation: Option<u64>,
+        baseline_started_ms: i64,
+        friends_by_id: HashMap<String, FriendRecord>,
+    ) -> Result<FriendBaselineResult> {
         let requested_session = RealtimeSessionContext::new(user_id, endpoint, websocket);
         let friend_count = friends_by_id.len();
         let friend_user_ids = friends_by_id.keys().cloned().collect::<Vec<_>>();
         let (result, active) = {
-            let state = self
+            let mut state = self
                 .state
                 .lock()
                 .map_err(|error| Error::Custom(format!("realtime state lock: {error}")))?;
             let Some(active) = state.active_context.clone() else {
+                state.pending_friend_baseline = Some(PendingFriendBaseline {
+                    session: requested_session,
+                    baseline_started_ms,
+                    friends_by_id,
+                });
+                drop(state);
                 self.deps.sync.record(
                     "realtimeFriends",
-                    "ignored",
-                    "Friend baseline ignored because realtime has no active context.",
+                    "pending",
+                    "Friend baseline cached until realtime transport starts.",
                     friend_count as u64,
                 );
-                return Ok(FriendBaselineResult::default());
+                self.deps
+                    .overlay_activity
+                    .set_friend_user_ids(friend_user_ids);
+                return Ok(FriendBaselineResult {
+                    accepted: true,
+                    generation: 0,
+                    baseline_revision: 0,
+                    friend_count,
+                });
             };
             if active.session != requested_session
                 || generation
@@ -193,7 +235,7 @@ impl RealtimeHostRuntime {
                 .filter(|snapshot| snapshot.generation == active.generation)
                 .map(|snapshot| snapshot.baseline_revision.saturating_add(1))
                 .unwrap_or(0);
-            let result = self.friends.set_baseline(
+            let result = self.friends.set_baseline_with_started_at(
                 FriendRosterBaseline {
                     current_user_id: active.session.user_id.clone(),
                     endpoint: active.session.endpoint.clone(),
@@ -202,6 +244,7 @@ impl RealtimeHostRuntime {
                 },
                 active.generation,
                 baseline_revision,
+                baseline_started_ms,
             );
             (result, active)
         };
@@ -223,6 +266,63 @@ impl RealtimeHostRuntime {
         );
 
         Ok(result)
+    }
+
+    pub fn apply_friend_profile_refresh(
+        self: &Arc<Self>,
+        endpoint: String,
+        user_id: String,
+        profile: serde_json::Value,
+    ) -> Result<bool> {
+        let normalized_user_id = user_id.trim().to_string();
+        if normalized_user_id.is_empty() {
+            return Ok(false);
+        }
+        let profile_user_id = json_string_field(profile.get("id"));
+        if profile_user_id != normalized_user_id {
+            return Ok(false);
+        }
+        let requested_endpoint = endpoint.trim().to_string();
+        let active = {
+            let state = self
+                .state
+                .lock()
+                .map_err(|error| Error::Custom(format!("realtime state lock: {error}")))?;
+            let Some(active) = state.active_context.clone() else {
+                return Ok(false);
+            };
+            if active.session.endpoint != requested_endpoint
+                || !self.is_message_current_locked(
+                    &state,
+                    active.generation,
+                    active.session_generation,
+                    &active.session,
+                )
+            {
+                return Ok(false);
+            }
+            active
+        };
+        if !self
+            .friends
+            .has_friend(active.generation, &normalized_user_id)
+        {
+            return Ok(false);
+        }
+        match self.friends.apply_refetched_user_profile(
+            active.generation,
+            &normalized_user_id,
+            profile,
+            &chrono::Utc::now().to_rfc3339(),
+        ) {
+            RealtimeFriendApplyResult::Output(output) => {
+                self.apply_friend_output(*output);
+                Ok(true)
+            }
+            RealtimeFriendApplyResult::MissingBaseline | RealtimeFriendApplyResult::Ignored => {
+                Ok(false)
+            }
+        }
     }
 
     pub fn sync_current_user_snapshot(
@@ -346,6 +446,7 @@ impl RealtimeHostRuntime {
                 .apply_game_running_state(active.generation, false);
             state.generation = state.generation.saturating_add(1);
             state.active_context = None;
+            state.pending_friend_baseline = None;
             state.friend_messages_paused = false;
             state.queued_friend_messages.clear();
             state.friend_profile_refetches.clear();
@@ -1124,6 +1225,55 @@ mod tests {
         }
     }
 
+    fn runtime_with_active_session(
+        name: &str,
+    ) -> Result<(TestDir, Arc<RealtimeHostRuntime>, RealtimeSessionContext)> {
+        let dir = TestDir::new(name);
+        let db = Arc::new(DatabaseService::new(&dir.path.join("VRCX-0.sqlite3"))?);
+        let storage = StorageService::new(&dir.path.join("storage.json"))?;
+        let web = Arc::new(WebClient::new(
+            &storage,
+            db.as_ref(),
+            "wss://pipeline.vrchat.cloud".to_string(),
+        )?);
+        let session = HostSessionRuntime::new();
+        let host_session_generation =
+            session.set_realtime_context(crate::session::RealtimeSessionContext::new(
+                "usr_self".into(),
+                "https://api.vrchat.cloud/api/1".into(),
+                "wss://pipeline.vrchat.cloud".into(),
+            ));
+        let runtime = Arc::new(RealtimeHostRuntime::new(RealtimeHostRuntimeDeps {
+            db,
+            web,
+            event_bus: RuntimeEventBus::new(),
+            sync: RuntimeSyncEngine::new(),
+            tasks: TaskSupervisor::new(),
+            session,
+            game_log_snapshot: Arc::new(Mutex::new(RuntimeSnapshot::default())),
+            overlay_activity: OverlayActivityRuntime::default(),
+        }));
+        let active_session = RealtimeSessionContext::new(
+            "usr_self".into(),
+            "https://api.vrchat.cloud/api/1".into(),
+            "wss://pipeline.vrchat.cloud".into(),
+        );
+        {
+            let mut state = runtime.state.lock().unwrap();
+            *state = RealtimeHostRuntimeState {
+                generation: 7,
+                active_context: Some(ActiveRealtimeContext {
+                    session: active_session.clone(),
+                    generation: 7,
+                    client_run_id: 1,
+                    session_generation: host_session_generation,
+                }),
+                ..RealtimeHostRuntimeState::default()
+            };
+        }
+        Ok((dir, runtime, active_session))
+    }
+
     #[test]
     fn sync_friend_snapshot_updates_overlay_friend_scope() -> Result<()> {
         let dir = TestDir::new("overlay-friend-scope");
@@ -1205,6 +1355,97 @@ mod tests {
         assert!(overlay_activity
             .ingest_candidate(invite_candidate("usr_new"))
             .is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn apply_friend_profile_refresh_updates_existing_friend_only() -> Result<()> {
+        let (_dir, runtime, active_session) = runtime_with_active_session("profile-refresh")?;
+        let mut friends_by_id = HashMap::new();
+        friends_by_id.insert(
+            "usr_friend".to_string(),
+            FriendRecord {
+                id: "usr_friend".to_string(),
+                display_name: "Friend".to_string(),
+                state: "online".to_string(),
+                state_bucket: "online".to_string(),
+                location: "wrld_old:123".to_string(),
+                ..FriendRecord::default()
+            },
+        );
+        runtime.sync_friend_snapshot(
+            active_session.user_id.clone(),
+            active_session.endpoint.clone(),
+            active_session.websocket.clone(),
+            Some(7),
+            friends_by_id,
+        )?;
+
+        let updated = runtime.apply_friend_profile_refresh(
+            active_session.endpoint.clone(),
+            "usr_friend".into(),
+            json!({
+                "id": "usr_friend",
+                "displayName": "Fresh Friend",
+                "state": "online",
+                "location": "wrld_fresh:456"
+            }),
+        )?;
+        let stranger_added = runtime.apply_friend_profile_refresh(
+            active_session.endpoint.clone(),
+            "usr_stranger".into(),
+            json!({
+                "id": "usr_stranger",
+                "displayName": "Stranger",
+                "state": "online"
+            }),
+        )?;
+
+        let snapshot = runtime.friend_snapshot().unwrap();
+        let friend = snapshot.friends_by_id.get("usr_friend").unwrap();
+        assert!(updated);
+        assert!(!stranger_added);
+        assert_eq!(friend.display_name, "Fresh Friend");
+        assert_eq!(friend.location, "wrld_fresh:456");
+        assert!(snapshot.friends_by_id.get("usr_stranger").is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn sync_friend_snapshot_caches_pre_active_baseline() -> Result<()> {
+        let (_dir, runtime, active_session) = runtime_with_active_session("pre-active-baseline")?;
+        {
+            let mut state = runtime.state.lock().unwrap();
+            state.active_context = None;
+        }
+        let mut friends_by_id = HashMap::new();
+        friends_by_id.insert(
+            "usr_cached".to_string(),
+            FriendRecord {
+                id: "usr_cached".to_string(),
+                display_name: "Cached Friend".to_string(),
+                state: "online".to_string(),
+                state_bucket: "online".to_string(),
+                ..FriendRecord::default()
+            },
+        );
+
+        let result = runtime.sync_friend_snapshot_with_started_at(
+            active_session.user_id.clone(),
+            active_session.endpoint.clone(),
+            active_session.websocket.clone(),
+            None,
+            123,
+            friends_by_id,
+        )?;
+
+        let state = runtime.state.lock().unwrap();
+        let pending = state.pending_friend_baseline.as_ref().unwrap();
+        assert!(result.accepted);
+        assert_eq!(result.friend_count, 1);
+        assert_eq!(pending.session, active_session);
+        assert_eq!(pending.baseline_started_ms, 123);
+        assert!(pending.friends_by_id.contains_key("usr_cached"));
         Ok(())
     }
 

@@ -77,6 +77,7 @@ describe('friendBootstrapService snapshot state sync', () => {
         useRuntimeStore.getState().setAuthBootstrap({
             currentUserId: 'usr_self',
             currentUserEndpoint: 'https://api.example.test',
+            currentUserWebsocket: 'wss://ws.example.test',
             currentUserSnapshot: {
                 id: 'usr_self'
             }
@@ -258,6 +259,15 @@ describe('friendBootstrapService snapshot state sync', () => {
                 expect(
                     serviceMocks.socialFriendRosterBaselineGet
                 ).toHaveBeenCalled();
+                expect(
+                    serviceMocks.socialFriendRosterBaselineGet
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        userId: 'usr_self',
+                        endpoint: 'https://api.example.test',
+                        websocket: 'wss://ws.example.test'
+                    })
+                );
                 expect(
                     useFriendRosterStore.getState().orderedFriendIds
                 ).toEqual(['usr_online', 'usr_active', 'usr_offline']);

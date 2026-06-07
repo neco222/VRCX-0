@@ -10,10 +10,18 @@ pub(super) struct ActiveRealtimeContext {
     pub(super) session_generation: u64,
 }
 
+#[derive(Clone, Debug)]
+pub(super) struct PendingFriendBaseline {
+    pub(super) session: RealtimeSessionContext,
+    pub(super) baseline_started_ms: i64,
+    pub(super) friends_by_id: HashMap<String, FriendRecord>,
+}
+
 #[derive(Default)]
 pub(super) struct RealtimeHostRuntimeState {
     pub(super) generation: u64,
     pub(super) active_context: Option<ActiveRealtimeContext>,
+    pub(super) pending_friend_baseline: Option<PendingFriendBaseline>,
     pub(super) friend_messages_paused: bool,
     pub(super) queued_friend_messages: Vec<RealtimeWsMessagePayload>,
     pub(super) friend_profile_refetches: HashMap<String, i64>,

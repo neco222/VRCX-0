@@ -387,6 +387,7 @@ async function refreshFriendsAndFavorites() {
         bootstrapFriendRoster({
             userId: auth.currentUserId,
             endpoint: auth.currentUserEndpoint,
+            websocket: auth.currentUserWebsocket,
             currentUserSnapshot: auth.currentUserSnapshot,
             preserveLoadedState: true
         }),
@@ -404,31 +405,18 @@ async function refreshFriendsAndFavorites() {
     }
 }
 
-export async function refreshFriendAndFavoriteSnapshots({
-    syncRealtime = true
-}: { syncRealtime?: boolean } = {}) {
+export async function refreshFriendAndFavoriteSnapshots(
+    _options: { syncRealtime?: boolean } = {}
+) {
+    void _options;
     let refreshError: unknown = null;
-    let syncError: unknown = null;
     try {
         await refreshFriendsAndFavorites();
     } catch (error) {
         refreshError = error;
-    } finally {
-        if (syncRealtime) {
-            try {
-                const { syncRuntimeRealtimeFriendSnapshot } =
-                    await import('./realtimeTransportService');
-                await syncRuntimeRealtimeFriendSnapshot();
-            } catch (error) {
-                syncError = error;
-            }
-        }
     }
     if (refreshError) {
         throw refreshError;
-    }
-    if (syncError) {
-        throw syncError;
     }
 }
 

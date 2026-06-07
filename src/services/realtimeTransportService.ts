@@ -213,23 +213,13 @@ function stopRuntimeRealtimeTransport() {
 }
 
 function refreshBaselineAfterReconnect() {
-    let refreshError: unknown = null;
     refreshFriendAndFavoriteSnapshots({ syncRealtime: false })
         .catch((error: any) => {
-            refreshError = error;
-        })
-        .finally(() =>
-            syncRuntimeRealtimeFriendSnapshot({ requireFriendsLoaded: false })
-        )
-        .catch((error: any) => {
-            const reportError = refreshError || error;
             useNotificationStore.getState().pushNotification({
                 level: 'warning',
                 title: 'Realtime baseline refresh failed',
                 message:
-                    reportError instanceof Error
-                        ? reportError.message
-                        : String(reportError)
+                    error instanceof Error ? error.message : String(error)
             });
         });
 }

@@ -1124,6 +1124,7 @@ impl RuntimeHostState {
             SocialFriendRosterBaselineInput {
                 user_id: session.user_id.clone(),
                 endpoint: session.endpoint.clone(),
+                websocket: session.websocket.clone(),
                 current_user_snapshot: RawJson::from(session.current_user.clone()),
             },
         )
@@ -2435,11 +2436,13 @@ async fn run_background_social_baseline_refresh(
         auth_scope: context.runtime_context.auth_scope.clone(),
         session: context.runtime_context.session.clone(),
     };
+    let friend_baseline_started_ms = chrono::Utc::now().timestamp_millis();
     let friend_output = build_friend_roster_baseline(
         deps.clone(),
         SocialFriendRosterBaselineInput {
             user_id: session.current_user_id.clone(),
             endpoint: session.endpoint.clone(),
+            websocket: session.websocket.clone(),
             current_user_snapshot: RawJson::from(session.current_user_snapshot.clone()),
         },
     )
@@ -2460,13 +2463,16 @@ async fn run_background_social_baseline_refresh(
                         .runtime_context
                         .overlay_activity
                         .set_friend_user_ids(friends_by_id.keys().cloned());
-                    let _ = context.realtime_runtime.sync_friend_snapshot(
-                        session.current_user_id.clone(),
-                        session.endpoint.clone(),
-                        session.websocket.clone(),
-                        None,
-                        friends_by_id,
-                    );
+                    let _ = context
+                        .realtime_runtime
+                        .sync_friend_snapshot_with_started_at(
+                            session.current_user_id.clone(),
+                            session.endpoint.clone(),
+                            session.websocket.clone(),
+                            None,
+                            friend_baseline_started_ms,
+                            friends_by_id,
+                        );
                     if let Ok(favorites_output) = build_favorites_baseline(
                         deps,
                         SocialFavoritesBaselineInput {

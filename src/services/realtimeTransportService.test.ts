@@ -399,7 +399,7 @@ describe('realtime transport runtime routing', () => {
         ).toHaveBeenCalledTimes(1);
     });
 
-    it('syncs the Rust friend snapshot after a reconnect refresh failure without dropping drained projections', async () => {
+    it('refreshes the Rust-owned baseline after reconnect without frontend snapshot sync or dropping drained projections', async () => {
         await prepareReadySession();
         backgroundState.refreshFriendAndFavoriteSnapshots.mockImplementationOnce(
             async () => {
@@ -436,15 +436,7 @@ describe('realtime transport runtime routing', () => {
             ).toHaveBeenCalledTimes(1);
             expect(
                 runtimeState.app.SyncRealtimeFriendSnapshot
-            ).toHaveBeenCalledWith(
-                'usr_1',
-                '',
-                '',
-                1,
-                expect.objectContaining({
-                    usr_2: expect.objectContaining({ id: 'usr_2' })
-                })
-            );
+            ).not.toHaveBeenCalled();
         });
         emitTauriEvent('realtimeFriendProjection', {
             generation: 1,
