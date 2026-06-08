@@ -26,6 +26,7 @@ export const ConfigKeys = {
     id: { type: 'string', default: '' },
     branch: { type: 'string', default: '' },
     telemetryInstallId: { type: 'string', default: null },
+    telemetryBasicInfoReportedVersion: { type: 'string', default: '' },
     lastUserLoggedIn: { type: 'string', default: null },
     savedCredentials: { type: 'string', default: '{}' },
 
@@ -100,6 +101,7 @@ export const ConfigKeys = {
     gameLogDisabled: { type: 'bool', default: false },
     avatarAutoCleanup: { type: 'string', default: 'Off' },
     defaultLaunchMode: { type: 'string', default: 'vr' },
+    anonymousUsageTelemetry: { type: 'bool', default: true },
     userGeneratedContentPath: { type: 'string', default: '' },
     logResourceLoad: { type: 'bool', default: false },
     udonExceptionLogging: { type: 'bool', default: false },

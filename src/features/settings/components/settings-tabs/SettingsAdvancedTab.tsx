@@ -59,7 +59,8 @@ export function SettingsAdvancedTab({ advanced }: any) {
         onOpenAppDataDirSelector,
         onResetAppDataDir,
         onRestartForAppDataDir,
-        onClearConfigTreeData
+        onClearConfigTreeData,
+        onAnonymousUsageTelemetryChange
     } = advanced;
     const { t } = useTranslation();
     const gameLogDisabledDescription = t(
@@ -326,6 +327,30 @@ export function SettingsAdvancedTab({ advanced }: any) {
                 onRefreshRuntimeAppSnapshot={onRefreshRuntimeAppSnapshot}
                 onClearConfigTreeData={onClearConfigTreeData}
             />
+            <Card>
+                <CardHeader>
+                    <CardTitle>
+                        {t(
+                            'view.settings.advanced.advanced.improvement.header'
+                        )}
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col">
+                    <Field
+                        label={t(
+                            'view.settings.advanced.advanced.anonymous_usage_telemetry.header'
+                        )}
+                        description={t(
+                            'view.settings.advanced.advanced.anonymous_usage_telemetry.description'
+                        )}
+                    >
+                        <Switch
+                            checked={prefs.anonymousUsageTelemetry}
+                            onCheckedChange={onAnonymousUsageTelemetryChange}
+                        />
+                    </Field>
+                </CardContent>
+            </Card>
         </SettingsTabContent>
     );
 }

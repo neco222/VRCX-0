@@ -2081,13 +2081,12 @@
                         "header": "自我邀請",
                         "description": "以自我邀請方式進入房間，而非在 VRChat 中開啟房間"
                     },
-                    "anonymous_error_reporting": {
-                        "header": "匿名錯誤回報（僅限測試版）",
-                        "description": "透過傳送匿名的當機與錯誤回報來協助改善 VRCX-0。不會收集任何個人或 VRChat 資料",
-                        "consent_title": "匿名錯誤回報",
-                        "consent_description": "是否允許匿名錯誤回報以協助改善 VRCX-0？\n\n• 僅包含當機與錯誤資料\n• 不包含任何個人或 VRChat 資料 \n• 僅適用於測試版 \n• 可於進階設定中停用",
-                        "enabled_restart_description": "已啟用錯誤回報。是否重新啟動 VRCX-0 以套用變更？",
-                        "disabled_restart_description": "已停用錯誤回報。是否重新啟動 VRCX-0 以套用變更？"
+                    "improvement": {
+                        "header": "協助改進 VRCX-0"
+                    },
+                    "anonymous_usage_telemetry": {
+                        "header": "收集匿名使用資訊",
+                        "description": "僅收集用於改進 VRCX-0 所必需的匿名資訊。"
                     },
                     "save_instance_prints_to_file": {
                         "header": "將房間拍立得保存到檔案",

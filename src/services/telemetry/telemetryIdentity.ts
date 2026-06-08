@@ -19,18 +19,28 @@ function createRandomId(): string {
     );
 }
 
-export async function getOrCreateTelemetryInstallId(): Promise<string> {
+export type TelemetryInstallIdentity = {
+    installId: string;
+    isNewInstall: boolean;
+};
+
+export async function getOrCreateTelemetryInstallIdentity(): Promise<TelemetryInstallIdentity> {
     const existing = await configRepository.getString(
         TELEMETRY_INSTALL_ID_CONFIG_KEY,
         ''
     );
     if (existing) {
-        return existing;
+        return { installId: existing, isNewInstall: false };
     }
 
     const installId = createRandomId();
     await configRepository.setString(TELEMETRY_INSTALL_ID_CONFIG_KEY, installId);
-    return installId;
+    return { installId, isNewInstall: true };
+}
+
+export async function getOrCreateTelemetryInstallId(): Promise<string> {
+    const identity = await getOrCreateTelemetryInstallIdentity();
+    return identity.installId;
 }
 
 export function createTelemetrySessionId(): string {

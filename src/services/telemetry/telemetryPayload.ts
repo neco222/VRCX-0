@@ -48,6 +48,16 @@ export function buildTelemetryContext(
     };
 }
 
+export function buildBasicTelemetryContext(
+    session: TelemetrySessionState
+): TelemetryContextPayload {
+    return {
+        ...buildTelemetryContext(session),
+        mode: 'foreground',
+        vrchatRunning: false
+    };
+}
+
 type WaitForTelemetryContextOptions = {
     timeoutMs?: number;
     signal?: AbortSignal;

@@ -2081,13 +2081,12 @@
                         "header": "自我邀请",
                         "description": "直接给自己发送邀请，而不是在游戏中打开房间页面"
                     },
-                    "anonymous_error_reporting": {
-                        "header": "匿名错误报告",
-                        "description": "通过发送匿名的崩溃和错误报告来帮助改进 VRCX-0。不会收集任何有关个人或 VRChat 的相关数据。",
-                        "consent_title": "匿名错误报告",
-                        "consent_description": "要启用匿名错误报告以帮助改进 VRCX-0 吗？\n\n• 我们仅收集有关 VRCX-0 的崩溃和错误报告数据\n• 不会收集任何有关个人或 VRChat 的相关数据\n• 匿名错误报告仅限测试版可用\n• 并且可在高级设置中禁用",
-                        "enabled_restart_description": "错误报告目前已启用，要重启 VRCX-0 以便禁用它吗？",
-                        "disabled_restart_description": "错误报告目前已禁用，要重启 VRCX-0 以便启用它吗？"
+                    "improvement": {
+                        "header": "帮助改进 VRCX-0"
+                    },
+                    "anonymous_usage_telemetry": {
+                        "header": "收集匿名使用信息",
+                        "description": "仅收集用于改进 VRCX-0 所必需的匿名信息。"
                     },
                     "save_instance_prints_to_file": {
                         "header": "“拍立得”照片保存选项",

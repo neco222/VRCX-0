@@ -76,6 +76,7 @@ export function createDefaultSettingsPrefs() {
         gameLogDisabled: false,
         avatarAutoCleanup: 'Off',
         defaultLaunchMode: 'vr',
+        anonymousUsageTelemetry: true,
         udonExceptionLogging: false,
         logResourceLoad: false,
         autoLoginDelayEnabled: false,

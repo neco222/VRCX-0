@@ -14,15 +14,18 @@ export type TelemetryContextPayload = {
     vrchatRunning: boolean;
     localWeekday: number;
     localHour: number;
+    sessionEnded?: boolean;
 };
 
-export type TelemetryEventPayload =
+export type TelemetryVrchatLifecycleState = 'started' | 'stopped';
+
+export type TelemetryVrchatLifecyclePayload =
     TelemetryContextPayload & {
-        eventType: 'error';
-        errorCode: string;
+        state: TelemetryVrchatLifecycleState;
     };
 
 export type TelemetrySessionState = {
     installId: string;
     sessionId: string;
+    isNewInstall?: boolean;
 };

@@ -2081,13 +2081,12 @@
                         "header": "自分を招待",
                         "description": "VRChat でインスタンスを表示する代わりに、自分を招待する"
                     },
-                    "anonymous_error_reporting": {
-                        "header": "匿名エラーレポート(ナイトリービルドのみ)",
-                        "description": "クラッシュやエラーの匿名レポートは、VRCX-0 の改善に役立ちます。個人情報や VRChat のデータは含まれません",
-                        "consent_title": "匿名エラーレポート",
-                        "consent_description": "匿名エラーレポートを有効にしますか？匿名レポートは、VRCX-0 の改善に役立ちます。\n\n・クラッシュやエラーのデータのみ。\n\n・個人情報や VRChatのデータは含まれません。\n\n・詳細設定でいつでも無効化できます。",
-                        "enabled_restart_description": "エラーレポートが有効化されました。VRCX-0 を再起動して変更を適用しますか？",
-                        "disabled_restart_description": "エラーレポートが無効化されました。VRCX-0 を再起動して変更を適用しますか？"
+                    "improvement": {
+                        "header": "VRCX-0 の品質向上に協力"
+                    },
+                    "anonymous_usage_telemetry": {
+                        "header": "品質向上のための匿名データ送信",
+                        "description": "VRCX-0 の改善に役立てるため、必要最小限の匿名データを送信します。"
                     },
                     "save_instance_prints_to_file": {
                         "header": "インスタンス内にあるプリントを、ローカルファイルに保存",

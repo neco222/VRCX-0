@@ -722,7 +722,14 @@ export function useSettingsPageState() {
             resetAppDataDir,
             restartForAppDataDir,
             setConfigTreeData,
-            migrateLegacyVrcxData
+            migrateLegacyVrcxData,
+            onAnonymousUsageTelemetryChange: (checked: any) => {
+                saveBoolPreference(
+                    'anonymousUsageTelemetry',
+                    'anonymousUsageTelemetry',
+                    checked
+                );
+            }
         },
         dialogs: {
             customFontDialogOpen,
