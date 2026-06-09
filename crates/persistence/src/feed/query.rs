@@ -67,6 +67,11 @@ fn query_feed_rows(
     let search = normalize_text(&query.search);
     let instance_mode = mode == "instance"
         || (mode == "search" && (search.starts_with("wrld_") || search.starts_with("grp_")));
+    let recent_order_sql = if mode == "lookup" {
+        "id DESC"
+    } else {
+        "created_at DESC, id DESC"
+    };
     let flags = feed_filter_flags(&query.filters, !instance_mode);
     let mut selects = Vec::new();
 
@@ -81,9 +86,12 @@ fn query_feed_rows(
                 &user_prefix,
                 "feed_gps",
                 FEED_GPS_PROJECTION,
-                FEED_GPS_SOURCE_RANK,
-                &format!("location LIKE @instance_like {user_scope_query}"),
-                has_cursor,
+                FeedSelectOptions {
+                    source_rank: FEED_GPS_SOURCE_RANK,
+                    where_sql: &format!("location LIKE @instance_like {user_scope_query}"),
+                    has_cursor,
+                    order_sql: recent_order_sql,
+                },
             );
         }
         if flags.online || flags.offline {
@@ -99,6 +107,7 @@ fn query_feed_rows(
                 type_filter,
                 &user_scope_query,
                 has_cursor,
+                recent_order_sql,
             );
         }
     } else if mode == "lookup" {
@@ -108,9 +117,12 @@ fn query_feed_rows(
                 &user_prefix,
                 "feed_gps",
                 FEED_GPS_PROJECTION,
-                FEED_GPS_SOURCE_RANK,
-                &format!("1=1 {user_scope_query}"),
-                has_cursor,
+                FeedSelectOptions {
+                    source_rank: FEED_GPS_SOURCE_RANK,
+                    where_sql: &format!("1=1 {user_scope_query}"),
+                    has_cursor,
+                    order_sql: recent_order_sql,
+                },
             );
         }
         if flags.status {
@@ -119,9 +131,12 @@ fn query_feed_rows(
                 &user_prefix,
                 "feed_status",
                 FEED_STATUS_PROJECTION,
-                FEED_STATUS_SOURCE_RANK,
-                &format!("1=1 {user_scope_query}"),
-                has_cursor,
+                FeedSelectOptions {
+                    source_rank: FEED_STATUS_SOURCE_RANK,
+                    where_sql: &format!("1=1 {user_scope_query}"),
+                    has_cursor,
+                    order_sql: recent_order_sql,
+                },
             );
         }
         if flags.bio {
@@ -130,9 +145,12 @@ fn query_feed_rows(
                 &user_prefix,
                 "feed_bio",
                 FEED_BIO_PROJECTION,
-                FEED_BIO_SOURCE_RANK,
-                &format!("1=1 {user_scope_query}"),
-                has_cursor,
+                FeedSelectOptions {
+                    source_rank: FEED_BIO_SOURCE_RANK,
+                    where_sql: &format!("1=1 {user_scope_query}"),
+                    has_cursor,
+                    order_sql: recent_order_sql,
+                },
             );
         }
         if flags.avatar {
@@ -141,9 +159,12 @@ fn query_feed_rows(
                 &user_prefix,
                 "feed_avatar",
                 FEED_AVATAR_PROJECTION,
-                FEED_AVATAR_SOURCE_RANK,
-                &format!("1=1 {user_scope_query}"),
-                has_cursor,
+                FeedSelectOptions {
+                    source_rank: FEED_AVATAR_SOURCE_RANK,
+                    where_sql: &format!("1=1 {user_scope_query}"),
+                    has_cursor,
+                    order_sql: recent_order_sql,
+                },
             );
         }
         if flags.online || flags.offline {
@@ -159,6 +180,7 @@ fn query_feed_rows(
                 type_filter,
                 &user_scope_query,
                 has_cursor,
+                recent_order_sql,
             );
         }
     } else {
@@ -178,11 +200,14 @@ fn query_feed_rows(
                 &user_prefix,
                 "feed_gps",
                 FEED_GPS_PROJECTION,
-                FEED_GPS_SOURCE_RANK,
-                &format!(
-                    "(display_name LIKE @search_like OR world_name LIKE @search_like OR group_name LIKE @search_like) {date_query} {user_scope_query}"
-                ),
-                has_cursor,
+                FeedSelectOptions {
+                    source_rank: FEED_GPS_SOURCE_RANK,
+                    where_sql: &format!(
+                        "(display_name LIKE @search_like OR world_name LIKE @search_like OR group_name LIKE @search_like) {date_query} {user_scope_query}"
+                    ),
+                    has_cursor,
+                    order_sql: recent_order_sql,
+                },
             );
         }
         if flags.status {
@@ -191,11 +216,14 @@ fn query_feed_rows(
                 &user_prefix,
                 "feed_status",
                 FEED_STATUS_PROJECTION,
-                FEED_STATUS_SOURCE_RANK,
-                &format!(
-                    "(display_name LIKE @search_like OR status LIKE @search_like OR status_description LIKE @search_like) {date_query} {user_scope_query}"
-                ),
-                has_cursor,
+                FeedSelectOptions {
+                    source_rank: FEED_STATUS_SOURCE_RANK,
+                    where_sql: &format!(
+                        "(display_name LIKE @search_like OR status LIKE @search_like OR status_description LIKE @search_like) {date_query} {user_scope_query}"
+                    ),
+                    has_cursor,
+                    order_sql: recent_order_sql,
+                },
             );
         }
         if flags.bio {
@@ -204,11 +232,14 @@ fn query_feed_rows(
                 &user_prefix,
                 "feed_bio",
                 FEED_BIO_PROJECTION,
-                FEED_BIO_SOURCE_RANK,
-                &format!(
-                    "(display_name LIKE @search_like OR bio LIKE @search_like) {date_query} {user_scope_query}"
-                ),
-                has_cursor,
+                FeedSelectOptions {
+                    source_rank: FEED_BIO_SOURCE_RANK,
+                    where_sql: &format!(
+                        "(display_name LIKE @search_like OR bio LIKE @search_like) {date_query} {user_scope_query}"
+                    ),
+                    has_cursor,
+                    order_sql: recent_order_sql,
+                },
             );
         }
         if flags.avatar {
@@ -224,11 +255,14 @@ fn query_feed_rows(
                 &user_prefix,
                 "feed_avatar",
                 FEED_AVATAR_PROJECTION,
-                FEED_AVATAR_SOURCE_RANK,
-                &format!(
-                    "(display_name LIKE @search_like OR avatar_name LIKE @search_like) {avatar_query} {date_query} {user_scope_query}"
-                ),
-                has_cursor,
+                FeedSelectOptions {
+                    source_rank: FEED_AVATAR_SOURCE_RANK,
+                    where_sql: &format!(
+                        "(display_name LIKE @search_like OR avatar_name LIKE @search_like) {avatar_query} {date_query} {user_scope_query}"
+                    ),
+                    has_cursor,
+                    order_sql: recent_order_sql,
+                },
             );
         }
         if flags.online || flags.offline {
@@ -246,6 +280,7 @@ fn query_feed_rows(
                 &format!("{type_filter} {date_query}"),
                 &user_scope_query,
                 has_cursor,
+                recent_order_sql,
             );
         }
     }
@@ -341,18 +376,25 @@ const FEED_BIO_PROJECTION: &str = "id, 20 AS source_rank, created_at, user_id, d
 const FEED_AVATAR_PROJECTION: &str = "id, 30 AS source_rank, created_at, user_id, display_name, 'Avatar' AS type, NULL AS location, NULL AS world_name, NULL AS previous_location, NULL AS time, NULL AS group_name, NULL AS status, NULL AS status_description, NULL AS previous_status, NULL AS previous_status_description, NULL AS bio, NULL AS previous_bio, owner_id, avatar_name, current_avatar_image_url, current_avatar_thumbnail_image_url, previous_current_avatar_image_url, previous_current_avatar_thumbnail_image_url";
 const FEED_ONLINE_OFFLINE_PROJECTION: &str = "id, 50 AS source_rank, created_at, user_id, display_name, type, location, world_name, NULL AS previous_location, time, group_name, NULL AS status, NULL AS status_description, NULL AS previous_status, NULL AS previous_status_description, NULL AS bio, NULL AS previous_bio, NULL AS owner_id, NULL AS avatar_name, NULL AS current_avatar_image_url, NULL AS current_avatar_thumbnail_image_url, NULL AS previous_current_avatar_image_url, NULL AS previous_current_avatar_thumbnail_image_url";
 
+struct FeedSelectOptions<'a> {
+    source_rank: i64,
+    where_sql: &'a str,
+    has_cursor: bool,
+    order_sql: &'a str,
+}
+
 fn push_feed_select(
     selects: &mut Vec<String>,
     user_prefix: &str,
     table_suffix: &str,
     projection: &str,
-    source_rank: i64,
-    where_sql: &str,
-    has_cursor: bool,
+    options: FeedSelectOptions<'_>,
 ) {
-    let cursor_sql = feed_cursor_condition(source_rank, has_cursor);
+    let cursor_sql = feed_cursor_condition(options.source_rank, options.has_cursor);
+    let where_sql = options.where_sql;
+    let order_sql = options.order_sql;
     selects.push(format!(
-        "SELECT * FROM (SELECT {projection} FROM {user_prefix}_{table_suffix} WHERE {where_sql} {cursor_sql} ORDER BY created_at DESC, id DESC LIMIT @per_table)"
+        "SELECT * FROM (SELECT {projection} FROM {user_prefix}_{table_suffix} WHERE {where_sql} {cursor_sql} ORDER BY {order_sql} LIMIT @per_table)"
     ));
 }
 
@@ -443,15 +485,19 @@ fn push_feed_online_offline_select(
     type_filter: &str,
     vip_query: &str,
     has_cursor: bool,
+    order_sql: &str,
 ) {
     push_feed_select(
         selects,
         user_prefix,
         "feed_online_offline",
         FEED_ONLINE_OFFLINE_PROJECTION,
-        FEED_ONLINE_OFFLINE_SOURCE_RANK,
-        &format!("{where_sql} {type_filter} {vip_query}"),
-        has_cursor,
+        FeedSelectOptions {
+            source_rank: FEED_ONLINE_OFFLINE_SOURCE_RANK,
+            where_sql: &format!("{where_sql} {type_filter} {vip_query}"),
+            has_cursor,
+            order_sql,
+        },
     );
 }
 
@@ -701,4 +747,98 @@ fn merge_feed_live_rows(query: FeedLiveRowsMergeInput) -> FeedReadModelOutput {
         query.min_live_sequence,
         context,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use serde_json::json;
+    use vrcx_0_core::json::RawJson;
+
+    use crate::database::DatabaseService;
+
+    use super::super::write::feed_add_entry;
+    use super::{feed_rows_query, FeedRowsQueryInput};
+
+    struct TestDir {
+        path: PathBuf,
+    }
+
+    impl TestDir {
+        fn new(name: &str) -> Self {
+            let nonce = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            let path =
+                std::env::temp_dir().join(format!("vrcx-0-{name}-{}-{nonce}", std::process::id()));
+            std::fs::create_dir_all(&path).unwrap();
+            Self { path }
+        }
+    }
+
+    impl Drop for TestDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+
+    #[test]
+    fn lookup_feed_limits_each_table_by_recent_row_id_before_final_date_sort(
+    ) -> Result<(), crate::Error> {
+        let dir = TestDir::new("feed-lookup-rowid");
+        let db = DatabaseService::new(&dir.path.join("VRCX-0.sqlite3"))?;
+
+        feed_add_entry(
+            &db,
+            "usr_self".into(),
+            RawJson::from(json!({
+                "created_at": "2026-05-15T00:10:00Z",
+                "type": "GPS",
+                "userId": "usr_newer_created",
+                "displayName": "newer-created",
+                "location": "wrld_1:newer",
+                "worldName": "Newer Created",
+                "previousLocation": "",
+                "time": 0,
+                "groupName": ""
+            })),
+        )?;
+        feed_add_entry(
+            &db,
+            "usr_self".into(),
+            RawJson::from(json!({
+                "created_at": "2026-05-15T00:00:00Z",
+                "type": "GPS",
+                "userId": "usr_later_inserted",
+                "displayName": "later-inserted",
+                "location": "wrld_1:later",
+                "worldName": "Later Inserted",
+                "previousLocation": "",
+                "time": 0,
+                "groupName": ""
+            })),
+        )?;
+
+        let rows = feed_rows_query(
+            &db,
+            FeedRowsQueryInput {
+                user_id: "usr_self".into(),
+                mode: "lookup".into(),
+                search: String::new(),
+                filters: vec!["GPS".into()],
+                vip_list: Vec::new(),
+                excluded_user_ids: Vec::new(),
+                max_entries: 1,
+                date_from: String::new(),
+                date_to: String::new(),
+                cursor: None,
+            },
+        )?;
+
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].display_name.as_value(), "later-inserted");
+        Ok(())
+    }
 }

@@ -1,6 +1,5 @@
 use super::event_patch::{
-    apply_friend_event, apply_refetched_friend_profile_event, is_friend_event_type,
-    record_to_value,
+    apply_friend_event, apply_refetched_friend_profile_event, is_friend_event_type, record_to_value,
 };
 use super::persistence::{duration_ms, is_online_state, online_offline_feed_entry};
 use super::utils::{string_field, EventTime};

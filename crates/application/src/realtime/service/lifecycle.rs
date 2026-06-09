@@ -330,7 +330,11 @@ impl RealtimeHostRuntime {
         let runtime = Arc::clone(self);
         self.deps.tasks.spawn(async move {
             runtime
-                .refresh_friend_baseline_after_reconnect(active, refresh_token, current_user_snapshot)
+                .refresh_friend_baseline_after_reconnect(
+                    active,
+                    refresh_token,
+                    current_user_snapshot,
+                )
                 .await;
         });
     }
@@ -379,21 +383,20 @@ impl RealtimeHostRuntime {
             .get("friendsById")
             .cloned()
             .unwrap_or_else(|| serde_json::json!({}));
-        let friends_by_id = match serde_json::from_value::<HashMap<String, FriendRecord>>(
-            friends_value,
-        ) {
-            Ok(friends_by_id) => friends_by_id,
-            Err(error) => {
-                tracing::warn!(
-                    generation = active.generation,
-                    session_generation = active.session_generation,
-                    refresh_token,
-                    "[Realtime] reconnect friend baseline recovery decode failed: {error}"
-                );
-                self.finish_reconnect_friend_baseline_refresh(active, refresh_token, true);
-                return;
-            }
-        };
+        let friends_by_id =
+            match serde_json::from_value::<HashMap<String, FriendRecord>>(friends_value) {
+                Ok(friends_by_id) => friends_by_id,
+                Err(error) => {
+                    tracing::warn!(
+                        generation = active.generation,
+                        session_generation = active.session_generation,
+                        refresh_token,
+                        "[Realtime] reconnect friend baseline recovery decode failed: {error}"
+                    );
+                    self.finish_reconnect_friend_baseline_refresh(active, refresh_token, true);
+                    return;
+                }
+            };
         let sync_result = self.sync_reconnect_friend_baseline_if_current(
             active.clone(),
             refresh_token,
@@ -536,7 +539,9 @@ impl RealtimeHostRuntime {
                 self.apply_friend_output(*output);
                 Ok(true)
             }
-            RealtimeFriendApplyResult::MissingBaseline | RealtimeFriendApplyResult::Ignored => Ok(false),
+            RealtimeFriendApplyResult::MissingBaseline | RealtimeFriendApplyResult::Ignored => {
+                Ok(false)
+            }
         }
     }
 
@@ -889,8 +894,7 @@ impl RealtimeHostRuntime {
                             .friend_profile_refetches
                             .get(&user_id)
                             .map(|last_ms| {
-                                now_ms.saturating_sub(*last_ms)
-                                    < FRIEND_PROFILE_REFETCH_THROTTLE_MS
+                                now_ms.saturating_sub(*last_ms) < FRIEND_PROFILE_REFETCH_THROTTLE_MS
                             })
                             .unwrap_or(false);
                         if recent {
@@ -1039,9 +1043,7 @@ impl RealtimeHostRuntime {
             }
         };
         match result {
-            RealtimeFriendApplyResult::Output(output) => {
-                self.apply_friend_output(*output)
-            }
+            RealtimeFriendApplyResult::Output(output) => self.apply_friend_output(*output),
             RealtimeFriendApplyResult::MissingBaseline | RealtimeFriendApplyResult::Ignored => {}
         }
     }
@@ -1861,7 +1863,13 @@ mod tests {
     #[test]
     fn connected_after_reconnect_without_snapshot_resumes_queued_friend_events() -> Result<()> {
         let (_dir, runtime, active_session) = runtime_with_active_session("reconnect-drain")?;
-        let active = runtime.state.lock().unwrap().active_context.clone().unwrap();
+        let active = runtime
+            .state
+            .lock()
+            .unwrap()
+            .active_context
+            .clone()
+            .unwrap();
         let mut friends_by_id = HashMap::new();
         friends_by_id.insert(
             "usr_friend".to_string(),
@@ -1934,7 +1942,13 @@ mod tests {
     #[test]
     fn stale_reconnect_baseline_refresh_cannot_replace_active_friend_cache() -> Result<()> {
         let (_dir, runtime, active_session) = runtime_with_active_session("stale-reconnect")?;
-        let active = runtime.state.lock().unwrap().active_context.clone().unwrap();
+        let active = runtime
+            .state
+            .lock()
+            .unwrap()
+            .active_context
+            .clone()
+            .unwrap();
         let mut initial_friends = HashMap::new();
         initial_friends.insert(
             "usr_friend".to_string(),

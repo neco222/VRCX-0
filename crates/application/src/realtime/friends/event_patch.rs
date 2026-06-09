@@ -1,6 +1,7 @@
 use super::persistence::{
-    add_location_metadata, add_profile_diff_feed_entries, friend_log_upsert, FriendChangedProps,
+    add_location_metadata, add_profile_diff_feed_entries, friend_log_upsert,
     friend_relationship_feed_entry, gps_feed_entry, is_online_state, online_offline_feed_entry,
+    FriendChangedProps,
 };
 use super::projection::{has_event_state_bucket, resolve_state_bucket};
 use super::state::{DelayedOfflineFeed, RealtimeFriendState, DELAYED_OFFLINE_FEED_DELAY_MS};
@@ -366,8 +367,7 @@ fn apply_friend_event_with_options(
             } else {
                 "preserve"
             };
-            let patch =
-                online_patch(content, user_patch, previous.as_ref(), now, &state_bucket);
+            let patch = online_patch(content, user_patch, previous.as_ref(), now, &state_bucket);
             if has_online_location
                 && !canceled_delayed_offline
                 && previous_record
@@ -466,17 +466,13 @@ fn request_profile_refetch_for_location_event(
 }
 
 fn push_profile_refetch_user_id(output: &mut RealtimeFriendOutput, user_id: &str) {
-    if output
-        .profile_refetch_requests
-        .iter()
-        .any(|request| {
-            matches!(
-                request,
-                FriendProfileRefetchRequest::LocationRepair { user_id: existing_id }
-                    if existing_id == user_id
-            )
-        })
-    {
+    if output.profile_refetch_requests.iter().any(|request| {
+        matches!(
+            request,
+            FriendProfileRefetchRequest::LocationRepair { user_id: existing_id }
+                if existing_id == user_id
+        )
+    }) {
         return;
     }
     output
@@ -491,19 +487,15 @@ fn push_offline_confirm_refetch_request(
     user_id: &str,
     token: u64,
 ) {
-    if output
-        .profile_refetch_requests
-        .iter()
-        .any(|request| {
-            matches!(
-                request,
-                FriendProfileRefetchRequest::OfflineConfirm {
-                    user_id: existing_id,
-                    token: existing_token,
-                } if existing_id == user_id && *existing_token == token
-            )
-        })
-    {
+    if output.profile_refetch_requests.iter().any(|request| {
+        matches!(
+            request,
+            FriendProfileRefetchRequest::OfflineConfirm {
+                user_id: existing_id,
+                token: existing_token,
+            } if existing_id == user_id && *existing_token == token
+        )
+    }) {
         return;
     }
     output
@@ -714,7 +706,11 @@ fn location_event_has_online_proof(content: &Value, user_patch: &Value) -> bool 
         content.get("location").and_then(Value::as_str),
         content.get("travelingToLocation").and_then(Value::as_str),
     ];
-    if content_locations.iter().flatten().any(|value| !value.trim().is_empty()) {
+    if content_locations
+        .iter()
+        .flatten()
+        .any(|value| !value.trim().is_empty())
+    {
         return content_locations
             .iter()
             .flatten()
@@ -723,7 +719,9 @@ fn location_event_has_online_proof(content: &Value, user_patch: &Value) -> bool 
 
     let user_locations = [
         user_patch.get("location").and_then(Value::as_str),
-        user_patch.get("travelingToLocation").and_then(Value::as_str),
+        user_patch
+            .get("travelingToLocation")
+            .and_then(Value::as_str),
     ];
     user_locations
         .iter()
@@ -736,7 +734,11 @@ fn location_event_has_offline_proof(content: &Value, user_patch: &Value) -> bool
         content.get("location").and_then(Value::as_str),
         content.get("travelingToLocation").and_then(Value::as_str),
     ];
-    if content_locations.iter().flatten().any(|value| !value.trim().is_empty()) {
+    if content_locations
+        .iter()
+        .flatten()
+        .any(|value| !value.trim().is_empty())
+    {
         return content_locations
             .iter()
             .flatten()
@@ -745,7 +747,9 @@ fn location_event_has_offline_proof(content: &Value, user_patch: &Value) -> bool
 
     let user_locations = [
         user_patch.get("location").and_then(Value::as_str),
-        user_patch.get("travelingToLocation").and_then(Value::as_str),
+        user_patch
+            .get("travelingToLocation")
+            .and_then(Value::as_str),
     ];
     user_locations
         .iter()

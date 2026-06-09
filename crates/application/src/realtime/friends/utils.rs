@@ -660,7 +660,8 @@ mod tests {
         else {
             panic!("friend-location should produce an output");
         };
-        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = location_output.timer_action else {
+        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = location_output.timer_action
+        else {
             panic!("offline location should schedule pending timer");
         };
 
@@ -682,7 +683,10 @@ mod tests {
 
         assert_eq!(output.projection.patches[0].state_bucket, "offline");
         assert!(output.persistence.feed_entries.is_empty());
-        assert!(output.projection.patches[0].patch.get("pendingOffline").is_none());
+        assert!(output.projection.patches[0]
+            .patch
+            .get("pendingOffline")
+            .is_none());
         let fired = runtime
             .fire_delayed_offline_feed("usr_friend", token, "2026-05-15T00:03:00Z".into())
             .unwrap();
@@ -735,7 +739,8 @@ mod tests {
         else {
             panic!("friend-location should produce an output");
         };
-        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = location_output.timer_action else {
+        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = location_output.timer_action
+        else {
             panic!("offline location should schedule pending timer");
         };
 
@@ -754,7 +759,10 @@ mod tests {
         };
 
         assert_eq!(output.projection.patches[0].state_bucket, "online");
-        assert!(output.projection.patches[0].patch.get("pendingOffline").is_none());
+        assert!(output.projection.patches[0]
+            .patch
+            .get("pendingOffline")
+            .is_none());
         assert!(runtime
             .fire_delayed_offline_feed("usr_friend", token, "2026-05-15T00:03:00Z".into())
             .is_none());
@@ -797,12 +805,13 @@ mod tests {
         else {
             panic!("friend-offline should produce an output");
         };
-        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = offline_output.timer_action else {
+        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = offline_output.timer_action
+        else {
             panic!("offline should schedule delayed feed timer");
         };
 
-        let RealtimeFriendApplyResult::Output(confirm_output) =
-            runtime.apply_offline_confirm_user_profile(
+        let RealtimeFriendApplyResult::Output(confirm_output) = runtime
+            .apply_offline_confirm_user_profile(
                 1,
                 "usr_friend",
                 token,
@@ -862,12 +871,13 @@ mod tests {
         else {
             panic!("friend-offline should produce an output");
         };
-        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = offline_output.timer_action else {
+        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = offline_output.timer_action
+        else {
             panic!("offline should schedule delayed feed timer");
         };
 
-        let RealtimeFriendApplyResult::Output(confirm_output) =
-            runtime.apply_offline_confirm_user_profile(
+        let RealtimeFriendApplyResult::Output(confirm_output) = runtime
+            .apply_offline_confirm_user_profile(
                 1,
                 "usr_friend",
                 token,
@@ -927,12 +937,13 @@ mod tests {
         else {
             panic!("friend-offline should produce an output");
         };
-        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = offline_output.timer_action else {
+        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = offline_output.timer_action
+        else {
             panic!("offline should schedule delayed feed timer");
         };
 
-        let RealtimeFriendApplyResult::Output(confirm_output) =
-            runtime.apply_offline_confirm_user_profile(
+        let RealtimeFriendApplyResult::Output(confirm_output) = runtime
+            .apply_offline_confirm_user_profile(
                 1,
                 "usr_friend",
                 token,
@@ -993,7 +1004,8 @@ mod tests {
         else {
             panic!("friend-offline should produce an output");
         };
-        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = offline_output.timer_action else {
+        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = offline_output.timer_action
+        else {
             panic!("offline should schedule delayed feed timer");
         };
 
@@ -1451,7 +1463,10 @@ mod tests {
         };
 
         assert_eq!(output.projection.patches[0].state_bucket, "online");
-        assert_eq!(output.projection.patches[0].patch["location"], "wrld_new:456");
+        assert_eq!(
+            output.projection.patches[0].patch["location"],
+            "wrld_new:456"
+        );
         assert_eq!(output.persistence.feed_entries[0]["type"], "Online");
         assert_eq!(output.projection.feed_entries[0]["type"], "Online");
     }
@@ -1918,7 +1933,8 @@ mod tests {
         else {
             panic!("friend-offline should produce an output");
         };
-        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = offline_output.timer_action else {
+        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = offline_output.timer_action
+        else {
             panic!("offline should schedule pending timer");
         };
 
@@ -1990,7 +2006,8 @@ mod tests {
         else {
             panic!("friend-offline should produce an output");
         };
-        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = offline_output.timer_action else {
+        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = offline_output.timer_action
+        else {
             panic!("offline should schedule delayed feed timer");
         };
         let offline_feed = runtime
@@ -2020,7 +2037,10 @@ mod tests {
         };
 
         assert_eq!(location_output.projection.patches[0].state_bucket, "online");
-        assert_eq!(location_output.persistence.feed_entries[0]["type"], "Online");
+        assert_eq!(
+            location_output.persistence.feed_entries[0]["type"],
+            "Online"
+        );
     }
 
     #[test]
@@ -2252,7 +2272,10 @@ mod tests {
             panic!("offline should schedule pending timer");
         };
         assert_eq!(output.projection.patches[0].state_bucket, "offline");
-        assert!(output.projection.patches[0].patch.get("pendingOffline").is_none());
+        assert!(output.projection.patches[0]
+            .patch
+            .get("pendingOffline")
+            .is_none());
         assert!(output.persistence.feed_entries.is_empty());
 
         let fired = runtime
@@ -2300,7 +2323,8 @@ mod tests {
         else {
             panic!("friend-offline should produce an output");
         };
-        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = offline_output.timer_action else {
+        let DelayedOfflineFeedTimerAction::Schedule { token, .. } = offline_output.timer_action
+        else {
             panic!("offline should schedule delayed feed timer");
         };
 
