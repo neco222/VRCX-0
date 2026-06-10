@@ -41,8 +41,8 @@ function getManualChunk(moduleId) {
 
 const defaultAssetName = '[name][extname]';
 const webview2BuildTarget = {
-    vite: 'edge130',
-    browserslist: 'Edge 130'
+    vite: 'edge140',
+    browserslist: 'Edge 140'
 };
 const webkitBuildTarget = {
     vite: 'safari17',
