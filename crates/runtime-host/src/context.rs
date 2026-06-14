@@ -4,10 +4,12 @@ use serde_json::{json, Map, Value};
 use vrcx_0_application::HostSessionRuntime;
 use vrcx_0_application::ImageCache;
 use vrcx_0_application::MutualGraphFetchRuntime;
+use vrcx_0_application::OverlayActivityDelivery;
 use vrcx_0_application::OverlayActivityFilters;
 use vrcx_0_application::OverlayActivityRuntime;
 use vrcx_0_application::OverlayActivitySink;
 use vrcx_0_application::OverlayActivitySnapshot;
+use vrcx_0_application::OverlayActivitySurfaceFilters;
 use vrcx_0_application::RuntimeAuthScope;
 use vrcx_0_application::RuntimeBackgroundJobs;
 use vrcx_0_application::RuntimeDiagnostics;
@@ -21,15 +23,29 @@ use vrcx_0_persistence::config::ConfigRepository;
 use vrcx_0_persistence::DatabaseService;
 
 use crate::host_actions::RuntimeHost;
+use crate::vr_overlay::OverlayLocale;
+
+const APP_LANGUAGE_CONFIG_KEY: &str = "appLanguage";
 
 #[derive(Clone)]
 struct OverlayActivityRuntimeEventSink {
     event_bus: RuntimeEventBus,
+    config: ConfigRepository,
 }
 
 impl OverlayActivitySink for OverlayActivityRuntimeEventSink {
     fn emit_overlay_activity_snapshot(&self, snapshot: OverlayActivitySnapshot) {
         self.event_bus.emit_overlay_activity_snapshot(snapshot);
+    }
+
+    fn emit_overlay_activity_delivery(&self, delivery: OverlayActivityDelivery) {
+        let locale = self
+            .config
+            .get_string(APP_LANGUAGE_CONFIG_KEY, "en")
+            .map(|value| OverlayLocale::from_config(&value))
+            .unwrap_or_default();
+        let payload = crate::notification_delivery::build_delivery_payload(&delivery, locale);
+        self.event_bus.emit("notificationDelivery", payload);
     }
 }
 
@@ -47,6 +63,12 @@ impl OverlayActivitySink for OverlayActivityFanoutSink {
     fn emit_overlay_activity_snapshot(&self, snapshot: OverlayActivitySnapshot) {
         for sink in &self.sinks {
             sink.emit_overlay_activity_snapshot(snapshot.clone());
+        }
+    }
+
+    fn emit_overlay_activity_delivery(&self, delivery: OverlayActivityDelivery) {
+        for sink in &self.sinks {
+            sink.emit_overlay_activity_delivery(delivery.clone());
         }
     }
 }
@@ -83,6 +105,7 @@ impl RuntimeHostContext {
         let overlay_activity = OverlayActivityRuntime::new();
         overlay_activity.set_sink(OverlayActivityRuntimeEventSink {
             event_bus: event_bus.clone(),
+            config: config.clone(),
         });
         load_overlay_activity_filters(&config, &overlay_activity);
         Self {
@@ -119,6 +142,7 @@ impl RuntimeHostContext {
             .set_sink(OverlayActivityFanoutSink::new(vec![
                 Arc::new(OverlayActivityRuntimeEventSink {
                     event_bus: self.event_bus.clone(),
+                    config: self.config.clone(),
                 }),
                 extra_sink,
             ]));
@@ -207,27 +231,43 @@ fn default_now_playing_value() -> Value {
 }
 
 fn load_overlay_activity_filters(config: &ConfigRepository, runtime: &OverlayActivityRuntime) {
-    match config.get_raw("overlayActivityFilters") {
-        Ok(Some(raw_value)) => match serde_json::from_str::<Value>(&raw_value) {
+    let mut filters = match config.get_raw("overlayActivityFilters") {
+        Ok(Some(raw)) => match serde_json::from_str::<Value>(&raw) {
             Ok(value) if OverlayActivityFilters::has_persisted_rules(&value) => {
-                runtime.set_filters(OverlayActivityFilters::from_json(value));
+                OverlayActivityFilters::from_json(value)
             }
-            Ok(_) => {
-                runtime.set_filters(load_legacy_overlay_activity_filters(config));
-            }
+            Ok(_) => load_legacy_overlay_activity_filters(config),
             Err(error) => {
                 tracing::warn!("failed to parse overlay activity filters: {error}");
-                runtime.set_filters(load_legacy_overlay_activity_filters(config));
+                load_legacy_overlay_activity_filters(config)
             }
         },
-        Ok(None) => {
-            runtime.set_filters(load_legacy_overlay_activity_filters(config));
-        }
+        Ok(None) => load_legacy_overlay_activity_filters(config),
         Err(error) => {
             tracing::warn!("failed to load overlay activity filters: {error}");
-            runtime.set_filters(OverlayActivityFilters::default());
+            OverlayActivityFilters::default()
         }
+    };
+
+    if let Some(desktop) = load_types_key_surface(config, "desktopNotificationActivityFilters") {
+        filters.desktop = desktop;
     }
+    if let Some(vr) = load_types_key_surface(config, "vrNotificationActivityFilters") {
+        filters.vr = vr;
+    }
+    runtime.set_filters(filters);
+}
+
+fn load_types_key_surface(
+    config: &ConfigRepository,
+    key: &str,
+) -> Option<OverlayActivitySurfaceFilters> {
+    let raw = config.get_raw(key).ok().flatten()?;
+    let value = serde_json::from_str::<Value>(&raw).ok()?;
+    value
+        .get("types")
+        .is_some_and(Value::is_object)
+        .then(|| OverlayActivitySurfaceFilters::from_types_json(&value))
 }
 
 fn load_legacy_overlay_activity_filters(config: &ConfigRepository) -> OverlayActivityFilters {
@@ -267,7 +307,7 @@ mod tests {
     use std::path::PathBuf;
     use std::sync::Arc;
 
-    use vrcx_0_application::OverlayActivityScope;
+    use vrcx_0_application::{OverlayActivityScope, OverlayActivitySurface};
     use vrcx_0_persistence::DatabaseService;
 
     use super::*;
@@ -322,11 +362,15 @@ mod tests {
         let saved = config.get_json("overlayActivityFilters", json!({}))?;
         let filters = OverlayActivityFilters::from_json(saved);
         assert_eq!(
-            filters.rule_for("invite").scope,
+            filters
+                .rule_for(OverlayActivitySurface::Wrist, "invite")
+                .scope,
             OverlayActivityScope::AllFavorites
         );
         assert_eq!(
-            filters.rule_for("friendRequest").scope,
+            filters
+                .rule_for(OverlayActivitySurface::Wrist, "friendRequest")
+                .scope,
             OverlayActivityScope::Off
         );
         assert_eq!(
@@ -340,6 +384,57 @@ mod tests {
                     "friendRequest": "Off"
                 }
             })
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn backend_load_reads_three_independent_surface_keys() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let dir = TestDir::new("overlay-activity-three-keys");
+        let db = Arc::new(DatabaseService::new(&dir.path.join("VRCX-0.sqlite3"))?);
+        let config = ConfigRepository::new(db);
+        config.set_string(
+            "overlayActivityFilters",
+            &serde_json::to_string(&json!({
+                "version": 1,
+                "wrist": { "types": { "invite": { "scope": "on" } } }
+            }))?,
+        )?;
+        config.set_string(
+            "desktopNotificationActivityFilters",
+            &serde_json::to_string(&json!({
+                "version": 1,
+                "types": { "invite": { "scope": "allFavorites" } }
+            }))?,
+        )?;
+        config.set_string(
+            "vrNotificationActivityFilters",
+            &serde_json::to_string(&json!({
+                "version": 1,
+                "types": { "invite": { "scope": "off" } }
+            }))?,
+        )?;
+        let runtime = OverlayActivityRuntime::new();
+
+        load_overlay_activity_filters(&config, &runtime);
+
+        let filters = runtime.filters();
+        assert_eq!(
+            filters
+                .rule_for(OverlayActivitySurface::Wrist, "invite")
+                .scope,
+            OverlayActivityScope::On
+        );
+        assert_eq!(
+            filters
+                .rule_for(OverlayActivitySurface::Desktop, "invite")
+                .scope,
+            OverlayActivityScope::AllFavorites
+        );
+        assert_eq!(
+            filters.rule_for(OverlayActivitySurface::Vr, "invite").scope,
+            OverlayActivityScope::Off
         );
         Ok(())
     }

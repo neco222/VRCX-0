@@ -4,7 +4,8 @@ use serde_json::{Map, Value};
 
 use super::types::{
     OverlayActivityCategory, OverlayActivityFavoriteGroupKeys, OverlayActivityFilters,
-    OverlayActivityRule, OverlayActivityScope, OverlayActivityTypeDefinition,
+    OverlayActivityRule, OverlayActivityScope, OverlayActivitySurfaceFilters,
+    OverlayActivityTypeDefinition,
 };
 
 #[derive(Clone, Copy)]
@@ -371,42 +372,48 @@ pub(super) fn default_rule(definition: &ActivityTypeDefinition) -> OverlayActivi
 }
 
 pub(super) fn has_persisted_filter_rules(value: &Value) -> bool {
-    let Some(wrist) = value.get("wrist").and_then(Value::as_object) else {
-        return false;
-    };
-    wrist.get("types").and_then(Value::as_object).is_some()
-        || wrist.get("categories").and_then(Value::as_object).is_some()
+    ["wrist", "desktop", "vr"].iter().any(|surface| {
+        value
+            .get(*surface)
+            .and_then(Value::as_object)
+            .is_some_and(|surface| {
+                surface.get("types").and_then(Value::as_object).is_some()
+                    || surface
+                        .get("categories")
+                        .and_then(Value::as_object)
+                        .is_some()
+            })
+    })
 }
 
 pub(super) fn normalize_filters(value: Value) -> OverlayActivityFilters {
-    let wrist = value.get("wrist").and_then(Value::as_object);
-    let types = wrist
-        .and_then(|wrist| wrist.get("types"))
+    OverlayActivityFilters {
+        version: 1,
+        wrist: normalize_surface(value.get("wrist")),
+        desktop: normalize_surface(value.get("desktop")),
+        vr: normalize_surface(value.get("vr")),
+    }
+}
+
+pub(super) fn normalize_surface(value: Option<&Value>) -> OverlayActivitySurfaceFilters {
+    let surface = value.and_then(Value::as_object);
+    let types = surface
+        .and_then(|surface| surface.get("types"))
         .and_then(Value::as_object);
-    let categories = wrist
-        .and_then(|wrist| wrist.get("categories"))
+    let categories = surface
+        .and_then(|surface| surface.get("categories"))
         .and_then(Value::as_object);
     let legacy_favorite_group_keys =
-        normalize_favorite_group_keys(wrist.and_then(|wrist| wrist.get("favoriteGroupKeys")));
-    let mut normalized = OverlayActivityFilters::default();
+        normalize_favorite_group_keys(surface.and_then(|surface| surface.get("favoriteGroupKeys")));
+    let mut normalized = OverlayActivitySurfaceFilters::default_rules();
     for definition in ACTIVITY_TYPES {
         let legacy_rule = legacy_category_rule(definition, categories, &legacy_favorite_group_keys);
-        let source = types.and_then(|types| {
-            types.get(definition.key).or_else(|| {
-                definition
-                    .aliases
-                    .iter()
-                    .find_map(|alias| types.get(*alias))
-            })
-        });
+        let source = types.and_then(|types| get_type_candidate(types, definition));
         let fallback_rule = legacy_rule.unwrap_or_else(|| default_rule(definition));
         let rule = source
             .map(|source| normalize_rule(source, definition, &fallback_rule))
             .unwrap_or(fallback_rule);
-        normalized
-            .wrist
-            .types
-            .insert(definition.key.to_string(), rule);
+        normalized.types.insert(definition.key.to_string(), rule);
     }
     normalized
 }

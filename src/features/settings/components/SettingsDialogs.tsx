@@ -5,6 +5,7 @@ import { PurgeConfirmDialog } from './settings-dialogs/PurgeConfirmDialog';
 import { TableLimitsDialog } from './settings-dialogs/TableLimitsDialog';
 import { TranslationApiDialog } from './settings-dialogs/TranslationApiDialog';
 import {
+    DesktopNotificationsDialog,
     VrNotificationsDialog,
     WristFeedNotificationsDialog
 } from './settings-dialogs/WristFeedNotificationsDialog';
@@ -21,7 +22,8 @@ export function SettingsDialogs({
     purge,
     feedFilter,
     wristFeedNotifications,
-    vrNotifications
+    vrNotifications,
+    desktopNotifications
 }: any) {
     return (
         <>
@@ -104,6 +106,12 @@ export function SettingsDialogs({
                 onOpenChange={vrNotifications.setOpen}
                 value={vrNotifications.value}
                 onSave={vrNotifications.onSave}
+            />
+            <DesktopNotificationsDialog
+                open={desktopNotifications.open}
+                onOpenChange={desktopNotifications.setOpen}
+                value={desktopNotifications.value}
+                onSave={desktopNotifications.onSave}
             />
         </>
     );

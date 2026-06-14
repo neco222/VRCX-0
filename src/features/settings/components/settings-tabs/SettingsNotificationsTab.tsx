@@ -28,6 +28,7 @@ export function SettingsNotificationsTab({
     onNotificationIconDotChange,
     onPostUpdateChangelogToastChange,
     onOpenFeedFilterDialog,
+    onOpenDesktopNotificationFiltersDialog,
     onTestDesktopNotification,
     onDesktopToastChange,
     onAfkDesktopToastChange,
@@ -103,9 +104,7 @@ export function SettingsNotificationsTab({
                     >
                         <Switch
                             checked={prefs.showPostUpdateChangelogToast}
-                            onCheckedChange={
-                                onPostUpdateChangelogToastChange
-                            }
+                            onCheckedChange={onPostUpdateChangelogToastChange}
                         />
                     </Field>
 
@@ -182,6 +181,20 @@ export function SettingsNotificationsTab({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
+                    </Field>
+
+                    <Field
+                        label={t(
+                            'view.settings.notifications.notifications.desktop_notifications.notification_filters'
+                        )}
+                    >
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onOpenDesktopNotificationFiltersDialog}
+                        >
+                            {t('common.actions.configure')}
+                        </Button>
                     </Field>
 
                     <Field

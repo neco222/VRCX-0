@@ -156,6 +156,24 @@ export function VrNotificationsDialog({
     );
 }
 
+export function DesktopNotificationsDialog({
+    open,
+    onOpenChange,
+    value,
+    onSave
+}: VrNotificationsDialogProps) {
+    return (
+        <OverlayActivityFilterDialog
+            open={open}
+            onOpenChange={onOpenChange}
+            titleKey="dialog.desktop_notifications.title"
+            descriptionKey="dialog.desktop_notifications.description"
+            value={value}
+            onSave={onSave}
+        />
+    );
+}
+
 function OverlayActivityFilterDialog({
     open,
     onOpenChange,
@@ -197,7 +215,8 @@ function OverlayActivityFilterDialog({
         [activityDefinitions]
     );
     const definitionByKey = useMemo(
-        () => overlayActivityDefinitionByKeyFromDefinitions(activityDefinitions),
+        () =>
+            overlayActivityDefinitionByKeyFromDefinitions(activityDefinitions),
         [activityDefinitions]
     );
 
@@ -401,8 +420,7 @@ function OverlayActivityFilterDialog({
                         <ScrollArea className="min-h-0 pr-2">
                             <FieldGroup className="gap-0 rounded-lg border">
                                 {selectedCategoryTypes.map((type) => {
-                                    const definition =
-                                        definitionByKey[type];
+                                    const definition = definitionByKey[type];
                                     if (!definition) {
                                         return null;
                                     }

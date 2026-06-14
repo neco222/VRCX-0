@@ -1674,7 +1674,7 @@
                     "hide_private_worlds": "隐藏私人世界",
                     "vr_device_status": "VR 设备状态",
                     "battery_percentage": "显示电量百分比",
-                    "wrist_feed_notifications": "手腕动态过滤器"
+                    "wrist_feed_notifications": "腕表叠加通知过滤器"
                 },
                 "vr_extras": {
                     "header": "附加功能"
@@ -1970,7 +1970,7 @@
                         "wayvr_notifications": "WayVR 通知",
                         "ovrtoolkit_hud_notifications": "OVR Toolkit HUD 通知",
                         "ovrtoolkit_wrist_notifications": "OVR Toolkit 手腕通知",
-                        "notification_filters": "叠加通知过滤器",
+                        "notification_filters": "VR 叠加通知过滤器",
                         "user_images": "显示玩家头像（较慢）",
                         "user_images_description": "可能影响性能。",
                         "notification_opacity": "通知透明度",
@@ -1989,6 +1989,7 @@
                         "header": "桌面通知",
                         "when_to_display": "何时显示",
                         "when_to_display_vr": "显示 VR 叠加通知",
+                        "notification_filters": "桌面通知过滤器",
                         "desktop_notification_while_afk": "当处于 AFK 状态时显示桌面通知",
                         "notification_sound": "通知音"
                     },
@@ -4468,8 +4469,12 @@
             "title": "VR 叠加通知过滤器",
             "description": "选择 SteamVR 运行时哪些通知会发送到 XSOverlay 和 OVR Toolkit。"
         },
+        "desktop_notifications": {
+            "title": "桌面通知过滤器",
+            "description": "选择哪些活动会触发桌面（系统）通知。上方的桌面通知显示条件依然生效。"
+        },
         "wrist_feed_notifications": {
-            "title": "手腕动态过滤器",
+            "title": "腕表叠加通知过滤器",
             "description": "选择哪些内容显示在手腕动态中。桌面通知使用单独的过滤设置。",
             "reset_recommended": "重置",
             "scopes": {

@@ -99,6 +99,8 @@ export function createDefaultSettingsPrefs() {
         ),
         overlayActivityFilters: DEFAULT_OVERLAY_ACTIVITY_FILTERS,
         vrNotificationActivityFilters: DEFAULT_VR_NOTIFICATION_ACTIVITY_FILTERS,
+        desktopNotificationActivityFilters:
+            DEFAULT_VR_NOTIFICATION_ACTIVITY_FILTERS,
         feedTimeDisplayMode: 'relative',
         youtubeAPI: false,
         translationAPI: false,

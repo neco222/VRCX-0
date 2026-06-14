@@ -1,4 +1,5 @@
 use serde_json::{json, Value};
+use vrcx_0_core::location::parse_location;
 
 use super::types::{
     OverlayActivityCandidate, OverlayActivityCategory, OverlayActivityContent, OverlayActivityText,
@@ -65,7 +66,7 @@ pub(super) fn build_activity_content(
             ),
         ),
         "Online" => {
-            let body = if display_location.is_empty() {
+            let body = if readable_name(&world_name).is_empty() {
                 text("notifications.online", json!({}), "online")
             } else {
                 text(
@@ -489,13 +490,48 @@ fn detail_message(payload: &Value) -> String {
 }
 
 fn display_location(location: &str, world_name: &str, group_name: &str) -> String {
-    if !world_name.trim().is_empty() && !group_name.trim().is_empty() {
-        return format!("{} ({})", world_name.trim(), group_name.trim());
+    let parsed = parse_location(location);
+    if parsed.is_offline {
+        return "Offline".to_string();
     }
-    if !world_name.trim().is_empty() {
-        return world_name.trim().to_string();
+    if parsed.is_private {
+        return "Private".to_string();
     }
-    location.trim().to_string()
+    if parsed.is_traveling {
+        return "Traveling".to_string();
+    }
+    let world_name = readable_name(world_name);
+    let group_name = readable_name(group_name);
+    if !parsed.world_id.is_empty() {
+        if !group_name.is_empty() {
+            return format!("{world_name} {}({group_name})", parsed.access_type_name)
+                .trim()
+                .to_string();
+        }
+        if !parsed.instance_id.is_empty() {
+            return format!("{world_name} {}", parsed.access_type_name)
+                .trim()
+                .to_string();
+        }
+    }
+    world_name.to_string()
+}
+
+fn readable_name(value: &str) -> &str {
+    let trimmed = value.trim();
+    if is_location_id_like(trimmed) {
+        ""
+    } else {
+        trimmed
+    }
+}
+
+fn is_location_id_like(value: &str) -> bool {
+    let trimmed = value.trim();
+    trimmed == "private"
+        || trimmed == "private:private"
+        || trimmed.starts_with("wrld_")
+        || trimmed.starts_with("grp_")
 }
 
 fn string_field(value: &Value, key: &str) -> String {

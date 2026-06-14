@@ -26,6 +26,7 @@ import {
     setTrustColorPreference,
     setUserGeneratedContentPathPreference,
     setVrNotificationActivityFiltersPreference,
+    setDesktopNotificationActivityFiltersPreference,
     setWristOverlayEnabledPreference,
     loadTrustColorPreference,
     resetTrustColorsPreference
@@ -149,6 +150,7 @@ export function useSettingsActions(deps: any) {
         setTrustColorPreference,
         setUserGeneratedContentPathPreference,
         setVrNotificationActivityFiltersPreference,
+        setDesktopNotificationActivityFiltersPreference,
         setWristOverlayEnabledPreference,
         sharedFeedFiltersDefaults,
         t,

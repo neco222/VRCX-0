@@ -47,6 +47,7 @@ impl RealtimeMessageSink for RealtimeHostRuntimeMessageSink {
                 state.friend_reconnect_baseline_refresh_in_flight = false;
             }
             "connected" => {
+                self.runtime.deps.overlay_activity.set_delivery_armed(true);
                 self.runtime.schedule_reconnect_friend_baseline_refresh(
                     generation,
                     session_generation,

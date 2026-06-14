@@ -6,6 +6,7 @@ mod game_log;
 mod host_actions;
 mod host_file_access;
 mod log_watcher;
+mod notification_delivery;
 mod process_monitor;
 mod registry_backup;
 mod state;

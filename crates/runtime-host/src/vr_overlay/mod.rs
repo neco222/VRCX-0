@@ -1,6 +1,8 @@
 mod eligibility;
 mod localization;
 mod manager;
+
+pub(crate) use localization::{OverlayLocale, OverlayLocalizer};
 mod preview_bridge;
 mod runtime;
 mod service;

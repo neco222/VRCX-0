@@ -57,10 +57,14 @@ export function SettingsDialogsSection({ dialogs }: any) {
         setWristFeedNotificationsDialogOpen,
         vrNotificationsDialogOpen,
         setVrNotificationsDialogOpen,
+        desktopNotificationsDialogOpen,
+        setDesktopNotificationsDialogOpen,
         overlayActivityFilters,
         saveOverlayActivityFilters,
         vrNotificationActivityFilters,
-        saveVrNotificationActivityFilters
+        saveVrNotificationActivityFilters,
+        desktopNotificationActivityFilters,
+        saveDesktopNotificationActivityFilters
     } = dialogs;
 
     return (
@@ -148,6 +152,12 @@ export function SettingsDialogsSection({ dialogs }: any) {
                 setOpen: setVrNotificationsDialogOpen,
                 value: vrNotificationActivityFilters,
                 onSave: saveVrNotificationActivityFilters
+            }}
+            desktopNotifications={{
+                open: desktopNotificationsDialogOpen,
+                setOpen: setDesktopNotificationsDialogOpen,
+                value: desktopNotificationActivityFilters,
+                onSave: saveDesktopNotificationActivityFilters
             }}
         />
     );

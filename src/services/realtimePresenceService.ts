@@ -10,10 +10,7 @@ import {
     recordFriendPatch
 } from './domainIngestionService';
 import { handleInviteAutomationNotification } from './inviteAutomationService';
-import {
-    handleRealtimeInstanceQueueProjection
-} from './realtimeInstanceQueueService';
-import { deliverRuntimeNotification } from './notificationDeliveryService';
+import { handleRealtimeInstanceQueueProjection } from './realtimeInstanceQueueService';
 import { pushSharedFeedNotification } from './sharedFeedFilterService';
 
 type AnyRecord = Record<string, any>;
@@ -89,9 +86,7 @@ function mergeCurrentUserProjectionSnapshot(
     const snapshotSource = isRecord(projection.snapshot)
         ? projection.snapshot
         : {};
-    const source = Object.keys(patch).length
-        ? patch
-        : snapshotSource;
+    const source = Object.keys(patch).length ? patch : snapshotSource;
     const completeFriendBucketSource =
         getCurrentUserProjectionFriendBucketSource(projection);
     const nextSnapshot: any = {
@@ -299,16 +294,6 @@ async function handleRealtimeNotificationProjection(payload: unknown) {
         }
         if (item.notifyMenu) {
             notifyNotificationMenu(mergedNotification);
-        }
-        if (item.deliverRuntime) {
-            deliverRuntimeNotification(mergedNotification).catch(
-                (error: any) => {
-                    console.warn(
-                        'Failed to deliver runtime notification:',
-                        error
-                    );
-                }
-            );
         }
     }
 

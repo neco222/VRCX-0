@@ -1,11 +1,11 @@
 import { tauriClient } from '@/platform/tauri/client';
+import { normalizeVrchatEndpointDomain } from '@/shared/vrchatEndpoint';
 import { useNotificationStore } from '@/state/notificationStore';
 import {
     createGroupInstancesState,
     useRuntimeStore
 } from '@/state/runtimeStore';
 import { useSessionStore } from '@/state/sessionStore';
-import { normalizeVrchatEndpointDomain } from '@/shared/vrchatEndpoint';
 
 import { handleRuntimeAuthFailure } from './authSessionRecoveryService';
 import { resumeFrontendSessionFromBackendRuntime } from './backendRuntimeSessionResumeService';
@@ -21,6 +21,7 @@ import {
     refreshHostCapabilities
 } from './hostCapabilityService';
 import { handleIpcEvent } from './ipcEventService';
+import { executeNotificationDelivery } from './notificationDeliveryService';
 import { handleRealtimeInstanceQueueProjection } from './realtimeInstanceQueueService';
 import {
     handleRealtimeCurrentUserProjection,
@@ -42,6 +43,7 @@ type RuntimeEventName =
     | 'runtimeWorkerError'
     | 'runtimeGroupInstancesProjection'
     | 'overlayActivitySnapshot'
+    | 'notificationDelivery'
     | 'realtimeFriendProjection'
     | 'realtimeNotificationProjection'
     | 'realtimeCurrentUserProjection'
@@ -253,12 +255,12 @@ function isBackendRuntimeRealtimeOwner(): boolean {
     const authUserId = normalizeString(snapshot.authUserId);
     return Boolean(
         snapshot.phase === 'running' &&
-            snapshot.authStatus === 'authenticated' &&
-            snapshot.wsStatus !== 'authFailure' &&
-            snapshot.mode !== 'headless' &&
-            authUserId &&
-            runtimeState.auth.currentUserId === authUserId &&
-            sessionState.sessionPhase === 'ready'
+        snapshot.authStatus === 'authenticated' &&
+        snapshot.wsStatus !== 'authFailure' &&
+        snapshot.mode !== 'headless' &&
+        authUserId &&
+        runtimeState.auth.currentUserId === authUserId &&
+        sessionState.sessionPhase === 'ready'
     );
 }
 
@@ -266,11 +268,11 @@ function isBackendRuntimeRealtimeCandidate(): boolean {
     const snapshot = useRuntimeStore.getState().backendRuntime;
     return Boolean(
         isRecord(snapshot) &&
-            snapshot.phase === 'running' &&
-            snapshot.authStatus === 'authenticated' &&
-            snapshot.wsStatus !== 'authFailure' &&
-            snapshot.mode !== 'headless' &&
-            normalizeString(snapshot.authUserId)
+        snapshot.phase === 'running' &&
+        snapshot.authStatus === 'authenticated' &&
+        snapshot.wsStatus !== 'authFailure' &&
+        snapshot.mode !== 'headless' &&
+        normalizeString(snapshot.authUserId)
     );
 }
 
@@ -301,9 +303,9 @@ function sameBackendRealtimeProjectionScope(
 ): boolean {
     return Boolean(
         left &&
-            right &&
-            left.userId === right.userId &&
-            left.generation === right.generation
+        right &&
+        left.userId === right.userId &&
+        left.generation === right.generation
     );
 }
 
@@ -358,7 +360,8 @@ function queuePendingBackendRealtimeProjectionEvent(
     if (!scope) {
         return;
     }
-    const currentScope = pendingBackendRealtimeProjectionEvents[0]?.scope ?? null;
+    const currentScope =
+        pendingBackendRealtimeProjectionEvents[0]?.scope ?? null;
     if (
         pendingBackendRealtimeProjectionEvents.length &&
         !sameBackendRealtimeProjectionScope(currentScope, scope)
@@ -372,7 +375,8 @@ function queuePendingBackendRealtimeProjectionEvent(
 }
 
 function flushPendingBackendRealtimeProjectionEvents(): void {
-    const currentScope = pendingBackendRealtimeProjectionEvents[0]?.scope ?? null;
+    const currentScope =
+        pendingBackendRealtimeProjectionEvents[0]?.scope ?? null;
     if (
         !pendingBackendRealtimeProjectionEvents.length ||
         !isBackendRuntimeRealtimeOwner() ||
@@ -395,13 +399,15 @@ function prunePendingBackendRealtimeProjectionEvents(
     if (!pendingBackendRealtimeProjectionEvents.length) {
         return;
     }
-    const userId = isRecord(snapshot) ? normalizeString(snapshot.authUserId) : '';
+    const userId = isRecord(snapshot)
+        ? normalizeString(snapshot.authUserId)
+        : '';
     const active = Boolean(
         isRecord(snapshot) &&
-            snapshot.phase === 'running' &&
-            snapshot.authStatus === 'authenticated' &&
-            snapshot.mode !== 'headless' &&
-            userId
+        snapshot.phase === 'running' &&
+        snapshot.authStatus === 'authenticated' &&
+        snapshot.mode !== 'headless' &&
+        userId
     );
     const currentScope = pendingBackendRealtimeProjectionEvents[0]?.scope;
     if (!active || currentScope?.userId !== userId) {
@@ -414,10 +420,10 @@ function isBackendRuntimeAuthFailureSnapshot(
 ): boolean {
     return Boolean(
         isRecord(snapshot) &&
-            snapshot.phase === 'running' &&
-            snapshot.authStatus === 'authenticated' &&
-            normalizeString(snapshot.authUserId) &&
-            normalizeString(snapshot.wsStatus) === 'authFailure'
+        snapshot.phase === 'running' &&
+        snapshot.authStatus === 'authenticated' &&
+        normalizeString(snapshot.authUserId) &&
+        normalizeString(snapshot.wsStatus) === 'authFailure'
     );
 }
 
@@ -501,6 +507,14 @@ function handleRuntimeEvent(name: RuntimeEventName, payload: unknown): void {
         return;
     }
 
+    if (name === 'notificationDelivery') {
+        runtimeStore.recordRuntimeEvent(name, payload);
+        executeNotificationDelivery(payload as any).catch((error: any) => {
+            console.warn('Failed to execute notification delivery:', error);
+        });
+        return;
+    }
+
     if (handleBackendRealtimeProjectionEvent(name, payload)) {
         return;
     }
@@ -515,17 +529,17 @@ function handleRuntimeEvent(name: RuntimeEventName, payload: unknown): void {
             hydrateBackendRuntimeSnapshot(snapshot);
         } else {
             applyBackendRuntimeSnapshot(snapshot);
-            resumeFrontendSessionFromBackendRuntime(snapshot).catch(
-                (error: any) => {
+            resumeFrontendSessionFromBackendRuntime(snapshot)
+                .catch((error: any) => {
                     console.warn(
                         'Failed to resume frontend session from backend runtime:',
                         error
                     );
-                }
-            ).then(() => {
-                handleBackendRuntimeAuthFailureSnapshot(snapshot);
-                flushPendingBackendRealtimeProjectionEvents();
-            });
+                })
+                .then(() => {
+                    handleBackendRuntimeAuthFailureSnapshot(snapshot);
+                    flushPendingBackendRealtimeProjectionEvents();
+                });
         }
         return;
     }
@@ -574,7 +588,9 @@ function handleRuntimeEvent(name: RuntimeEventName, payload: unknown): void {
         const currentEndpoint = normalizeString(auth.currentUserEndpoint);
         if (!currentUserId || !userId) {
             if (status === 'idle') {
-                runtimeStore.setGroupInstancesState(createGroupInstancesState());
+                runtimeStore.setGroupInstancesState(
+                    createGroupInstancesState()
+                );
             }
             return;
         }
@@ -679,6 +695,7 @@ export async function bindRuntimeEvents(): Promise<() => void> {
         'gameLogSideEffect',
         'runtimeGroupInstancesProjection',
         'overlayActivitySnapshot',
+        'notificationDelivery',
         'gameClientEvent',
         'runtimeWorkerError',
         'realtimeFriendProjection',
@@ -728,7 +745,9 @@ export async function bindRuntimeEvents(): Promise<() => void> {
         });
         console.warn('Failed to hydrate backend runtime snapshot:', error);
     }
-    requestGroupInstancesRefresh('runtime event binding after backend snapshot hydration');
+    requestGroupInstancesRefresh(
+        'runtime event binding after backend snapshot hydration'
+    );
 
     return () => {
         for (const unsubscribe of unsubscribers) {

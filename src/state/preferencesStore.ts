@@ -322,6 +322,8 @@ export const DEFAULT_PREFERENCES: PreferenceInputSnapshot = Object.freeze({
     },
     overlayActivityFilters: DEFAULT_OVERLAY_ACTIVITY_FILTERS,
     vrNotificationActivityFilters: DEFAULT_VR_NOTIFICATION_ACTIVITY_FILTERS,
+    desktopNotificationActivityFilters:
+        DEFAULT_VR_NOTIFICATION_ACTIVITY_FILTERS,
     feedTimeDisplayMode: 'relative',
     trustColor: { ...TRUST_COLOR_DEFAULTS },
     youtubeAPI: false,
@@ -485,6 +487,9 @@ export function normalizePreferenceSnapshot(
         ),
         vrNotificationActivityFilters: parseOverlayActivityFilterProfile(
             next.vrNotificationActivityFilters
+        ),
+        desktopNotificationActivityFilters: parseOverlayActivityFilterProfile(
+            next.desktopNotificationActivityFilters
         ),
         feedTimeDisplayMode: normalizeFeedTimeDisplayMode(
             next.feedTimeDisplayMode

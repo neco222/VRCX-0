@@ -2,7 +2,7 @@ use serde_json::json;
 use vrcx_0_application::{
     overlay_activity_type_definitions, OverlayActivityCandidate, OverlayActivityCategory,
     OverlayActivityFavoriteGroupKeys, OverlayActivityFilters, OverlayActivityRule,
-    OverlayActivityRuntime, OverlayActivityScope, OverlayFavoriteGroups,
+    OverlayActivityRuntime, OverlayActivityScope, OverlayActivitySurface, OverlayFavoriteGroups,
 };
 
 #[test]
@@ -96,11 +96,15 @@ fn unsupported_scopes_normalize_to_type_defaults() {
     }));
 
     assert_eq!(
-        filters.rule_for("group.queueReady").scope,
+        filters
+            .rule_for(OverlayActivitySurface::Wrist, "group.queueReady")
+            .scope,
         OverlayActivityScope::On
     );
     assert_eq!(
-        filters.rule_for("AvatarChange").scope,
+        filters
+            .rule_for(OverlayActivitySurface::Wrist, "AvatarChange")
+            .scope,
         OverlayActivityScope::AllFavorites
     );
 }
@@ -136,18 +140,32 @@ fn legacy_category_filters_normalize_to_type_rules() {
         }
     }));
 
-    assert_eq!(filters.rule_for("invite").scope, OverlayActivityScope::On);
-    assert_eq!(filters.rule_for("boop").scope, OverlayActivityScope::Off);
     assert_eq!(
-        filters.rule_for("OnPlayerJoined").scope,
+        filters
+            .rule_for(OverlayActivitySurface::Wrist, "invite")
+            .scope,
+        OverlayActivityScope::On
+    );
+    assert_eq!(
+        filters
+            .rule_for(OverlayActivitySurface::Wrist, "boop")
+            .scope,
+        OverlayActivityScope::Off
+    );
+    assert_eq!(
+        filters
+            .rule_for(OverlayActivitySurface::Wrist, "OnPlayerJoined")
+            .scope,
         OverlayActivityScope::EveryoneInInstance
     );
     assert_eq!(
-        filters.rule_for("DisplayName").scope,
+        filters
+            .rule_for(OverlayActivitySurface::Wrist, "DisplayName")
+            .scope,
         OverlayActivityScope::AllFavorites
     );
     assert_eq!(
-        filters.rule_for("AvatarChange"),
+        filters.rule_for(OverlayActivitySurface::Wrist, "AvatarChange"),
         OverlayActivityRule {
             scope: OverlayActivityScope::SelectedFavorites,
             favorite_group_keys: OverlayActivityFavoriteGroupKeys::Selected(vec![
@@ -174,26 +192,39 @@ fn legacy_shared_feed_wrist_filters_migrate_to_type_rules() {
     }));
 
     assert_eq!(
-        filters.rule_for("invite").scope,
+        filters
+            .rule_for(OverlayActivitySurface::Wrist, "invite")
+            .scope,
         OverlayActivityScope::AllFavorites
     );
     assert_eq!(
-        filters.rule_for("OnPlayerJoined").scope,
+        filters
+            .rule_for(OverlayActivitySurface::Wrist, "OnPlayerJoined")
+            .scope,
         OverlayActivityScope::EveryoneInInstance
     );
     assert_eq!(
-        filters.rule_for("friendRequest").scope,
+        filters
+            .rule_for(OverlayActivitySurface::Wrist, "friendRequest")
+            .scope,
         OverlayActivityScope::Off
     );
     assert_eq!(
-        filters.rule_for("group.queueReady").scope,
+        filters
+            .rule_for(OverlayActivitySurface::Wrist, "group.queueReady")
+            .scope,
         OverlayActivityScope::On
     );
     assert_eq!(
-        filters.rule_for("AvatarChange").scope,
+        filters
+            .rule_for(OverlayActivitySurface::Wrist, "AvatarChange")
+            .scope,
         OverlayActivityScope::AllFavorites
     );
-    assert_eq!(filters.rule_for("GPS").scope, OverlayActivityScope::Friends);
+    assert_eq!(
+        filters.rule_for(OverlayActivitySurface::Wrist, "GPS").scope,
+        OverlayActivityScope::Friends
+    );
 }
 
 #[test]
@@ -226,7 +257,9 @@ fn unknown_activity_type_rule_uses_off_scope() {
     }));
 
     assert_eq!(
-        filters.rule_for("unknown.raw.type").scope,
+        filters
+            .rule_for(OverlayActivitySurface::Wrist, "unknown.raw.type")
+            .scope,
         OverlayActivityScope::Off
     );
 }
@@ -285,10 +318,13 @@ fn activity_content_is_built_from_feed_payload() {
     assert_eq!(entry.content.icon, "location");
     assert_eq!(entry.content.title.fallback, "Map User");
     assert_eq!(entry.content.body.key, "notifications.gps");
-    assert_eq!(entry.content.body.fallback, "is in Great World (Group A)");
+    assert_eq!(
+        entry.content.body.fallback,
+        "is in Great World public(Group A)"
+    );
     assert_eq!(
         entry.content.summary,
-        "Map User is in Great World (Group A)"
+        "Map User is in Great World public(Group A)"
     );
     assert_eq!(entry.content.location, "wrld_1:123");
     assert_eq!(entry.content.world_name, "Great World");
@@ -378,6 +414,45 @@ fn favorite_group_keys_serialize_as_the_frontend_config_contract() {
         serde_json::to_value(OverlayActivityFavoriteGroupKeys::All).unwrap(),
         json!("all")
     );
+}
+
+#[test]
+fn location_ids_are_not_shown_as_names() {
+    let runtime = OverlayActivityRuntime::with_filters(OverlayActivityFilters::from_json(json!({
+        "version": 1,
+        "wrist": { "types": { "GPS": { "scope": "friends", "favoriteGroupKeys": "all" } } }
+    })));
+    runtime.set_friend_user_ids(["usr_map"]);
+    let mut row = candidate("GPS", "usr_map");
+    row.actor_display_name = "Map User".to_string();
+    row.payload = json!({
+        "type": "GPS",
+        "userId": "usr_map",
+        "displayName": "Map User",
+        "location": "wrld_1234:5678~group(grp_9999)"
+    });
+
+    let entry = runtime.ingest_candidate(row).unwrap();
+
+    assert_eq!(entry.content.body.fallback, "is in group");
+    assert_eq!(entry.content.body.params["location"], json!("group"));
+    assert_eq!(entry.content.location, "wrld_1234:5678~group(grp_9999)");
+}
+
+#[test]
+fn private_location_aligns_with_original_display() {
+    let runtime = OverlayActivityRuntime::with_filters(OverlayActivityFilters::from_json(json!({
+        "version": 1,
+        "wrist": { "types": { "GPS": { "scope": "friends", "favoriteGroupKeys": "all" } } }
+    })));
+    runtime.set_friend_user_ids(["usr_p"]);
+    let mut row = candidate("GPS", "usr_p");
+    row.payload = json!({ "type": "GPS", "userId": "usr_p", "location": "private" });
+
+    let entry = runtime.ingest_candidate(row).unwrap();
+
+    assert_eq!(entry.content.body.fallback, "is in Private");
+    assert_eq!(entry.content.body.params["location"], json!("Private"));
 }
 
 fn candidate(activity_type: &str, user_id: &str) -> OverlayActivityCandidate {

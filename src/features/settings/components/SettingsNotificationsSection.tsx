@@ -19,6 +19,7 @@ export function SettingsNotificationsSection({ notifications }: any) {
         setNotificationLayoutPreference,
         setPrefs,
         setFeedFilterDialogOpen,
+        setDesktopNotificationsDialogOpen,
         saveStringPreference,
         saveBoolPreference,
         saveNotificationTtsMode,
@@ -76,6 +77,9 @@ export function SettingsNotificationsSection({ notifications }: any) {
                 );
             }}
             onOpenFeedFilterDialog={() => setFeedFilterDialogOpen(true)}
+            onOpenDesktopNotificationFiltersDialog={() =>
+                setDesktopNotificationsDialogOpen(true)
+            }
             onTestDesktopNotification={() => {
                 showDesktopNotification(
                     'VRCX-0',

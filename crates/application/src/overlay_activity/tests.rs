@@ -16,17 +16,33 @@ use vrcx_0_persistence::game_log::{
 #[derive(Clone, Default)]
 struct TestOverlayActivitySink {
     snapshots: Arc<Mutex<Vec<OverlayActivitySnapshot>>>,
+    deliveries: Arc<Mutex<Vec<OverlayActivityDelivery>>>,
 }
 
 impl OverlayActivitySink for TestOverlayActivitySink {
     fn emit_overlay_activity_snapshot(&self, snapshot: OverlayActivitySnapshot) {
         self.snapshots.lock().unwrap().push(snapshot);
     }
+
+    fn emit_overlay_activity_delivery(&self, delivery: OverlayActivityDelivery) {
+        self.deliveries.lock().unwrap().push(delivery);
+    }
 }
 
 impl TestOverlayActivitySink {
     fn take(&self) -> Vec<OverlayActivitySnapshot> {
         std::mem::take(&mut *self.snapshots.lock().unwrap())
+    }
+
+    fn take_deliveries(&self) -> Vec<OverlayActivityDelivery> {
+        std::mem::take(&mut *self.deliveries.lock().unwrap())
+    }
+}
+
+fn recent_candidate(activity_type: &str, user_id: &str) -> OverlayActivityCandidate {
+    OverlayActivityCandidate {
+        created_at: chrono::Utc::now().to_rfc3339(),
+        ..candidate(activity_type, user_id)
     }
 }
 
@@ -477,6 +493,64 @@ fn game_log_system_and_video_entries_with_same_timestamp_do_not_collide() {
         .map(|entry| entry.source_id.as_str())
         .collect::<std::collections::HashSet<_>>();
     assert_eq!(source_ids.len(), entries.len());
+}
+
+#[test]
+fn delivery_requires_armed_and_recent_event() {
+    let runtime = OverlayActivityRuntime::new();
+    let sink = TestOverlayActivitySink::default();
+    runtime.set_sink(sink.clone());
+
+    runtime.ingest_candidate(recent_candidate("friendRequest", "usr_a"));
+    assert!(sink.take_deliveries().is_empty());
+    assert_eq!(runtime.snapshot().entries.len(), 1);
+
+    runtime.set_delivery_armed(true);
+    runtime.ingest_candidate(recent_candidate("friendRequest", "usr_b"));
+    let deliveries = sink.take_deliveries();
+    assert_eq!(deliveries.len(), 1);
+    assert_eq!(deliveries[0].entry.actor_user_id, "usr_b");
+    assert!(deliveries[0].desktop);
+    assert!(deliveries[0].vr);
+
+    runtime.ingest_candidate(candidate("friendRequest", "usr_c"));
+    assert!(sink.take_deliveries().is_empty());
+}
+
+#[test]
+fn delivery_fires_for_desktop_only_without_wrist_entry() {
+    let runtime = OverlayActivityRuntime::with_filters(OverlayActivityFilters::from_json(json!({
+        "version": 1,
+        "wrist": { "types": { "invite": { "scope": "off", "favoriteGroupKeys": "all" } } },
+        "desktop": { "types": { "invite": { "scope": "on", "favoriteGroupKeys": "all" } } },
+        "vr": { "types": { "invite": { "scope": "off", "favoriteGroupKeys": "all" } } }
+    })));
+    let sink = TestOverlayActivitySink::default();
+    runtime.set_sink(sink.clone());
+    runtime.set_delivery_armed(true);
+
+    let entry = runtime.ingest_candidate(recent_candidate("invite", "usr_sender"));
+
+    assert!(entry.is_some());
+    assert!(runtime.snapshot().entries.is_empty());
+    let deliveries = sink.take_deliveries();
+    assert_eq!(deliveries.len(), 1);
+    assert!(deliveries[0].desktop);
+    assert!(!deliveries[0].vr);
+}
+
+#[test]
+fn dedup_blocks_redelivery_across_surfaces() {
+    let runtime = OverlayActivityRuntime::new();
+    let sink = TestOverlayActivitySink::default();
+    runtime.set_sink(sink.clone());
+    runtime.set_delivery_armed(true);
+
+    let first = recent_candidate("friendRequest", "usr_a");
+    let duplicate = first.clone();
+    assert!(runtime.ingest_candidate(first).is_some());
+    assert!(runtime.ingest_candidate(duplicate).is_none());
+    assert_eq!(sink.take_deliveries().len(), 1);
 }
 
 fn candidate(activity_type: &str, user_id: &str) -> OverlayActivityCandidate {

@@ -39,6 +39,7 @@ export function useSettingsPreferenceActions({
     setTablePageSizesDialogOpen,
     setTrustColorPreference,
     setVrNotificationActivityFiltersPreference,
+    setDesktopNotificationActivityFiltersPreference,
     setWristOverlayEnabledPreference,
     t,
     tableLimitsDraft,
@@ -436,36 +437,48 @@ export function useSettingsPreferenceActions({
         toast.success(t('common.settings_saved'));
         return savedFilters;
     }
-    async function saveVrNotificationActivityFilters(value: any) {
-        let savedFilters;
-        const previousFilters = prefs.vrNotificationActivityFilters;
-        const saved = await commit(
-            async () => {
-                savedFilters =
-                    await setVrNotificationActivityFiltersPreference(value);
-            },
-            () => {
-                setPrefs((current: any) => ({
-                    ...current,
-                    vrNotificationActivityFilters: value
-                }));
-                return () =>
+    function makeSaveActivityFilterSurface(
+        field:
+            | 'vrNotificationActivityFilters'
+            | 'desktopNotificationActivityFilters',
+        setPreference: (value: any) => Promise<any>
+    ) {
+        return async function saveActivityFilterSurface(value: any) {
+            let savedFilters;
+            const previousFilters = prefs[field];
+            const saved = await commit(
+                async () => {
+                    savedFilters = await setPreference(value);
+                },
+                () => {
                     setPrefs((current: any) => ({
                         ...current,
-                        vrNotificationActivityFilters: previousFilters
+                        [field]: value
                     }));
+                    return () =>
+                        setPrefs((current: any) => ({
+                            ...current,
+                            [field]: previousFilters
+                        }));
+                }
+            );
+            if (!saved) {
+                return null;
             }
-        );
-        if (!saved) {
-            return null;
-        }
-        setPrefs((current: any) => ({
-            ...current,
-            vrNotificationActivityFilters: savedFilters
-        }));
-        toast.success(t('common.settings_saved'));
-        return savedFilters;
+            setPrefs((current: any) => ({ ...current, [field]: savedFilters }));
+            toast.success(t('common.settings_saved'));
+            return savedFilters;
+        };
     }
+    const saveVrNotificationActivityFilters = makeSaveActivityFilterSurface(
+        'vrNotificationActivityFilters',
+        setVrNotificationActivityFiltersPreference
+    );
+    const saveDesktopNotificationActivityFilters =
+        makeSaveActivityFilterSurface(
+            'desktopNotificationActivityFilters',
+            setDesktopNotificationActivityFiltersPreference
+        );
     async function saveWristOverlayEnabled(value: any) {
         let savedValue = Boolean(value);
         const previousValue = prefs.wristOverlayEnabled;
@@ -541,6 +554,7 @@ export function useSettingsPreferenceActions({
         toggleLocalFavoriteFriendsGroup,
         saveOverlayActivityFilters,
         saveVrNotificationActivityFilters,
+        saveDesktopNotificationActivityFilters,
         saveWristOverlayEnabled,
         speakNotificationTts
     };

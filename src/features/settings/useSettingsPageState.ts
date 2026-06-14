@@ -117,6 +117,8 @@ export function useSettingsPageState() {
     ] = useState(false);
     const [vrNotificationsDialogOpen, setVrNotificationsDialogOpen] =
         useState(false);
+    const [desktopNotificationsDialogOpen, setDesktopNotificationsDialogOpen] =
+        useState(false);
     const [sharedFeedFilters, setSharedFeedFilters] = useState(() =>
         normalizeSharedFeedFilters()
     );
@@ -212,6 +214,7 @@ export function useSettingsPageState() {
         resetSharedFeedFilters,
         saveOverlayActivityFilters,
         saveVrNotificationActivityFilters,
+        saveDesktopNotificationActivityFilters,
         saveWristOverlayEnabled,
         refreshRuntimeAppSnapshot,
         searchLimitError,
@@ -678,6 +681,7 @@ export function useSettingsPageState() {
             setNotificationLayoutPreference,
             setPrefs,
             setFeedFilterDialogOpen,
+            setDesktopNotificationsDialogOpen,
             saveStringPreference,
             saveBoolPreference,
             saveNotificationTtsMode,
@@ -787,10 +791,15 @@ export function useSettingsPageState() {
             setWristFeedNotificationsDialogOpen,
             vrNotificationsDialogOpen,
             setVrNotificationsDialogOpen,
+            desktopNotificationsDialogOpen,
+            setDesktopNotificationsDialogOpen,
             overlayActivityFilters: prefs.overlayActivityFilters,
             saveOverlayActivityFilters,
             vrNotificationActivityFilters: prefs.vrNotificationActivityFilters,
-            saveVrNotificationActivityFilters
+            saveVrNotificationActivityFilters,
+            desktopNotificationActivityFilters:
+                prefs.desktopNotificationActivityFilters,
+            saveDesktopNotificationActivityFilters
         }
     };
 }

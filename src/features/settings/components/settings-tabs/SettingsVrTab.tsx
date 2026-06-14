@@ -409,9 +409,7 @@ export function SettingsVrTab({
                             disabled={!wristOverlayEnabled}
                             onClick={onOpenWristFeedNotificationsDialog}
                         >
-                            {t(
-                                'view.settings.vr.wrist_overlay.wrist_feed_notifications'
-                            )}
+                            {t('common.actions.configure')}
                         </Button>
                     </Field>
                 </CardContent>

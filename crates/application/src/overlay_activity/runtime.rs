@@ -1,17 +1,22 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
+use chrono::{DateTime, Utc};
 use serde_json::Value;
 
 use super::content::build_activity_content;
 use super::definitions::{default_rule, known_definition_for_type, normalize_id};
 use super::types::{
-    OverlayActivityActorRelation, OverlayActivityCandidate, OverlayActivityEntry,
-    OverlayActivityFavoriteGroupKeys, OverlayActivityFilters, OverlayActivityRule,
-    OverlayActivityScope, OverlayActivitySnapshot,
+    OverlayActivityActorRelation, OverlayActivityCandidate, OverlayActivityDelivery,
+    OverlayActivityEntry, OverlayActivityFavoriteGroupKeys, OverlayActivityFilters,
+    OverlayActivityRule, OverlayActivityScope, OverlayActivitySnapshot, OverlayActivitySurface,
 };
 
 const DEFAULT_CAPACITY: usize = 128;
+const DEDUP_CAPACITY: usize = 4096;
+const DELIVERY_MAX_AGE_SECS: i64 = 60;
+const DEDUP_TTL: Duration = Duration::from_secs(2 * DELIVERY_MAX_AGE_SECS as u64);
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct OverlayFavoriteGroups {
@@ -99,6 +104,8 @@ pub struct OverlayActivityRuntime {
 
 pub trait OverlayActivitySink: Send + Sync {
     fn emit_overlay_activity_snapshot(&self, snapshot: OverlayActivitySnapshot);
+
+    fn emit_overlay_activity_delivery(&self, _delivery: OverlayActivityDelivery) {}
 }
 
 #[derive(Clone, Debug)]
@@ -108,8 +115,11 @@ pub(super) struct OverlayActivityState {
     pub(super) friend_user_ids: HashSet<String>,
     pub(super) entries: VecDeque<OverlayActivityEntry>,
     pub(super) source_ids: HashSet<String>,
+    pub(super) seen_order: VecDeque<(Instant, String)>,
     pub(super) next_sequence: u64,
     pub(super) capacity: usize,
+    pub(super) dedup_capacity: usize,
+    pub(super) armed: bool,
 }
 
 impl Default for OverlayActivityState {
@@ -120,8 +130,11 @@ impl Default for OverlayActivityState {
             friend_user_ids: HashSet::new(),
             entries: VecDeque::new(),
             source_ids: HashSet::new(),
+            seen_order: VecDeque::new(),
             next_sequence: 1,
             capacity: DEFAULT_CAPACITY,
+            dedup_capacity: DEDUP_CAPACITY,
+            armed: false,
         }
     }
 }
@@ -157,6 +170,7 @@ impl OverlayActivityRuntime {
             state.filters = filters;
             state.entries.clear();
             state.source_ids.clear();
+            state.seen_order.clear();
             snapshot_from_state(&state)
         };
         self.emit_snapshot(snapshot);
@@ -191,6 +205,12 @@ impl OverlayActivityRuntime {
         }
     }
 
+    pub fn set_delivery_armed(&self, armed: bool) {
+        if let Ok(mut state) = self.state.lock() {
+            state.armed = armed;
+        }
+    }
+
     pub fn clear_runtime_state(&self) {
         let snapshot = {
             let Ok(mut state) = self.state.lock() else {
@@ -200,7 +220,9 @@ impl OverlayActivityRuntime {
             state.friend_user_ids.clear();
             state.entries.clear();
             state.source_ids.clear();
+            state.seen_order.clear();
             state.next_sequence = 1;
+            state.armed = false;
             snapshot_from_state(&state)
         };
         self.emit_snapshot(snapshot);
@@ -210,23 +232,33 @@ impl OverlayActivityRuntime {
         &self,
         candidate: OverlayActivityCandidate,
     ) -> Option<OverlayActivityEntry> {
-        let (entry, snapshot) = {
+        let (entry, snapshot, delivery) = {
             let mut state = self.state.lock().ok()?;
             let definition = known_definition_for_type(&candidate.activity_type)?;
-            let rule = state
-                .filters
-                .wrist
-                .types
-                .get(definition.key)
-                .cloned()
-                .unwrap_or_else(|| default_rule(definition));
-            if !candidate_matches_rule(&state, &candidate, &rule) {
-                return None;
-            }
+
             let source_id = normalize_source_id(&candidate);
             if state.source_ids.contains(&source_id) {
                 return None;
             }
+
+            let wrist = surface_matches(
+                &state,
+                &candidate,
+                OverlayActivitySurface::Wrist,
+                definition,
+            );
+            let desktop = surface_matches(
+                &state,
+                &candidate,
+                OverlayActivitySurface::Desktop,
+                definition,
+            );
+            let vr = surface_matches(&state, &candidate, OverlayActivitySurface::Vr, definition);
+            if !wrist && !desktop && !vr {
+                return None;
+            }
+            remember_source_id(&mut state, source_id.clone());
+
             let actor_display_name = candidate.actor_display_name.trim().to_string();
             let content = build_activity_content(
                 definition.key,
@@ -238,7 +270,7 @@ impl OverlayActivityRuntime {
             let actor_relation = actor_relation_for_user_id(&state, &actor_user_id);
             let entry = OverlayActivityEntry {
                 sequence: state.next_sequence,
-                source_id: source_id.clone(),
+                source_id,
                 activity_type: definition.key.to_string(),
                 category: definition.category,
                 created_at: candidate.created_at,
@@ -249,16 +281,35 @@ impl OverlayActivityRuntime {
                 payload: candidate.payload,
             };
             state.next_sequence = state.next_sequence.saturating_add(1);
-            state.source_ids.insert(source_id);
-            state.entries.push_back(entry.clone());
-            while state.entries.len() > state.capacity {
-                if let Some(removed) = state.entries.pop_front() {
-                    state.source_ids.remove(&removed.source_id);
+
+            let snapshot = if wrist {
+                state.entries.push_back(entry.clone());
+                while state.entries.len() > state.capacity {
+                    state.entries.pop_front();
                 }
-            }
-            (entry, snapshot_from_state(&state))
+                Some(snapshot_from_state(&state))
+            } else {
+                None
+            };
+
+            let delivery = if (desktop || vr) && state.armed && is_recent(&entry.created_at) {
+                Some(OverlayActivityDelivery {
+                    entry: entry.clone(),
+                    desktop,
+                    vr,
+                })
+            } else {
+                None
+            };
+
+            (entry, snapshot, delivery)
         };
-        self.emit_snapshot(snapshot);
+        if let Some(snapshot) = snapshot {
+            self.emit_snapshot(snapshot);
+        }
+        if let Some(delivery) = delivery {
+            self.emit_delivery(delivery);
+        }
         Some(entry)
     }
 
@@ -267,6 +318,13 @@ impl OverlayActivityRuntime {
             return OverlayActivitySnapshot::default();
         };
         snapshot_from_state(&state)
+    }
+
+    pub fn filters(&self) -> OverlayActivityFilters {
+        self.state
+            .lock()
+            .map(|state| state.filters.clone())
+            .unwrap_or_default()
     }
 
     pub(super) fn insert_friend_user_id(&self, user_id: String) {
@@ -289,6 +347,62 @@ impl OverlayActivityRuntime {
         if let Some(sink) = sink {
             sink.emit_overlay_activity_snapshot(snapshot);
         }
+    }
+
+    fn emit_delivery(&self, delivery: OverlayActivityDelivery) {
+        let sink = self.sink.lock().ok().and_then(|sink| sink.clone());
+        if let Some(sink) = sink {
+            sink.emit_overlay_activity_delivery(delivery);
+        }
+    }
+}
+
+fn surface_matches(
+    state: &OverlayActivityState,
+    candidate: &OverlayActivityCandidate,
+    surface: OverlayActivitySurface,
+    definition: &super::definitions::ActivityTypeDefinition,
+) -> bool {
+    let fallback = default_rule(definition);
+    let rule = state
+        .filters
+        .surface(surface)
+        .types
+        .get(definition.key)
+        .unwrap_or(&fallback);
+    candidate_matches_rule(state, candidate, rule)
+}
+
+fn remember_source_id(state: &mut OverlayActivityState, source_id: String) {
+    if state.source_ids.insert(source_id.clone()) {
+        let now = Instant::now();
+        state.seen_order.push_back((now, source_id));
+        while let Some((seen_at, _)) = state.seen_order.front() {
+            let expired = now.duration_since(*seen_at) > DEDUP_TTL;
+            let over_capacity = state.seen_order.len() > state.dedup_capacity;
+            if !expired && !over_capacity {
+                break;
+            }
+            if let Some((_, removed)) = state.seen_order.pop_front() {
+                state.source_ids.remove(&removed);
+            }
+        }
+    }
+}
+
+fn is_recent(created_at: &str) -> bool {
+    let trimmed = created_at.trim();
+    if trimmed.is_empty() {
+        return true;
+    }
+    match DateTime::parse_from_rfc3339(trimmed) {
+        Ok(timestamp) => {
+            Utc::now()
+                .signed_duration_since(timestamp.with_timezone(&Utc))
+                .num_seconds()
+                <= DELIVERY_MAX_AGE_SECS
+        }
+        Err(_) => false,
     }
 }
 

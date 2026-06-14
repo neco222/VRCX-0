@@ -11,7 +11,8 @@ pub use catalog::overlay_activity_type_definitions;
 pub use runtime::{OverlayActivityRuntime, OverlayActivitySink, OverlayFavoriteGroups};
 pub use types::{
     OverlayActivityActorRelation, OverlayActivityCandidate, OverlayActivityCategory,
-    OverlayActivityContent, OverlayActivityEntry, OverlayActivityFavoriteGroupKeys,
-    OverlayActivityFilters, OverlayActivityRule, OverlayActivityScope, OverlayActivitySnapshot,
-    OverlayActivityText, OverlayActivityTypeDefinition,
+    OverlayActivityContent, OverlayActivityDelivery, OverlayActivityEntry,
+    OverlayActivityFavoriteGroupKeys, OverlayActivityFilters, OverlayActivityRule,
+    OverlayActivityScope, OverlayActivitySnapshot, OverlayActivitySurface,
+    OverlayActivitySurfaceFilters, OverlayActivityText, OverlayActivityTypeDefinition,
 };

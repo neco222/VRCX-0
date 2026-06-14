@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use super::definitions::{
     default_activity_rules, default_rule, has_persisted_filter_rules, known_definition_for_type,
-    migrate_legacy_shared_feed_wrist_filters, normalize_filters,
+    migrate_legacy_shared_feed_wrist_filters, normalize_filters, normalize_surface,
 };
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -96,26 +96,49 @@ pub struct OverlayActivityRule {
     pub favorite_group_keys: OverlayActivityFavoriteGroupKeys,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct OverlayActivityFilters {
-    pub version: u32,
-    pub wrist: OverlayActivityWristFilters,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OverlayActivitySurface {
+    Wrist,
+    Desktop,
+    Vr,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct OverlayActivityWristFilters {
+pub struct OverlayActivityFilters {
+    pub version: u32,
+    pub wrist: OverlayActivitySurfaceFilters,
+    #[serde(default = "OverlayActivitySurfaceFilters::default_rules")]
+    pub desktop: OverlayActivitySurfaceFilters,
+    #[serde(default = "OverlayActivitySurfaceFilters::default_rules")]
+    pub vr: OverlayActivitySurfaceFilters,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OverlayActivitySurfaceFilters {
     pub types: BTreeMap<String, OverlayActivityRule>,
+}
+
+impl OverlayActivitySurfaceFilters {
+    pub(super) fn default_rules() -> Self {
+        Self {
+            types: default_activity_rules(),
+        }
+    }
+
+    pub fn from_types_json(value: &Value) -> Self {
+        normalize_surface(Some(value))
+    }
 }
 
 impl Default for OverlayActivityFilters {
     fn default() -> Self {
         Self {
             version: 1,
-            wrist: OverlayActivityWristFilters {
-                types: default_activity_rules(),
-            },
+            wrist: OverlayActivitySurfaceFilters::default_rules(),
+            desktop: OverlayActivitySurfaceFilters::default_rules(),
+            vr: OverlayActivitySurfaceFilters::default_rules(),
         }
     }
 }
@@ -133,11 +156,23 @@ impl OverlayActivityFilters {
         migrate_legacy_shared_feed_wrist_filters(value)
     }
 
-    pub fn rule_for(&self, activity_type: &str) -> OverlayActivityRule {
+    pub fn surface(&self, surface: OverlayActivitySurface) -> &OverlayActivitySurfaceFilters {
+        match surface {
+            OverlayActivitySurface::Wrist => &self.wrist,
+            OverlayActivitySurface::Desktop => &self.desktop,
+            OverlayActivitySurface::Vr => &self.vr,
+        }
+    }
+
+    pub fn rule_for(
+        &self,
+        surface: OverlayActivitySurface,
+        activity_type: &str,
+    ) -> OverlayActivityRule {
         let Some(definition) = known_definition_for_type(activity_type) else {
             return OverlayActivityRule::default();
         };
-        self.wrist
+        self.surface(surface)
             .types
             .get(definition.key)
             .cloned()
@@ -214,4 +249,12 @@ pub struct OverlayActivityEntry {
 #[serde(rename_all = "camelCase")]
 pub struct OverlayActivitySnapshot {
     pub entries: Vec<OverlayActivityEntry>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OverlayActivityDelivery {
+    pub entry: OverlayActivityEntry,
+    pub desktop: bool,
+    pub vr: bool,
 }

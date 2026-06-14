@@ -1674,7 +1674,7 @@
                     "hide_private_worlds": "Hide Private Worlds",
                     "vr_device_status": "VR Device Status",
                     "battery_percentage": "Battery Percentage",
-                    "wrist_feed_notifications": "Wrist Feed Filters"
+                    "wrist_feed_notifications": "Wrist Overlay Notification Filters"
                 },
                 "vr_extras": {
                     "header": "VR Extras"
@@ -1970,7 +1970,7 @@
                         "wayvr_notifications": "WayVR Notifications",
                         "ovrtoolkit_hud_notifications": "OVR Toolkit HUD Notifications",
                         "ovrtoolkit_wrist_notifications": "OVR Toolkit Wrist Notifications",
-                        "notification_filters": "Overlay Notification Filters",
+                        "notification_filters": "VR Overlay Notification Filters",
                         "user_images": "Show User Icons",
                         "user_images_description": "May impact performance.",
                         "notification_opacity": "Notification Opacity",
@@ -1989,6 +1989,7 @@
                         "header": "Desktop Notifications",
                         "when_to_display": "Show Desktop Notifications",
                         "when_to_display_vr": "Show VR Overlay Notifications",
+                        "notification_filters": "Desktop Notification Filters",
                         "desktop_notification_while_afk": "Show Notifications While AFK",
                         "notification_sound": "Notification Sound"
                     },
@@ -4468,8 +4469,12 @@
             "title": "VR Overlay Notification Filters",
             "description": "Choose which runtime notifications are sent to XSOverlay and OVR Toolkit while SteamVR is running."
         },
+        "desktop_notifications": {
+            "title": "Desktop Notification Filters",
+            "description": "Choose which activities trigger desktop (OS) notifications. The desktop notification condition above still applies."
+        },
         "wrist_feed_notifications": {
-            "title": "Wrist Feed Filters",
+            "title": "Wrist Overlay Notification Filters",
             "description": "Choose what appears on the wrist feed. Desktop notifications use separate filters.",
             "reset_recommended": "Reset",
             "scopes": {

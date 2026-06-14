@@ -93,10 +93,11 @@ pub use mutual_graph_fetch::{
 };
 pub use overlay_activity::{
     overlay_activity_type_definitions, OverlayActivityActorRelation, OverlayActivityCandidate,
-    OverlayActivityCategory, OverlayActivityContent, OverlayActivityEntry,
+    OverlayActivityCategory, OverlayActivityContent, OverlayActivityDelivery, OverlayActivityEntry,
     OverlayActivityFavoriteGroupKeys, OverlayActivityFilters, OverlayActivityRule,
     OverlayActivityRuntime, OverlayActivityScope, OverlayActivitySink, OverlayActivitySnapshot,
-    OverlayActivityText, OverlayActivityTypeDefinition, OverlayFavoriteGroups,
+    OverlayActivitySurface, OverlayActivitySurfaceFilters, OverlayActivityText,
+    OverlayActivityTypeDefinition, OverlayFavoriteGroups,
 };
 pub use process_monitor::{
     GameProcessEvent, GameProcessEventSink, GameProcessMonitorActions, GameProcessStatus,

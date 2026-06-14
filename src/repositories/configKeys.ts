@@ -133,6 +133,7 @@ export const ConfigKeys = {
     notificationTimeout: { type: 'int', default: 3000 },
     notificationOpacity: { type: 'int', default: 100 },
     vrNotificationActivityFilters: { type: 'string', default: '' },
+    desktopNotificationActivityFilters: { type: 'string', default: '' },
 
     // ── Settings - Overlay ───────────────────────────
     wristOverlayEnabled: { type: 'bool', default: false },

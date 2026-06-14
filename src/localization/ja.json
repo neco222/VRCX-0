@@ -1674,7 +1674,7 @@
                     "hide_private_worlds": "プライベートワールドを表示しない",
                     "vr_device_status": "VR デバイス状態",
                     "battery_percentage": "バッテリー残量を表示",
-                    "wrist_feed_notifications": "手首フィードフィルター"
+                    "wrist_feed_notifications": "手首オーバーレイ通知フィルター"
                 },
                 "vr_extras": {
                     "header": "VR (拡張)"
@@ -1970,7 +1970,7 @@
                         "wayvr_notifications": "WayVR で通知する",
                         "ovrtoolkit_hud_notifications": "OVR Toolkit HUD 上での通知",
                         "ovrtoolkit_wrist_notifications": "OVR Toolkit 手首上での通知",
-                        "notification_filters": "オーバーレイ通知フィルター",
+                        "notification_filters": "VR オーバーレイ通知フィルター",
                         "user_images": "ユーザー画像を使用 (遅延が発生します)",
                         "user_images_description": "パフォーマンスに影響を与える可能性があります",
                         "notification_opacity": "通知の不透明度",
@@ -1989,6 +1989,7 @@
                         "header": "デスクトップの通知",
                         "when_to_display": "デスクトップでの通知の表示",
                         "when_to_display_vr": "VR オーバーレイ通知の表示",
+                        "notification_filters": "デスクトップ通知フィルター",
                         "desktop_notification_while_afk": "AFK 中でもデスクトップに通知",
                         "notification_sound": "通知音"
                     },
@@ -4468,8 +4469,12 @@
             "title": "VR オーバーレイ通知フィルター",
             "description": "SteamVR の実行中に XSOverlay と OVR Toolkit へ送る通知を選択します。"
         },
+        "desktop_notifications": {
+            "title": "デスクトップ通知フィルター",
+            "description": "どのアクティビティでデスクトップ（OS）通知を表示するかを選択します。上記のデスクトップ通知の条件も引き続き適用されます。"
+        },
         "wrist_feed_notifications": {
-            "title": "手首フィードフィルター",
+            "title": "手首オーバーレイ通知フィルター",
             "description": "手首フィードに表示する内容を選択します。デスクトップ通知は別のフィルターを使用します。",
             "reset_recommended": "リセット",
             "scopes": {

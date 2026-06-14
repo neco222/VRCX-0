@@ -280,6 +280,7 @@ export async function loadPreferenceSnapshot() {
         sharedFeedFilters,
         overlayActivityFilters,
         vrNotificationActivityFilters,
+        desktopNotificationActivityFilters,
         feedTimeDisplayMode,
         youtubeAPI,
         translationAPI,
@@ -394,6 +395,7 @@ export async function loadPreferenceSnapshot() {
         ),
         configRepository.getString('overlayActivityFilters', ''),
         configRepository.getString('vrNotificationActivityFilters', ''),
+        configRepository.getString('desktopNotificationActivityFilters', ''),
         configRepository.getString('feedTimeDisplayMode', 'relative'),
         configRepository.getBool('youtubeAPI', false),
         configRepository.getBool('translationAPI', false),
@@ -554,6 +556,9 @@ export async function loadPreferenceSnapshot() {
         ),
         vrNotificationActivityFilters: parseOverlayActivityFilterProfile(
             vrNotificationActivityFilters
+        ),
+        desktopNotificationActivityFilters: parseOverlayActivityFilterProfile(
+            desktopNotificationActivityFilters
         ),
         feedTimeDisplayMode: normalizeFeedTimeDisplayMode(feedTimeDisplayMode),
         youtubeAPI: Boolean(youtubeAPI),
@@ -1041,19 +1046,30 @@ export async function setOverlayActivityFiltersPreference(
     return overlayActivityFilters;
 }
 
-export async function setVrNotificationActivityFiltersPreference(value: any) {
-    const vrNotificationActivityFilters =
-        normalizeOverlayActivityFilterProfile(value);
-    await configRepository.setString(
+async function setNotificationActivityFilterSurfacePreference(
+    key: 'vrNotificationActivityFilters' | 'desktopNotificationActivityFilters',
+    value: any
+) {
+    const normalized = normalizeOverlayActivityFilterProfile(value);
+    await configRepository.setString(key, JSON.stringify(normalized));
+    await tauriClient.app.OverlayActivityFiltersReload();
+    patchPreferences({ [key]: normalized });
+    publishPreferenceChanged(key, normalized);
+    return normalized;
+}
+
+export function setVrNotificationActivityFiltersPreference(value: any) {
+    return setNotificationActivityFilterSurfacePreference(
         'vrNotificationActivityFilters',
-        JSON.stringify(vrNotificationActivityFilters)
+        value
     );
-    patchPreferences({ vrNotificationActivityFilters });
-    publishPreferenceChanged(
-        'vrNotificationActivityFilters',
-        vrNotificationActivityFilters
+}
+
+export function setDesktopNotificationActivityFiltersPreference(value: any) {
+    return setNotificationActivityFilterSurfacePreference(
+        'desktopNotificationActivityFilters',
+        value
     );
-    return vrNotificationActivityFilters;
 }
 
 export async function setWristOverlayEnabledPreference(value: any) {

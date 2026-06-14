@@ -1623,7 +1623,8 @@
                     "header": "VR 오버레이 알림"
                 },
                 "wrist_overlay": {
-                    "header": "손목 오버레이"
+                    "header": "손목 오버레이",
+                    "wrist_feed_notifications": "손목 오버레이 알림 필터"
                 },
                 "vr_extras": {
                     "header": "VR 추가 사항"
@@ -1903,7 +1904,7 @@
                         "wayvr_notifications": "WayVR 알림 사용",
                         "ovrtoolkit_hud_notifications": "OVR 툴킷 HUD 알림",
                         "ovrtoolkit_wrist_notifications": "OVR 툴킷 손목 알림",
-                        "notification_filters": "오버레이 알림 필터",
+                        "notification_filters": "VR 오버레이 알림 필터",
                         "user_images": "유저 이미지 표시 (느림)",
                         "user_images_description": "성능에 영향을 미칠 수 있습니다.",
                         "notification_opacity": "알림 불투명도",
@@ -1922,6 +1923,7 @@
                         "header": "데스크톱 알림",
                         "when_to_display": "표시 조건",
                         "when_to_display_vr": "VR 오버레이 알림 표시",
+                        "notification_filters": "데스크톱 알림 필터",
                         "desktop_notification_while_afk": "AFK 동안 알림 표시",
                         "notification_sound": "알림음"
                     },
@@ -4397,6 +4399,107 @@
         "vr_notifications": {
             "title": "VR 오버레이 알림 필터",
             "description": "SteamVR가 실행 중일 때 XSOverlay 및 OVR Toolkit으로 보낼 알림을 선택합니다."
+        },
+        "desktop_notifications": {
+            "title": "데스크톱 알림 필터",
+            "description": "어떤 활동이 데스크톱(OS) 알림을 표시할지 선택합니다. 위의 데스크톱 알림 조건도 계속 적용됩니다."
+        },
+        "wrist_feed_notifications": {
+            "title": "손목 오버레이 알림 필터",
+            "description": "손목 피드에 표시할 항목을 선택합니다. 데스크톱 알림은 별도의 필터를 사용합니다.",
+            "reset_recommended": "초기화",
+            "scopes": {
+                "off": "끄기",
+                "on": "켜기",
+                "friends": "친구",
+                "selectedFavorites": "선택한 즐겨찾기",
+                "allFavorites": "모든 즐겨찾기",
+                "everyoneInInstance": "인스턴스의 모든 사람"
+            },
+            "categories": {
+                "actionRequired": {
+                    "label": "조치 필요",
+                    "description": "VR 사용 중 주의가 필요할 수 있는 요청 및 응답.",
+                    "example": "초대, 요청"
+                },
+                "currentInstance": {
+                    "label": "현재 인스턴스",
+                    "description": "현재 있는 인스턴스에서 발생하는 활동.",
+                    "example": "입장, 퇴장"
+                },
+                "favoriteMovement": {
+                    "label": "즐겨찾기 이동",
+                    "description": "즐겨찾기 친구의 온라인, 오프라인, 위치 및 상태 변경.",
+                    "example": "온라인, 위치"
+                },
+                "profileChange": {
+                    "label": "프로필 변경",
+                    "description": "이름, 신뢰도, 아바타, 소개, 친구 추가 및 친구 삭제 변경.",
+                    "example": "이름, 아바타"
+                },
+                "groupSocial": {
+                    "label": "그룹 및 소셜",
+                    "description": "그룹 공지, 초대, 가입 요청 및 소유권 변경.",
+                    "example": "그룹"
+                },
+                "systemSafety": {
+                    "label": "시스템 및 안전",
+                    "description": "시스템 이벤트, 외부 앱 항목 및 중재 관련 활동.",
+                    "example": "이벤트, 중재"
+                },
+                "media": {
+                    "label": "미디어",
+                    "description": "현재 세션의 비디오 재생 활동.",
+                    "example": "비디오"
+                }
+            },
+            "types": {
+                "invite": "초대",
+                "requestInvite": "초대 요청",
+                "inviteResponse": "초대 응답",
+                "requestInviteResponse": "초대 요청 응답",
+                "friendRequest": "친구 요청",
+                "boop": "Boop",
+                "group_queueReady": "인스턴스 대기열 준비 완료",
+                "instance_closed": "인스턴스 종료",
+                "OnPlayerJoining": "플레이어 입장 중",
+                "OnPlayerJoined": "플레이어 입장",
+                "OnPlayerLeft": "플레이어 퇴장",
+                "ChatBoxMessage": "채팅박스 메시지",
+                "AvatarChange": "아바타 변경",
+                "Online": "온라인",
+                "Offline": "오프라인",
+                "GPS": "위치 변경",
+                "Status": "상태 변경",
+                "Friend": "새 친구",
+                "Unfriend": "친구 삭제",
+                "DisplayName": "표시 이름 변경",
+                "TrustLevel": "신뢰도 변경",
+                "Bio": "소개 변경",
+                "groupChange": "그룹 변경",
+                "group_announcement": "그룹 공지",
+                "group_informative": "그룹 가입 승인",
+                "group_invite": "그룹 초대",
+                "group_joinRequest": "그룹 가입 요청",
+                "group_transfer": "그룹 양도 요청",
+                "Event": "기타 이벤트",
+                "External": "외부 앱",
+                "Blocked": "차단됨",
+                "Unblocked": "차단 해제됨",
+                "Muted": "음소거됨",
+                "Unmuted": "음소거 해제됨",
+                "BlockedOnPlayerJoined": "차단한 플레이어 입장",
+                "BlockedOnPlayerLeft": "차단한 플레이어 퇴장",
+                "MutedOnPlayerJoined": "음소거한 플레이어 입장",
+                "MutedOnPlayerLeft": "음소거한 플레이어 퇴장",
+                "VideoPlay": "비디오 재생"
+            },
+            "favorite_groups": {
+                "menu_label": "즐겨찾기 그룹",
+                "all_groups": "모든 즐겨찾기 그룹",
+                "group_count": "{count}개 그룹",
+                "empty": "사용 가능한 즐겨찾기 친구 그룹이 없습니다."
+            }
         },
         "previous_instances": {
             "header": "인스턴스 기록",

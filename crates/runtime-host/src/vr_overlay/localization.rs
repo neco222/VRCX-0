@@ -8,7 +8,7 @@ const OVERLAY_NOTIFICATIONS_JSON: &str = include_str!("localization/overlay_noti
 const EN_LOCALE: &str = "en";
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(super) enum OverlayLocale {
+pub(crate) enum OverlayLocale {
     #[default]
     En,
     ZhCn,
@@ -18,7 +18,7 @@ pub(super) enum OverlayLocale {
 }
 
 impl OverlayLocale {
-    pub(super) fn from_config(value: &str) -> Self {
+    pub(crate) fn from_config(value: &str) -> Self {
         match value.trim() {
             "zh-CN" => Self::ZhCn,
             "zh-TW" => Self::ZhTw,
@@ -39,16 +39,16 @@ impl OverlayLocale {
     }
 }
 
-pub(super) struct OverlayLocalizer {
+pub(crate) struct OverlayLocalizer {
     locale: OverlayLocale,
 }
 
 impl OverlayLocalizer {
-    pub(super) fn new(locale: OverlayLocale) -> Self {
+    pub(crate) fn new(locale: OverlayLocale) -> Self {
         Self { locale }
     }
 
-    pub(super) fn text(&self, text: &OverlayActivityText) -> String {
+    pub(crate) fn text(&self, text: &OverlayActivityText) -> String {
         let key = text.key.trim();
         let fallback = text.fallback.trim();
         if key.is_empty() {

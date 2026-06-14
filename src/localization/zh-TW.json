@@ -1674,7 +1674,7 @@
                     "hide_private_worlds": "隱藏私人世界",
                     "vr_device_status": "VR 裝置狀態",
                     "battery_percentage": "顯示電量百分比",
-                    "wrist_feed_notifications": "手腕動態過濾器"
+                    "wrist_feed_notifications": "手腕疊加通知過濾器"
                 },
                 "vr_extras": {
                     "header": "VR 額外功能"
@@ -1970,7 +1970,7 @@
                         "wayvr_notifications": "WayVR 通知",
                         "ovrtoolkit_hud_notifications": "OVR Toolkit HUD 通知",
                         "ovrtoolkit_wrist_notifications": "OVR Toolkit 手腕通知",
-                        "notification_filters": "疊加通知過濾器",
+                        "notification_filters": "VR 疊加通知過濾器",
                         "user_images": "用戶照片（較慢）",
                         "user_images_description": "可能會影響效能。",
                         "notification_opacity": "通知不透明度",
@@ -1989,6 +1989,7 @@
                         "header": "桌面通知",
                         "when_to_display": "顯示時機",
                         "when_to_display_vr": "顯示 VR 疊加通知",
+                        "notification_filters": "桌面通知過濾器",
                         "desktop_notification_while_afk": "在 AFK 時顯示桌面通知",
                         "notification_sound": "通知音"
                     },
@@ -4468,8 +4469,12 @@
             "title": "VR 疊加通知過濾器",
             "description": "選擇 SteamVR 執行時哪些通知會傳送到 XSOverlay 和 OVR Toolkit。"
         },
+        "desktop_notifications": {
+            "title": "桌面通知過濾器",
+            "description": "選擇哪些活動會觸發桌面（系統）通知。上方的桌面通知顯示條件依然生效。"
+        },
         "wrist_feed_notifications": {
-            "title": "手腕動態過濾器",
+            "title": "手腕疊加通知過濾器",
             "description": "選擇哪些內容顯示在手腕動態中。桌面通知使用單獨的篩選設定。",
             "reset_recommended": "重置",
             "scopes": {
