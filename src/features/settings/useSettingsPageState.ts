@@ -19,6 +19,7 @@ import {
     setSaveInstanceStickersPreference,
     setStartAsMinimizedPreference,
     setStartAtWindowsStartupPreference,
+    setTableDensityPreference,
     setTranslationApiEnabledPreference,
     setYoutubeApiEnabledPreference,
     setZoomLevelPreference
@@ -396,6 +397,11 @@ export function useSettingsPageState() {
             },
             onZoomBlur: (event: any) => {
                 saveInterfaceZoomLevel(event?.target?.value ?? zoomInput);
+            },
+            onTableDensityChange: (value: any) => {
+                savePreferenceValue('tableDensity', value, () =>
+                    setTableDensityPreference(value)
+                );
             },
             onDataTableStripedChange: (checked: any) => {
                 savePreferenceValue('dataTableStriped', checked, () =>

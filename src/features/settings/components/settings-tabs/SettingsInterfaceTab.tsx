@@ -1,7 +1,7 @@
 import { SettingsTabContent } from '../SettingsViewParts';
 import { SettingsInterfaceAppearanceCard } from './SettingsInterfaceAppearanceCard';
-import { SettingsInterfaceThemesCard } from './SettingsInterfaceThemesCard';
 import { SettingsInterfaceDisplayCards } from './SettingsInterfaceDisplayCards';
+import { SettingsInterfaceThemesCard } from './SettingsInterfaceThemesCard';
 import { SettingsInterfaceUserColorsCard } from './SettingsInterfaceUserColorsCard';
 
 export function SettingsInterfaceTab({ settingsInterface }: any) {
@@ -15,6 +15,7 @@ export function SettingsInterfaceTab({ settingsInterface }: any) {
         onCjkFontPackChange,
         onZoomInputChange,
         onZoomBlur,
+        onTableDensityChange,
         onDataTableStripedChange,
         onAccessibleStatusIndicatorsChange,
         onShowInstanceIdInLocationChange,
@@ -48,6 +49,7 @@ export function SettingsInterfaceTab({ settingsInterface }: any) {
                 onCjkFontPackChange={onCjkFontPackChange}
                 onZoomInputChange={onZoomInputChange}
                 onZoomBlur={onZoomBlur}
+                onTableDensityChange={onTableDensityChange}
                 onDataTableStripedChange={onDataTableStripedChange}
                 onAccessibleStatusIndicatorsChange={
                     onAccessibleStatusIndicatorsChange

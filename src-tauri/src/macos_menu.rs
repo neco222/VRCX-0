@@ -27,9 +27,6 @@ pub(crate) fn configure_macos_app_menu(app: &AppHandle) -> tauri::Result<()> {
         .text("mac-menu-custom-nav", "Customize Navigation")
         .text("mac-menu-themes", "Themes")
         .separator()
-        .text("mac-menu-density-standard", "Standard Density")
-        .text("mac-menu-density-compact", "Compact Density")
-        .separator()
         .text("mac-menu-zoom-in", "Zoom In")
         .text("mac-menu-zoom-out", "Zoom Out")
         .text("mac-menu-reset-zoom", "Reset Zoom")
@@ -40,19 +37,22 @@ pub(crate) fn configure_macos_app_menu(app: &AppHandle) -> tauri::Result<()> {
         .build()?;
 
     let mut help_menu = SubmenuBuilder::new(app, "Help")
-        .text("mac-menu-github", "GitHub")
-        .text("mac-menu-report-issue", "Report Issue")
-        .text("mac-menu-discord", "Discord")
-        .text("mac-menu-qq-group", "QQ Group")
         .text("mac-menu-changelog", "Changelog")
-        .text("mac-menu-support-vrcx", "Support VRCX-0");
+        .separator()
+        .text("mac-menu-report-issue", "Report Issue")
+        .text("mac-menu-github", "GitHub")
+        .text("mac-menu-discord", "Discord")
+        .text("mac-menu-qq-group", "QQ Group");
     #[cfg(feature = "devtools")]
     {
         help_menu = help_menu
             .separator()
             .text("mac-menu-open-devtools", "Open DevTools");
     }
-    let help_menu = help_menu.build()?;
+    let help_menu = help_menu
+        .separator()
+        .text("mac-menu-support-vrcx", "Support VRCX-0")
+        .build()?;
 
     let menu = MenuBuilder::new(app)
         .item(&app_menu)

@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { useDirectAccessAction } from '@/components/layout/directAccessAction';
+import { useRightSidePanelVisibility } from '@/components/layout/useRightSidePanelVisibility';
 import { QuickSearchDialog } from '@/components/sidebar/QuickSearchDialog';
+import { SupportVrcxDialog } from '@/components/support/SupportVrcxDialog';
 import { OpenSourceNoticeDialog } from '@/features/settings/components/OpenSourceNoticeDialog';
 import { tauriClient } from '@/platform/tauri/client';
 import { tauriEvents } from '@/platform/tauri/events';
@@ -12,7 +15,6 @@ import { startBackgroundModeForCurrentSession } from '@/services/backgroundModeS
 import { openExternalLink } from '@/services/entityMediaService';
 import {
     setSidebarCollapsedPreference,
-    setTableDensityPreference,
     setZoomLevelPreference
 } from '@/services/preferencesService';
 import {
@@ -20,12 +22,9 @@ import {
     restartApplication
 } from '@/services/shellIntegrationService';
 import { normalizeZoomLevel } from '@/services/themeService';
-import { SupportVrcxDialog } from '@/components/support/SupportVrcxDialog';
 import { links } from '@/shared/constants/link';
 import { publishNavCustomizeRequested } from '@/shared/events/navLayoutEvents';
 import { formatReleaseDisplayVersion } from '@/shared/utils/releaseVersion';
-import { useDirectAccessAction } from '@/components/layout/directAccessAction';
-import { useRightSidePanelVisibility } from '@/components/layout/useRightSidePanelVisibility';
 import { usePreferencesStore } from '@/state/preferencesStore';
 import { useRuntimeStore } from '@/state/runtimeStore';
 import { useSessionStore } from '@/state/sessionStore';
@@ -78,7 +77,6 @@ export function MacNativeMenuActionHost() {
     );
     const sidebarOpen = useShellStore((state: any) => state.sidebarOpen);
     const zoomLevel = useShellStore((state: any) => state.zoomLevel);
-    const tableDensity = useShellStore((state: any) => state.tableDensity);
     const { toggleSidePanelOpen: toggleRightSidebar } =
         useRightSidePanelVisibility(location.pathname);
     const currentZoom = normalizeZoomLevel(zoomLevel);
@@ -117,7 +115,9 @@ export function MacNativeMenuActionHost() {
             await startBackgroundModeForCurrentSession();
         } catch {
             toast.error(
-                t('component.app_status_bar.toast.failed_to_start_background_mode')
+                t(
+                    'component.app_status_bar.toast.failed_to_start_background_mode'
+                )
             );
         }
     }, [t]);
@@ -214,16 +214,6 @@ export function MacNativeMenuActionHost() {
                 case 'themes':
                     navigate('/themes');
                     break;
-                case 'density-standard':
-                    if (tableDensity !== 'standard') {
-                        setTableDensityPreference('standard');
-                    }
-                    break;
-                case 'density-compact':
-                    if (tableDensity !== 'compact') {
-                        setTableDensityPreference('compact');
-                    }
-                    break;
                 case 'zoom-in':
                     applyZoomLevel(currentZoom + ZOOM_STEP);
                     break;
@@ -280,7 +270,6 @@ export function MacNativeMenuActionHost() {
             sessionReady,
             setSystemHostOpen,
             sidebarOpen,
-            tableDensity,
             toggleRightSidebar
         ]
     );
@@ -302,7 +291,10 @@ export function MacNativeMenuActionHost() {
                 cleanup = unlisten;
             })
             .catch((error) => {
-                console.warn('Unable to subscribe to macOS native menu:', error);
+                console.warn(
+                    'Unable to subscribe to macOS native menu:',
+                    error
+                );
             });
 
         return () => {

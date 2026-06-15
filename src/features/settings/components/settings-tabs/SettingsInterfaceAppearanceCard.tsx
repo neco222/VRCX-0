@@ -30,7 +30,7 @@ import {
 } from '@/ui/shadcn/select';
 import { Switch } from '@/ui/shadcn/switch';
 
-import { Field } from '../SettingsField';
+import { Field, SegmentedPreference } from '../SettingsField';
 
 const fontFamilyLabelKeys: any = {
     inter: 'view.settings.appearance.appearance.font_family_inter',
@@ -86,6 +86,7 @@ export function SettingsInterfaceAppearanceCard({
     onCjkFontPackChange,
     onZoomInputChange,
     onZoomBlur,
+    onTableDensityChange,
     onDataTableStripedChange,
     onAccessibleStatusIndicatorsChange
 }: any) {
@@ -213,6 +214,31 @@ export function SettingsInterfaceAppearanceCard({
                             onBlur={onZoomBlur}
                         />
                     </div>
+                </Field>
+
+                <Field
+                    label={t(
+                        'view.settings.appearance.appearance.table_density'
+                    )}
+                >
+                    <SegmentedPreference
+                        value={prefs.tableDensity || 'standard'}
+                        onChange={onTableDensityChange}
+                        options={[
+                            {
+                                value: 'standard',
+                                label: t(
+                                    'view.settings.appearance.appearance.table_density_standard'
+                                )
+                            },
+                            {
+                                value: 'compact',
+                                label: t(
+                                    'view.settings.appearance.appearance.table_density_compact'
+                                )
+                            }
+                        ]}
+                    />
                 </Field>
 
                 <Field

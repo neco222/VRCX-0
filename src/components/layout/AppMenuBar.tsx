@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { SupportVrcxDialog } from '@/components/support/SupportVrcxDialog';
 import { OpenSourceNoticeDialog } from '@/features/settings/components/OpenSourceNoticeDialog';
-import { cn } from '@/lib/utils';
 import { tauriClient } from '@/platform/tauri/client';
 import configRepository from '@/repositories/configRepository';
 import { logoutFromReactShell } from '@/services/authExecutionService';
@@ -12,7 +12,6 @@ import { startBackgroundModeForCurrentSession } from '@/services/backgroundModeS
 import { openExternalLink } from '@/services/entityMediaService';
 import {
     setSidebarCollapsedPreference,
-    setTableDensityPreference,
     setZoomLevelPreference
 } from '@/services/preferencesService';
 import {
@@ -27,7 +26,7 @@ import {
     isToolCapabilityAvailable,
     triggerToolByKey
 } from '@/services/toolActionService';
-import { SupportVrcxDialog } from '@/components/support/SupportVrcxDialog';
+import { getBuildBadgeLabel, isDeveloperToolsBuild } from '@/shared/buildLabel';
 import { links } from '@/shared/constants/link';
 import {
     TOOLS_QUICK_ACCESS_UPDATED_EVENT,
@@ -38,10 +37,6 @@ import {
 } from '@/shared/constants/tools';
 import { publishNavCustomizeRequested } from '@/shared/events/navLayoutEvents';
 import { formatReleaseDisplayVersion } from '@/shared/utils/releaseVersion';
-import {
-    getBuildBadgeLabel,
-    isDeveloperToolsBuild
-} from '@/shared/buildLabel';
 import { usePreferencesStore } from '@/state/preferencesStore';
 import { useRuntimeStore } from '@/state/runtimeStore';
 import { useShellStore } from '@/state/shellStore';
@@ -61,8 +56,6 @@ import {
     MenubarItem,
     MenubarLabel,
     MenubarMenu,
-    MenubarRadioGroup,
-    MenubarRadioItem,
     MenubarSeparator,
     MenubarShortcut,
     MenubarSub,
@@ -72,16 +65,6 @@ import {
 } from '@/ui/shadcn/menubar';
 
 const ZOOM_STEP = 10;
-const tableDensityOptions = [
-    {
-        value: 'standard',
-        labelKey: 'view.settings.appearance.appearance.table_density_standard'
-    },
-    {
-        value: 'compact',
-        labelKey: 'view.settings.appearance.appearance.table_density_compact'
-    }
-];
 
 function MenuItem({ children, onSelect, ...props }: any) {
     return (
@@ -92,20 +75,6 @@ function MenuItem({ children, onSelect, ...props }: any) {
         >
             {children}
         </MenubarItem>
-    );
-}
-
-function MenuRadioItem({ children, className, ...props }: any) {
-    return (
-        <MenubarRadioItem
-            className={cn(
-                'min-h-7 min-w-48 !pr-7 !pl-1.5 text-xs [&>span:first-child]:!right-1.5 [&>span:first-child]:!left-auto',
-                className
-            )}
-            {...props}
-        >
-            {children}
-        </MenubarRadioItem>
     );
 }
 
@@ -137,7 +106,6 @@ export function AppMenuBar({
     const [quickAccessKeys, setQuickAccessKeys] = useState<any[]>([]);
     const zoomLevel = useShellStore((state: any) => state.zoomLevel);
     const sidebarOpen = useShellStore((state: any) => state.sidebarOpen);
-    const tableDensity = useShellStore((state: any) => state.tableDensity);
     const notificationLayout = usePreferencesStore(
         (state: any) => state.notificationLayout
     );
@@ -252,7 +220,9 @@ export function AppMenuBar({
             await startBackgroundModeForCurrentSession();
         } catch {
             toast.error(
-                t('component.app_status_bar.toast.failed_to_start_background_mode')
+                t(
+                    'component.app_status_bar.toast.failed_to_start_background_mode'
+                )
             );
         }
     }
@@ -292,13 +262,6 @@ export function AppMenuBar({
                         <MenubarGroup>
                             <MenuItem onSelect={() => navigate('/settings')}>
                                 {t('app_menu.settings')}
-                            </MenuItem>
-                            <MenuItem
-                                onSelect={() =>
-                                    setSystemHostOpen('updaterOpen', true)
-                                }
-                            >
-                                {t('app_menu.check_updates')}
                             </MenuItem>
                             <MenuItem
                                 onSelect={() => {
@@ -381,32 +344,6 @@ export function AppMenuBar({
                             >
                                 {t('view.themes.menu.header')}
                             </MenuItem>
-                            <MenubarSub>
-                                <MenubarSubTrigger className="min-h-7 min-w-48 text-xs">
-                                    {t(
-                                        'view.settings.appearance.appearance.table_density'
-                                    )}
-                                </MenubarSubTrigger>
-                                <MenubarSubContent className="w-48">
-                                    <MenubarRadioGroup
-                                        value={tableDensity}
-                                        onValueChange={(value: any) => {
-                                            setTableDensityPreference(value);
-                                        }}
-                                    >
-                                        {tableDensityOptions.map(
-                                            (option: any) => (
-                                                <MenuRadioItem
-                                                    key={option.value}
-                                                    value={option.value}
-                                                >
-                                                    {t(option.labelKey)}
-                                                </MenuRadioItem>
-                                            )
-                                        )}
-                                    </MenubarRadioGroup>
-                                </MenubarSubContent>
-                            </MenubarSub>
                         </MenubarGroup>
                         <MenubarSeparator />
                         <MenubarGroup>
@@ -511,18 +448,6 @@ export function AppMenuBar({
                     </MenubarTrigger>
                     <MenubarContent align="start">
                         <MenubarGroup>
-                            <MenuItem onSelect={() => openLink(links.github)}>
-                                {t('app_menu.github')}
-                            </MenuItem>
-                            <MenuItem onSelect={() => openLink(links.issues)}>
-                                {t('app_menu.report_issue')}
-                            </MenuItem>
-                            <MenuItem onSelect={() => openLink(links.discord)}>
-                                {t('nav_menu.discord')}
-                            </MenuItem>
-                            <MenuItem onSelect={() => openLink(links.qqGroup)}>
-                                {t('nav_menu.qq_group')}
-                            </MenuItem>
                             <MenuItem
                                 onSelect={() =>
                                     setSystemHostOpen('changelogOpen', true)
@@ -530,15 +455,29 @@ export function AppMenuBar({
                             >
                                 {t('nav_menu.changelog')}
                             </MenuItem>
-                            <MenuItem onSelect={() => setSupportOpen(true)}>
-                                {t('support_vrcx.title')}
+                        </MenubarGroup>
+                        <MenubarSeparator />
+                        <MenubarGroup>
+                            <MenuItem onSelect={() => openLink(links.issues)}>
+                                {t('app_menu.report_issue')}
+                            </MenuItem>
+                            <MenuItem onSelect={() => openLink(links.github)}>
+                                {t('app_menu.github')}
+                            </MenuItem>
+                            <MenuItem onSelect={() => openLink(links.discord)}>
+                                {t('nav_menu.discord')}
+                            </MenuItem>
+                            <MenuItem onSelect={() => openLink(links.qqGroup)}>
+                                {t('nav_menu.qq_group')}
                             </MenuItem>
                         </MenubarGroup>
                         <MenubarSeparator />
                         {developerToolsAvailable ? (
                             <>
                                 <MenubarGroup>
-                                    <MenuItem onSelect={() => runOpenDevtools()}>
+                                    <MenuItem
+                                        onSelect={() => runOpenDevtools()}
+                                    >
                                         {t('app_menu.open_devtools')}
                                     </MenuItem>
                                 </MenubarGroup>
@@ -546,10 +485,20 @@ export function AppMenuBar({
                             </>
                         ) : null}
                         <MenubarGroup>
+                            <MenuItem onSelect={() => setSupportOpen(true)}>
+                                {t('support_vrcx.title')}
+                            </MenuItem>
                             <MenuItem
                                 onSelect={() => setOpenSourceNoticeOpen(true)}
                             >
                                 {t('app_menu.open_source_licenses')}
+                            </MenuItem>
+                            <MenuItem
+                                onSelect={() =>
+                                    setSystemHostOpen('updaterOpen', true)
+                                }
+                            >
+                                {t('app_menu.check_updates')}
                             </MenuItem>
                             <MenuItem onSelect={() => setAboutOpen(true)}>
                                 {t('app_menu.about')}
