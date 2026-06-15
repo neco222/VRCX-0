@@ -4,7 +4,7 @@ import {
     setNavWidthPreference,
     setSidebarCollapsedPreference
 } from '@/services/preferencesService';
-import { useShellStore } from '@/state/shellStore';
+import { normalizeNavWidth, useShellStore } from '@/state/shellStore';
 import { Sidebar, SidebarInset, SidebarProvider } from '@/ui/shadcn/sidebar';
 
 import { AppNavMenu } from './AppNavMenu';
@@ -33,6 +33,7 @@ export function AppSidebar({ children }: any) {
 
         event.preventDefault();
         const target = event.currentTarget;
+        const wrapperElement = target.parentElement;
         const pointerId = event.pointerId;
         try {
             target.setPointerCapture?.(pointerId);
@@ -44,9 +45,32 @@ export function AppSidebar({ children }: any) {
         document.body.style.userSelect = 'none';
         document.body.style.cursor = 'col-resize';
         let cleanedUp = false;
+        let latestWidth = normalizeNavWidth(event.clientX);
+
+        const transitionTargets = wrapperElement
+            ? Array.from(
+                  wrapperElement.querySelectorAll(
+                      '[data-slot="sidebar-gap"],[data-slot="sidebar-container"]'
+                  )
+              )
+            : [];
+        const previousTransitions = transitionTargets.map(
+            (element: any) => element.style.transition
+        );
+        transitionTargets.forEach((element: any) => {
+            element.style.transition = 'none';
+        });
+
+        const applyWidth = (clientX: any) => {
+            latestWidth = normalizeNavWidth(clientX);
+            wrapperElement?.style.setProperty(
+                '--sidebar-width',
+                `${latestWidth}px`
+            );
+        };
 
         const handleMove = (moveEvent: any) => {
-            useShellStore.getState().setNavWidth(moveEvent.clientX);
+            applyWidth(moveEvent.clientX);
         };
 
         const cleanup = () => {
@@ -60,13 +84,16 @@ export function AppSidebar({ children }: any) {
             window.removeEventListener('pointerup', cleanup);
             window.removeEventListener('pointercancel', cleanup);
             window.removeEventListener('blur', cleanup);
+            transitionTargets.forEach((element: any, index: number) => {
+                element.style.transition = previousTransitions[index];
+            });
             try {
                 target.releasePointerCapture?.(pointerId);
             } catch {
                 // Releasing capture is best-effort after pointer cancellation.
             }
             resizeCleanupRef.current = null;
-            setNavWidthPreference(useShellStore.getState().navWidth);
+            setNavWidthPreference(latestWidth);
         };
 
         resizeCleanupRef.current?.();
@@ -75,7 +102,7 @@ export function AppSidebar({ children }: any) {
         window.addEventListener('pointercancel', cleanup);
         window.addEventListener('blur', cleanup);
         resizeCleanupRef.current = cleanup;
-        useShellStore.getState().setNavWidth(event.clientX);
+        applyWidth(event.clientX);
     }
 
     return (
