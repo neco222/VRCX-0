@@ -230,8 +230,8 @@
             "current_instance_player_page": "目前房間玩家頁面。",
             "search": "搜尋",
             "search_worlds_and_groups": "搜尋世界和群組。",
-            "favorite_friends": "星標好友",
-            "favorite_friends_page": "星標好友頁面。",
+            "favorite_friends": "收藏好友",
+            "favorite_friends_page": "收藏好友頁面",
             "favorite_worlds": "世界收藏",
             "favorite_worlds_page": "收藏世界頁面。",
             "favorite_avatars": "角色收藏",
@@ -260,8 +260,8 @@
         "tools": "工具",
         "help": "說明",
         "test_build_badge": "測試版",
-        "preview_build_badge": "Preview Build",
-        "theme_devkit_build_badge": "Theme Dev Kit",
+        "preview_build_badge": "預覽版本",
+        "theme_devkit_build_badge": "主題開發套件",
         "settings": "設定...",
         "check_updates": "檢查更新",
         "restart": "重新啟動 VRCX-0",
@@ -320,7 +320,7 @@
         "search_no_results": "沒有找到結果",
         "search_min_chars": "請至少輸入 2 個字元",
         "search_categories": "搜尋...",
-        "search_scope_all": "名稱、本機備註與備註",
+        "search_scope_all": "名稱、備註與筆記",
         "search_scope_avatars": "自己的與收藏",
         "search_scope_worlds": "自己的與收藏",
         "search_scope_joined": "自己的與已加入",
@@ -431,7 +431,7 @@
     "support_vrcx": {
         "title": "支持 VRCX-0",
         "description": "透過 GitHub Sponsors 或 Ko-fi 支持 VRCX-0 後續開發。",
-        "github_sponsors": "GitHub Sponsors",
+        "github_sponsors": "GitHub 贊助者",
         "kofi": "Ko-fi"
     },
     "view": {
@@ -829,7 +829,7 @@
                 "all_tags": "所有標籤",
                 "public": "公開",
                 "private": "私人",
-                "local": "本地",
+                "local": "本機",
                 "remote": "遠端",
                 "sort_name": "依名稱排序",
                 "sort_update": "依更新排序",
@@ -858,14 +858,14 @@
                 "search_mode_name": "名稱",
                 "search_mode_tag": "標籤",
                 "vrchat_favorites": "VRChat 收藏",
-                "local_favorites": "本地收藏",
+                "local_favorites": "本機收藏",
                 "new_group": "新群組",
                 "cancel_refresh": "取消刷新"
             },
             "avatars": {
                 "search": "搜尋",
                 "vrchat_favorites": "VRChat 收藏",
-                "local_favorites": "本地收藏列表 (VRChat+)",
+                "local_favorites": "本機收藏列表 (VRChat+)",
                 "new_group": "新群組",
                 "cancel_refresh": "取消刷新",
                 "check_invalid": "檢查已刪除／私人角色",
@@ -882,7 +882,7 @@
                 "delete_summary": "成功刪除 {removed} 個無效角色",
                 "no_invalid_found": "未發現無效角色",
                 "delete_cancelled": "已取消刪除操作",
-                "local_history": "本地歷史紀錄",
+                "local_history": "本機歷史紀錄",
                 "no_group_selected": "未選取任何群組",
                 "styles": "樣式",
                 "almost_nuisance": "接近滋擾"
@@ -1313,14 +1313,14 @@
                 },
                 "trend": {
                     "rising": "上升",
-                    "cooling": "Cooling"
+                    "cooling": "降溫"
                 },
                 "stats_line": {
                     "friends": "{count} 好友",
                     "visits": "{count} 次造訪"
                 },
                 "stats": {
-                    "top_friends": "top friends",
+                    "top_friends": "主要好友",
                     "total_visits": "總造訪次數",
                     "rising": "上升",
                     "cooling": "冷卻"
@@ -1685,8 +1685,8 @@
                     "start_when_steamvr": "SteamVR 啟動時",
                     "start_when_vrchat_vr_mode": "VRChat 啟動時",
                     "overlay_button": "嵌入介面按鍵",
-                    "overlay_button_grip": "Grip",
-                    "overlay_button_menu": "Menu",
+                    "overlay_button_grip": "握感",
+                    "overlay_button_menu": "選單",
                     "display_on": "顯示在",
                     "display_on_left": "左手",
                     "display_on_right": "右手",
@@ -1813,7 +1813,7 @@
                     "auto_invite_request_accept": "自動接受邀請請求",
                     "auto_invite_request_accept_tooltip": "自動接受來自收藏好友的邀請請求",
                     "auto_invite_request_accept_favs": "所有收藏",
-                    "auto_invite_request_accept_favs_hint": "包括本地好友收藏群組",
+                    "auto_invite_request_accept_favs_hint": "包括本機好友收藏群組",
                     "auto_invite_request_accept_selected_favs": "VRCX-0 收藏好友",
                     "change_status_description": "覆寫狀態描述",
                     "status_description_placeholder": "狀態描述（最多 32 字）",
@@ -1841,7 +1841,7 @@
                     "theme_mode": "主題",
                     "font_family": "字型",
                     "cjk_font_pack": "CJK 字型包",
-                    "font_family_inter": "Inter",
+                    "font_family_inter": "Inter（預設）",
                     "font_family_noto_sans": "Noto Sans",
                     "font_family_geist": "Geist（預設）",
                     "font_family_nunito_sans": "Nunito Sans",
@@ -1854,7 +1854,7 @@
                     "font_family_custom_dialog_description": "輸入有效的 CSS font-family 值",
                     "font_family_custom_invalid": "無效的 font-family。請使用逗號分隔字型名稱，例如：'My Font', Arial, sans-serif",
                     "cjk_font_pack_noto": "Noto Sans CJK",
-                    "cjk_font_pack_puhuiti": "PuHuiTi CJK",
+                    "cjk_font_pack_puhuiti": "普惠提 CJK",
                     "theme_mode_system": "系統",
                     "theme_mode_light": "淺色",
                     "theme_mode_dark": "深色",
@@ -2171,8 +2171,8 @@
                         "default_launch_mode": "預設啟動模式",
                         "default_launch_mode_vr": "VR 模式",
                         "default_launch_mode_desktop": "桌面模式",
-                        "show_confirmation_on_switch_avatar_enable": "切換虛擬形象前顯示確認對話框",
-                        "show_confirmation_on_switch_avatar_tooltip": "停用時，切換虛擬形象時 VRCX-0 不會跳出並要求確認"
+                        "show_confirmation_on_switch_avatar_enable": "切換角色前顯示確認對話框",
+                        "show_confirmation_on_switch_avatar_tooltip": "停用時，切換角色時 VRCX-0 不會跳出並要求確認"
                     },
                     "screenshot_helper": {
                         "header": "螢幕截圖助理",
@@ -2335,7 +2335,7 @@
                 "status": "狀態變動",
                 "friends": "好友",
                 "online": "上線",
-                "favorites": "收藏&星標",
+                "favorites": "收藏",
                 "notifications": "通知",
                 "panel_not_configured": "未設定面板",
                 "sign_in_before_the_dashboard_can_query_feed_rows": "登入後儀錶板才能查詢動態行",
@@ -2613,7 +2613,7 @@
             "tabs": {
                 "browse": "瀏覽",
                 "installed": "已安裝",
-                "override": "Override",
+                "override": "覆寫",
                 "developer": "開發"
             },
             "status": {
@@ -2845,7 +2845,7 @@
             "stop_policy_short_keepRunning": "保持",
             "stop_policy_short_closeByVrcx": "關閉",
             "delete": "刪除",
-            "steam_app_id": "Steam App ID",
+            "steam_app_id": "Steam 應用程式 ID",
             "delay_seconds": "啟動延遲秒數",
             "args": "參數",
             "close": "關閉",
@@ -2962,9 +2962,9 @@
                 "instance_users": "用戶：",
                 "instance_friends_tooltip": "此房間的好友們",
                 "instance_game_version": "遊戲版本：",
-                "last_join": "最後加入:",
+                "last_join": "最後加入：",
                 "instance_queuing_enabled": "排隊開啟",
-                "instance_disabled_content": "已停用內容:",
+                "instance_disabled_content": "已停用內容：",
                 "instance_creator": "房間建立者",
                 "note": "備註",
                 "note_placeholder": "點擊新增備註",
@@ -3059,7 +3059,7 @@
                 "all": "所有",
                 "public": "公開",
                 "private": "私人",
-                "group_by": "組別:"
+                "group_by": "組別："
             },
             "json": {
                 "header": "原始資料"
@@ -3380,7 +3380,7 @@
                 "last_updated": "最後更新",
                 "publication_date": "發佈日期",
                 "labs_publication_date": "實驗室發佈日期",
-                "time_in_labs": "世界實驗室:",
+                "time_in_labs": "世界實驗室：",
                 "version": "版本",
                 "platform": "平台",
                 "last_visited": "上次拜訪",
@@ -3805,7 +3805,7 @@
                 "unsubscribed_announcements": "取消訂閱公告",
                 "visibility": "可見度：",
                 "representing": "展示群組",
-                "manager_notes": "管理備註:",
+                "manager_notes": "管理備註：",
                 "search": "搜尋"
             },
             "gallery": {
@@ -3927,8 +3927,8 @@
         "favorite": {
             "header": "選擇群組",
             "vrchat_favorites": "VRChat 收藏",
-            "local_favorites": "本地收藏",
-            "local_avatar_favorites": "本地收藏 (VRChat+)"
+            "local_favorites": "本機收藏",
+            "local_avatar_favorites": "本機收藏 (VRChat+)"
         },
         "social_status": {
             "header": "社交狀態",
@@ -4152,7 +4152,7 @@
             "process_list": "讀取列表",
             "process_progress": "進度：",
             "select_vrchat_group_placeholder": "選擇 VRChat 群組",
-            "select_local_group_placeholder": "選擇本地群組",
+            "select_local_group_placeholder": "選擇本機群組",
             "import": "匯入世界",
             "cancel": "取消",
             "import_progress": "匯入進度：",
@@ -4322,8 +4322,8 @@
             "world": "變更世界圖片",
             "description": "推薦圖片尺寸：1200 像素 x 900 像素 (4:3)",
             "upload": "上傳圖片",
-            "confirm": "Confirm Crop",
-            "cancel": "Cancel"
+            "confirm": "確認裁切",
+            "cancel": "取消"
         },
         "screenshot_metadata": {
             "header": "螢幕截圖詳細資料",
@@ -4377,7 +4377,7 @@
             "avatar_scaling_disabled": "關閉角色縮放",
             "focus_view_disabled": "焦點檢視已停用",
             "enable_debugging": "為其他人啟用世界偵錯",
-            "author_tags": "作者標籤(使用逗號分隔每個標籤)",
+            "author_tags": "作者標籤（使用逗號分隔每個標籤）",
             "content_tags": "內容警告標籤",
             "content_horror": "恐怖",
             "content_gore": "血腥",
@@ -4557,7 +4557,7 @@
                 "inviteResponse": "邀請回覆",
                 "requestInviteResponse": "請求邀請回覆",
                 "friendRequest": "好友請求",
-                "boop": "Boop",
+                "boop": "噗",
                 "group_queueReady": "房間排隊就緒",
                 "instance_closed": "房間已關閉",
                 "OnPlayerJoining": "玩家正在加入",
@@ -4788,7 +4788,7 @@
             "notice_location_prefix": "完整聲明檔案在應用程式目錄中的位置：",
             "open_project": "開啟專案",
             "open_license_url": "開放授權網址",
-            "notice_unavailable": "此項目沒有可用的本地授權文字。你可以在完整聲明檔案中查看此相依套件的聲明。",
+            "notice_unavailable": "此項目沒有可用的本機授權文字。你可以在完整聲明檔案中查看此相依套件的聲明。",
             "select_package": "選取套裝檢視詳細資訊。",
             "review_required": "需要審查",
             "no_results": "沒有符合的套裝。",
@@ -4935,7 +4935,7 @@
         "title": "確定",
         "confirm_button": "確定",
         "cancel_button": "取消",
-        "message": "繼續 {command}?",
+        "message": "繼續 {command}？",
         "logout": "確定要登出嗎？",
         "unfriend": "確定要解除好友嗎？",
         "clear_avatar_history": "確定要清除角色紀錄嗎？",
@@ -5293,7 +5293,7 @@
             "load_failed": "載入好友清單失敗，正在登出"
         },
         "vrcplus": {
-            "required": "VRChat+"
+            "required": "需要 VRCPlus"
         },
         "screenshot_metadata": {
             "deleted": "刪除截圖附加資料",
@@ -5668,7 +5668,7 @@
             "common": {
                 "got_it": "了解",
                 "view_changelog": "查看所有變更",
-                "support": "支援 VRCX-0"
+                "support": "贊助 VRCX-0"
             },
             "releases": {
                 "2026_04_10": {
@@ -5680,7 +5680,7 @@
                             "description": "按 Ctrl+K (⌘K)，尋找用戶、世界、群組和角色。"
                         },
                         "local_favorite_groups": {
-                            "title": "本地收藏",
+                            "title": "本機收藏",
                             "description": "建立不限數量的自訂好友群組，突破 VRChat 的限制。"
                         },
                         "auto_status": {
@@ -6025,7 +6025,7 @@
             "world_and_group_search_route": "世界和群組搜尋路由。",
             "dashboard": "儀錶板",
             "dashboard_shell_with_embedded_widgets_and_suppor": "包含小工具和受支援頁面面板的儀錶板外殼。",
-            "favorite_friends": "星標好友",
+            "favorite_friends": "收藏好友",
             "favorite_friends_groups_and_local_cache_view": "收藏好友分組和本機快取檢視。",
             "favorite_worlds": "世界收藏",
             "favorite_worlds_groups_and_local_cache_view": "收藏世界分組和本機快取檢視。",
