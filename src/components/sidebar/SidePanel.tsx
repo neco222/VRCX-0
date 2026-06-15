@@ -3,8 +3,8 @@ import { forwardRef, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
-import { buildFavoriteCollectionFriendIdSet } from '@/components/sidebar/friends-sidebar/favoriteCollectionSidebarRows';
 import { getNavIconComponent } from '@/components/layout/navIconRegistry';
+import { buildFavoriteCollectionFriendIdSet } from '@/components/sidebar/friends-sidebar/favoriteCollectionSidebarRows';
 import { cn } from '@/lib/utils';
 import configRepository from '@/repositories/configRepository';
 import { refreshFriendAndFavoriteSnapshots } from '@/services/backgroundMaintenanceService';
@@ -50,7 +50,7 @@ const defaultPrefs: any = {
     sidebarTabDisplayMode: 'auto'
 };
 
-const FRIEND_REFRESH_COOLDOWN_MS = 5 * 60 * 1000;
+const FRIEND_REFRESH_COOLDOWN_MS = 3 * 60 * 1000;
 
 function parseConfigArray(value: any) {
     if (Array.isArray(value)) {

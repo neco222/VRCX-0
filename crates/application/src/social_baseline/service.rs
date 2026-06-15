@@ -176,4 +176,4 @@ pub use favorites::build_favorites_baseline;
 use favorites::CurrentUserSnapshotView;
 pub use friends::build_friend_roster_baseline;
 use friends::{build_friend_state_map, build_snapshot_friend_ids};
-use remote::{execute_vrchat_json_request, fetch_paged_array};
+use remote::{execute_vrchat_json_request, fetch_paged_array, refetch_users_concurrent};

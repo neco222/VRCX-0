@@ -120,8 +120,10 @@ fn insert_fetched_friend(
     fetched_friend_ids_seen: &mut HashSet<String>,
     friend: Value,
     source_state_bucket: Option<&str>,
-) -> Option<(String, String)> {
-    let friend = RemoteFriendProfile::from_raw(friend, source_state_bucket)?;
+) {
+    let Some(friend) = RemoteFriendProfile::from_raw(friend, source_state_bucket) else {
+        return;
+    };
     let friend_id = friend.id.clone();
     unique_push(
         fetched_friend_ids_ordered,
@@ -137,32 +139,8 @@ fn insert_fetched_friend(
         })
         .unwrap_or(true);
     if should_replace {
-        let state_bucket = fetched_friend_state_bucket(&friend);
-        fetched_friends_by_id.insert(friend_id.clone(), friend);
-        return state_bucket.map(|state_bucket| (friend_id, state_bucket));
+        fetched_friends_by_id.insert(friend_id, friend);
     }
-    None
-}
-
-fn fetched_friend_state_bucket(profile: &RemoteFriendProfile) -> Option<String> {
-    for key in ["state", "stateBucket"] {
-        let state_bucket = normalize_state_bucket(&object_field_string(&profile.raw, &[key]));
-        if !state_bucket.is_empty() {
-            return Some(state_bucket);
-        }
-    }
-    None
-}
-
-fn apply_fetched_friend_state_bucket(
-    state_by_id: &mut HashMap<String, String>,
-    inserted_state_bucket: Option<(String, String)>,
-) -> bool {
-    let Some((friend_id, state_bucket)) = inserted_state_bucket else {
-        return false;
-    };
-    state_by_id.insert(friend_id, state_bucket);
-    true
 }
 
 fn compute_trust_level(tags: &[String], developer_type: &str) -> TrustLevelInfo {
@@ -574,6 +552,42 @@ fn build_fast_roster_snapshot(
     })
 }
 
+const SUSPICIOUS_REFETCH_LIMIT: usize = 50;
+
+fn infer_state_from_platform(platform: &str) -> &'static str {
+    match platform {
+        "" | "offline" => "offline",
+        "web" => "active",
+        _ => "online",
+    }
+}
+
+fn collect_suspicious_friend_ids(
+    expected_ids: &[String],
+    state_by_id: &HashMap<String, String>,
+    fetched_friends_by_id: &HashMap<String, RemoteFriendProfile>,
+) -> Vec<String> {
+    let mut suspicious = Vec::new();
+    for friend_id in expected_ids {
+        let Some(profile) = fetched_friends_by_id.get(friend_id) else {
+            continue;
+        };
+        let list_state = state_by_id
+            .get(friend_id)
+            .map(String::as_str)
+            .unwrap_or("offline");
+        let inferred = infer_state_from_platform(&object_field_string(&profile.raw, &["platform"]));
+        let location = object_field_string(&profile.raw, &["location"]);
+        if inferred != list_state || location == "traveling" {
+            suspicious.push(friend_id.clone());
+            if suspicious.len() >= SUSPICIOUS_REFETCH_LIMIT {
+                break;
+            }
+        }
+    }
+    suspicious
+}
+
 pub async fn build_friend_roster_baseline(
     deps: SocialBaselineDeps,
     input: SocialFriendRosterBaselineInput,
@@ -612,7 +626,6 @@ pub async fn build_friend_roster_baseline(
         has_friend_list,
         ..
     } = current_user;
-    let mut state_by_id = state_by_id;
     if !has_friend_list {
         return Ok(stale_friend_output(
             user_id,
@@ -633,33 +646,44 @@ pub async fn build_friend_roster_baseline(
     let mut fetched_friends_by_id: HashMap<String, RemoteFriendProfile> = HashMap::new();
     let mut fetched_friend_ids_ordered = Vec::new();
     let mut fetched_friend_ids_seen = HashSet::new();
+    // The bucket comes only from the /auth/user lists; the fetched `state` is unreliable and must
+    // never overwrite it (upstream: "we don't update friend state here, it's not reliable").
     for friend in online_friends {
-        apply_fetched_friend_state_bucket(
-            &mut state_by_id,
-            insert_fetched_friend(
-                &mut fetched_friends_by_id,
-                &mut fetched_friend_ids_ordered,
-                &mut fetched_friend_ids_seen,
-                friend,
-                Some("online"),
-            ),
+        insert_fetched_friend(
+            &mut fetched_friends_by_id,
+            &mut fetched_friend_ids_ordered,
+            &mut fetched_friend_ids_seen,
+            friend,
+            Some("online"),
         );
     }
     for friend in offline_friends {
-        apply_fetched_friend_state_bucket(
-            &mut state_by_id,
-            insert_fetched_friend(
-                &mut fetched_friends_by_id,
-                &mut fetched_friend_ids_ordered,
-                &mut fetched_friend_ids_seen,
-                friend,
-                Some("offline"),
-            ),
+        insert_fetched_friend(
+            &mut fetched_friends_by_id,
+            &mut fetched_friend_ids_ordered,
+            &mut fetched_friend_ids_seen,
+            friend,
+            Some("offline"),
         );
     }
 
     if !auth_scope_matches(&deps, &user_id, &input.endpoint) {
         return Ok(stale_friend_output(user_id, String::new()));
+    }
+
+    let suspicious_ids =
+        collect_suspicious_friend_ids(&expected_ids, &state_by_id, &fetched_friends_by_id);
+    if !suspicious_ids.is_empty() {
+        let repaired = refetch_users_concurrent(&deps, &input.endpoint, suspicious_ids).await;
+        for (repaired_id, user) in repaired {
+            let Some(mut profile) = RemoteFriendProfile::from_raw(user, None) else {
+                continue;
+            };
+            profile.source_state_bucket = fetched_friends_by_id
+                .get(&repaired_id)
+                .and_then(|existing| existing.source_state_bucket.clone());
+            fetched_friends_by_id.insert(repaired_id, profile);
+        }
     }
 
     let snapshot = build_fast_roster_snapshot(
@@ -688,36 +712,90 @@ mod tests {
     use super::*;
 
     #[test]
-    fn fetched_friend_state_updates_snapshot_bucket() {
-        let mut state_by_id = HashMap::from([("usr_friend".to_string(), "offline".to_string())]);
-        let mut fetched_friends_by_id = HashMap::new();
-        let mut fetched_friend_ids_ordered = Vec::new();
-        let mut fetched_friend_ids_seen = HashSet::new();
-
-        let applied = apply_fetched_friend_state_bucket(
-            &mut state_by_id,
-            insert_fetched_friend(
-                &mut fetched_friends_by_id,
-                &mut fetched_friend_ids_ordered,
-                &mut fetched_friend_ids_seen,
-                json!({
-                    "id": "usr_friend",
-                    "state": "online",
-                    "platform": "standalonewindows"
-                }),
-                Some("online"),
+    fn collect_suspicious_only_targets_mismatched_or_traveling_friends() {
+        let expected_ids = vec![
+            "usr_online".to_string(),
+            "usr_active_pc".to_string(),
+            "usr_traveling".to_string(),
+            "usr_offline".to_string(),
+        ];
+        let state_by_id = HashMap::from([
+            ("usr_online".to_string(), "online".to_string()),
+            ("usr_active_pc".to_string(), "active".to_string()),
+            ("usr_traveling".to_string(), "online".to_string()),
+            ("usr_offline".to_string(), "offline".to_string()),
+        ]);
+        let profile = |id: &str, platform: &str, location: &str| {
+            RemoteFriendProfile::from_raw(
+                json!({ "id": id, "platform": platform, "location": location }),
+                None,
+            )
+            .expect("valid profile")
+        };
+        let fetched_friends_by_id = HashMap::from([
+            (
+                "usr_online".to_string(),
+                profile("usr_online", "standalonewindows", "wrld_1:1"),
             ),
+            (
+                "usr_active_pc".to_string(),
+                profile("usr_active_pc", "standalonewindows", "offline"),
+            ),
+            (
+                "usr_traveling".to_string(),
+                profile("usr_traveling", "standalonewindows", "traveling"),
+            ),
+            (
+                "usr_offline".to_string(),
+                profile("usr_offline", "", "offline"),
+            ),
+        ]);
+
+        let suspicious =
+            collect_suspicious_friend_ids(&expected_ids, &state_by_id, &fetched_friends_by_id);
+
+        // online & offline friends match their list bucket → skipped; the PC-platform friend under an
+        // "active" list bucket and the "traveling" friend → flagged for a getUser location repair.
+        assert_eq!(
+            suspicious,
+            vec!["usr_active_pc".to_string(), "usr_traveling".to_string()]
+        );
+    }
+
+    #[test]
+    fn insert_fetched_friend_collects_profile_and_prefers_online_source() {
+        // insert_fetched_friend only collects profile/location into fetched_friends_by_id; it no
+        // longer feeds any state bucket — the /auth/user lists stay the bucket authority, so a stale
+        // `state` on the fetched object can't flip anyone. When the same friend shows up in both the
+        // offline and online fetch, the online one wins (fresher location).
+        let mut fetched_friends_by_id = HashMap::new();
+        let mut ordered = Vec::new();
+        let mut seen = HashSet::new();
+
+        insert_fetched_friend(
+            &mut fetched_friends_by_id,
+            &mut ordered,
+            &mut seen,
+            json!({ "id": "usr_friend", "state": "online", "location": "offline" }),
+            Some("offline"),
+        );
+        insert_fetched_friend(
+            &mut fetched_friends_by_id,
+            &mut ordered,
+            &mut seen,
+            json!({ "id": "usr_friend", "location": "wrld_live:123" }),
+            Some("online"),
         );
 
-        assert!(applied);
-        assert_eq!(
-            state_by_id.get("usr_friend").map(String::as_str),
-            Some("online")
-        );
+        assert_eq!(ordered, vec!["usr_friend".to_string()]);
         let profile = fetched_friends_by_id
             .get("usr_friend")
             .expect("inserted friend profile");
-        assert_eq!(profile.id, "usr_friend");
+        assert_eq!(profile.source_state_bucket.as_deref(), Some("online"));
+        assert_eq!(
+            object_field_string(&profile.raw, &["location"]),
+            "wrld_live:123"
+        );
     }
 
     #[test]

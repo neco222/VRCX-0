@@ -3,6 +3,7 @@ use futures_util::stream::{FuturesUnordered, StreamExt};
 use std::future::Future;
 use std::time::Duration;
 use tokio::time::sleep;
+use vrcx_0_vrchat_client::users::user_get_input;
 
 const PAGED_ARRAY_CONCURRENCY: usize = 5;
 const PAGED_ARRAY_MAX_RETRIES: usize = 5;
@@ -207,6 +208,55 @@ fn backoff_delay(attempt: usize) -> Duration {
 fn is_rate_limit_error(error: &Error) -> bool {
     let message = error.to_string();
     message.contains("429") || message.to_ascii_lowercase().contains("ratelimited")
+}
+
+pub(super) async fn refetch_users_concurrent(
+    deps: &SocialBaselineDeps,
+    endpoint: &str,
+    user_ids: Vec<String>,
+) -> HashMap<String, Value> {
+    let mut results = HashMap::new();
+    let mut in_flight = FuturesUnordered::new();
+    let mut pending = user_ids.into_iter();
+
+    for _ in 0..PAGED_ARRAY_CONCURRENCY {
+        match pending.next() {
+            Some(user_id) => in_flight.push(refetch_user_with_backoff(deps, endpoint, user_id)),
+            None => break,
+        }
+    }
+    while let Some((user_id, value)) = in_flight.next().await {
+        if let Some(value) = value {
+            results.insert(user_id, value);
+        }
+        if let Some(next_id) = pending.next() {
+            in_flight.push(refetch_user_with_backoff(deps, endpoint, next_id));
+        }
+    }
+    results
+}
+
+async fn refetch_user_with_backoff(
+    deps: &SocialBaselineDeps,
+    endpoint: &str,
+    user_id: String,
+) -> (String, Option<Value>) {
+    let mut attempt = 0usize;
+    loop {
+        let request = match user_get_input(endpoint.to_string(), user_id.clone()) {
+            Ok((_, request)) => request,
+            Err(_) => return (user_id, None),
+        };
+        // execute_vrchat_json_page_request tags 429s so is_rate_limit_error can detect them.
+        match execute_vrchat_json_page_request(deps, request).await {
+            Ok(value) => return (user_id, Some(value)),
+            Err(error) if is_rate_limit_error(&error) && attempt < PAGED_ARRAY_MAX_RETRIES => {
+                sleep(backoff_delay(attempt)).await;
+                attempt += 1;
+            }
+            Err(_) => return (user_id, None),
+        }
+    }
 }
 
 #[cfg(test)]
