@@ -13,14 +13,15 @@ pub fn app__xs_notification(
     opacity: f64,
     image: Option<String>,
 ) -> Result<(), AppError> {
-    vrcx_0_host::overlay_notifications::send_xs_notification(
+    if let Err(error) = vrcx_0_host::overlay_notifications::send_xs_notification(
         &title,
         &content,
         timeout,
         opacity,
         image.as_deref(),
-    )
-    .map_err(|error| AppError::Custom(format!("XSOverlay notification: {error}")))?;
+    ) {
+        tracing::warn!("[XSOverlay] notification send failed: {error}");
+    }
     Ok(())
 }
 

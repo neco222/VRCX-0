@@ -104,7 +104,7 @@ pub fn send_xs_notification(
         "icon": icon,
         "opacity": opacity
     });
-    let socket = UdpSocket::bind("0.0.0.0:0").map_err(|error| format!("bind: {error}"))?;
+    let socket = UdpSocket::bind("127.0.0.1:0").map_err(|error| format!("bind: {error}"))?;
     socket
         .send_to(payload.to_string().as_bytes(), "127.0.0.1:42069")
         .map_err(|error| format!("send: {error}"))?;
