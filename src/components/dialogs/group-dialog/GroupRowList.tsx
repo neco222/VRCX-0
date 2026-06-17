@@ -303,11 +303,7 @@ export function RowList({
                           .map((roleId: any) => rolesById.get(roleId) || 'Role')
                           .filter(Boolean)
                     : [];
-                const subtitle =
-                    memberRoles.join(', ') ||
-                    row?.user?.displayName ||
-                    row?.displayName ||
-                    '';
+                const subtitle = memberRoles.join(', ') || '';
                 return (
                     <Button
                         key={`${label}:${index}`}
