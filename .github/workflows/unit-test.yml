@@ -93,17 +93,34 @@ jobs:
                   path: coverage-artifacts/rust
             - name: Generate combined coverage badge
               run: |
-                  node build-scripts/generate-combined-coverage-badge.mjs \
-                      --ts coverage-artifacts/ts/coverage-summary.json \
-                      --rust coverage-artifacts/rust/rust-coverage-summary.json \
-                      --out coverage.json
+                  node <<'NODE'
+                  const fs = require('node:fs');
+
+                  const ts = JSON.parse(fs.readFileSync('coverage-artifacts/ts/coverage-summary.json', 'utf8'));
+                  const rust = JSON.parse(fs.readFileSync('coverage-artifacts/rust/rust-coverage-summary.json', 'utf8'));
+
+                  const tsLines = ts.total.lines;
+                  const rustLines = rust.data[0].totals.lines;
+                  const covered = tsLines.covered + rustLines.covered;
+                  const total = tsLines.total + rustLines.count;
+                  const pct = (covered / total) * 100;
+                  const color = pct >= 80 ? 'brightgreen' : pct >= 50 ? 'yellow' : 'red';
+
+                  fs.writeFileSync(
+                      'coverage.json',
+                      JSON.stringify({
+                          schemaVersion: 1,
+                          label: 'coverage',
+                          message: pct.toFixed(1) + '%',
+                          color
+                      }) + '\n'
+                  );
+                  NODE
             - name: Publish coverage badge to badge-data branch
-              if: github.ref == 'refs/heads/master' && github.event_name == 'push'
               env:
                   GH_TOKEN: ${{ github.token }}
               run: |
                   set -euo pipefail
-                  pct=$(node -pe "require('./coverage.json').message")
                   work="$(mktemp -d)"
                   cd "$work"
                   git init -q
@@ -117,9 +134,10 @@ jobs:
                       git rm -rf . --quiet 2>/dev/null || true
                   fi
                   cp "$GITHUB_WORKSPACE/coverage.json" coverage.json
+                  git rm -f --ignore-unmatch rust-coverage.json
                   git add coverage.json
                   git diff --cached --quiet && exit 0
-                  git commit -q -m "chore(badge): coverage = ${pct}"
+                  git commit -q -m "chore(badge): coverage"
                   git push -q -f "$repo_url" badge-data
 
     rust-windows:
