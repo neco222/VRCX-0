@@ -9,11 +9,11 @@ import { InstanceActionBar } from '@/components/instances/InstanceActionBar';
 import { Location } from '@/components/Location';
 import { LocationWorld } from '@/components/LocationWorld';
 import { AvatarInfoLine } from '@/features/feed/components/FeedAvatarInfoLine';
+import { cn } from '@/lib/utils';
 import {
     convertFileUrlToImageUrl,
     openExternalLink
 } from '@/services/entityMediaService';
-import { cn } from '@/lib/utils';
 import { getFaviconUrl } from '@/shared/utils/urlUtils';
 import { Button } from '@/ui/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/shadcn/card';
@@ -167,7 +167,11 @@ function InfoStatGrid({ children, className }: any) {
     );
 }
 
-function formatLocalizedActivityDate(value: any, locale: any, dateOnly = false) {
+function formatLocalizedActivityDate(
+    value: any,
+    locale: any,
+    dateOnly = false
+) {
     if (!value) {
         return '\u2014';
     }
@@ -183,7 +187,7 @@ function formatLocalizedActivityDate(value: any, locale: any, dateOnly = false) 
 
 function TextScroll({ children, className = 'h-52' }: any) {
     return (
-        <div className={cn('overflow-auto rounded-md', className)}>
+        <div className={cn('overflow-auto', className)}>
             <pre className="text-muted-foreground m-0 min-w-0 font-sans text-xs whitespace-pre-wrap">
                 {children || '\u2014'}
             </pre>
@@ -608,10 +612,7 @@ function UserDialogActivitySummaryPanel({
                 />
                 <InfoStat
                     label={t('dialog.user.info.friended')}
-                    value={formatLocalizedActivityDate(
-                        friendedAt,
-                        dateLocale
-                    )}
+                    value={formatLocalizedActivityDate(friendedAt, dateLocale)}
                     subtle
                 />
                 <InfoStat
