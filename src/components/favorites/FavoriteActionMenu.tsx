@@ -78,6 +78,33 @@ function formatGroupLabel(group: any) {
     return `${group.displayName || group.name || group.key}${suffix}`;
 }
 
+function groupDisplayLabel(group: any) {
+    return group?.displayName || group?.name || group?.key || '';
+}
+
+export function resolveRemoteFavoriteGroupLabel(
+    remoteFavorite: any,
+    groups: any[]
+) {
+    const groupKey = normalizeEntityId(remoteFavorite?.$groupKey);
+    const type = normalizeEntityId(remoteFavorite?.type);
+    const tag = Array.isArray(remoteFavorite?.tags)
+        ? normalizeEntityId(remoteFavorite.tags[0])
+        : '';
+    const candidates = new Set(
+        [
+            groupKey,
+            tag.includes(':') ? tag : '',
+            type && tag ? `${type}:${tag}` : ''
+        ].filter(Boolean)
+    );
+    const group = (Array.isArray(groups) ? groups : []).find((item: any) =>
+        candidates.has(normalizeEntityId(item?.key))
+    );
+
+    return groupDisplayLabel(group) || groupKey || tag || 'Current group';
+}
+
 function hasLocalFavorite(localFavorites: any, groupName: any, entityId: any) {
     return (
         Array.isArray(localFavorites?.[groupName]) &&
@@ -132,6 +159,10 @@ export function FavoriteActionMenu({
     const remoteFavorite = useFavoriteStore(
         (state: any) =>
             state.remoteFavoritesByObjectId[normalizedEntityId] || null
+    );
+    const remoteFavoriteGroupLabel = useMemo(
+        () => resolveRemoteFavoriteGroupLabel(remoteFavorite, groups),
+        [groups, remoteFavorite]
     );
     const addRemoteFavorite = useFavoriteStore(
         (state: any) => state.addRemoteFavorite
@@ -349,9 +380,7 @@ export function FavoriteActionMenu({
                     <>
                         <DropdownMenuGroup>
                             <DropdownMenuItem disabled>
-                                {remoteFavorite.$groupKey ||
-                                    remoteFavorite.tags?.[0] ||
-                                    'Current group'}
+                                {remoteFavoriteGroupLabel}
                             </DropdownMenuItem>
                         </DropdownMenuGroup>
                         <DropdownMenuSeparator />
