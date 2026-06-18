@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use rusqlite::Connection;
 use vrcx_0_core::screenshots::{
@@ -127,8 +127,18 @@ impl MetadataCacheDb {
         })
     }
 
+    fn conn(&self) -> MutexGuard<'_, Connection> {
+        self.conn.lock().unwrap_or_else(|error| error.into_inner())
+    }
+
+    fn scan_status_guard(&self) -> MutexGuard<'_, ScreenshotLibraryScanStatus> {
+        self.scan_status
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+    }
+
     pub fn is_cached(&self, file_path: &str) -> bool {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn();
         conn.query_row(
             "SELECT 1 FROM cache WHERE file_path = ?1 LIMIT 1",
             [file_path],
@@ -138,7 +148,7 @@ impl MetadataCacheDb {
     }
 
     pub fn get_metadata(&self, file_path: &str) -> Option<String> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn();
         conn.query_row(
             "SELECT metadata FROM cache WHERE file_path = ?1 LIMIT 1",
             [file_path],
@@ -149,7 +159,7 @@ impl MetadataCacheDb {
     }
 
     pub fn bulk_add(&self, entries: &[(String, Option<String>)]) {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn();
         let tx = match conn.unchecked_transaction() {
             Ok(t) => t,
             Err(_) => return,
@@ -170,11 +180,11 @@ impl MetadataCacheDb {
     }
 
     pub fn scan_status(&self) -> ScreenshotLibraryScanStatus {
-        self.scan_status.lock().unwrap().clone()
+        self.scan_status_guard().clone()
     }
 
     pub fn set_scan_status(&self, status: ScreenshotLibraryScanStatus) {
-        *self.scan_status.lock().unwrap() = status;
+        *self.scan_status_guard() = status;
     }
 
     pub fn try_begin_scan(&self) -> bool {
@@ -189,7 +199,7 @@ impl MetadataCacheDb {
     }
 
     pub fn library_file_states(&self, root: &str) -> HashMap<String, ScreenshotLibraryCachedState> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn();
         let mut stmt = match conn.prepare(
             "SELECT path, size_bytes, modified_at, index_version
              FROM screenshot_files
@@ -230,7 +240,7 @@ impl MetadataCacheDb {
         entries: &[ScreenshotLibraryEntry],
         prune_missing: bool,
     ) -> Result<usize> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn();
         let tx = conn.unchecked_transaction().map_err(|error| {
             Error::Database(format!("start screenshot index transaction: {error}"))
         })?;
@@ -324,7 +334,7 @@ impl MetadataCacheDb {
 
     #[doc(hidden)]
     pub fn mark_library_entry_stale_for_test(&self, path: &str) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn();
         conn.execute(
             "UPDATE screenshot_files SET index_version = 0, metadata_json = NULL WHERE path = ?1",
             [path],
@@ -334,7 +344,7 @@ impl MetadataCacheDb {
     }
 
     pub fn screenshot_folder_tree_for_root(&self, root_path: &str) -> Result<ScreenshotFolderTree> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn();
         let mut direct_counts: HashMap<String, usize> = HashMap::new();
         let mut latest_modified_by_folder: HashMap<String, i64> = HashMap::new();
         let mut stmt = conn
@@ -460,7 +470,7 @@ impl MetadataCacheDb {
         root_path: &str,
         folder_path: &str,
     ) -> Result<Vec<ScreenshotLibraryImage>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn();
         let mut stmt = conn
             .prepare(
                 "SELECT path, folder_path, file_name, size_bytes, modified_at, created_at,
@@ -484,7 +494,7 @@ impl MetadataCacheDb {
         root_path: &str,
         world_id: &str,
     ) -> Result<Vec<ScreenshotLibraryImage>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn();
         let mut stmt = conn
             .prepare(
                 "SELECT path, folder_path, file_name, size_bytes, modified_at, created_at,
@@ -509,7 +519,7 @@ impl MetadataCacheDb {
         size_bytes: i64,
         modified_at: i64,
     ) {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn();
         let now = now_unix_seconds();
         let _ = conn.execute(
             "INSERT INTO screenshot_thumbnail_cache (
@@ -527,7 +537,7 @@ impl MetadataCacheDb {
     }
 
     pub fn thumbnail_cache_entries(&self) -> Vec<ScreenshotThumbnailCacheEntry> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn();
         let mut stmt = match conn.prepare(
             "SELECT thumb_path, source_path, cache_key, size_bytes, modified_at, last_used_at
              FROM screenshot_thumbnail_cache",
@@ -555,7 +565,7 @@ impl MetadataCacheDb {
         &self,
         source_path: &str,
     ) -> Vec<ScreenshotThumbnailCacheEntry> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn();
         let mut stmt = match conn.prepare(
             "SELECT thumb_path, source_path, cache_key, size_bytes, modified_at, last_used_at
              FROM screenshot_thumbnail_cache
@@ -588,7 +598,7 @@ impl MetadataCacheDb {
     }
 
     pub fn delete_thumbnail_cache_record(&self, thumb_path: &str) {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn();
         let _ = conn.execute(
             "DELETE FROM screenshot_thumbnail_cache WHERE thumb_path = ?1",
             [thumb_path],
@@ -596,7 +606,7 @@ impl MetadataCacheDb {
     }
 
     pub fn clear_all(&self) {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn();
         let _ = conn.execute("DELETE FROM cache", []);
         let _ = conn.execute("DELETE FROM screenshot_files", []);
         let _ = conn.execute("DELETE FROM screenshot_thumbnail_cache", []);
@@ -634,4 +644,61 @@ fn now_unix_seconds() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+
+    struct TestDbPath {
+        path: PathBuf,
+    }
+
+    impl TestDbPath {
+        fn new(name: &str) -> Self {
+            let nonce = now_unix_seconds();
+            let path = std::env::temp_dir()
+                .join(format!("vrcx-0-{name}-{}-{nonce}.db", std::process::id()));
+            Self { path }
+        }
+    }
+
+    impl Drop for TestDbPath {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.path);
+            let _ = std::fs::remove_file(self.path.with_extension("db-wal"));
+            let _ = std::fs::remove_file(self.path.with_extension("db-shm"));
+        }
+    }
+
+    #[test]
+    fn scan_status_recovers_from_poisoned_lock() -> Result<()> {
+        let db_path = TestDbPath::new("screenshot-cache-poison");
+        let cache = MetadataCacheDb::new(&db_path.path)?;
+        let poisoned_cache = cache.clone();
+
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            let _guard = poisoned_cache.scan_status.lock().expect("scan status lock");
+            panic!("poison scan status lock");
+        }));
+        assert!(result.is_err());
+
+        cache.set_scan_status(ScreenshotLibraryScanStatus {
+            running: true,
+            scanned: 7,
+            indexed: 3,
+            changed: 2,
+            skipped: 1,
+            deleted: 0,
+            error: None,
+            last_scan_at: Some("2026-01-01T00:00:00.000Z".into()),
+        });
+
+        let status = cache.scan_status();
+        assert!(status.running);
+        assert_eq!(status.scanned, 7);
+        assert_eq!(status.indexed, 3);
+        Ok(())
+    }
 }

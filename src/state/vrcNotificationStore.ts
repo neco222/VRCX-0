@@ -11,7 +11,7 @@ import { useShellStore } from '@/state/shellStore';
 const RECENT_WINDOW_MS = 24 * 60 * 60 * 1000;
 const TRANSIENT_V1_UNSEEN_TYPES = new Set(['friendRequest']);
 const ACTION_REQUIRED_V1_TYPES = new Set(['friendRequest']);
-const pendingSeenIds = new Set<unknown>();
+const pendingSeenIds = new Set<string>();
 
 type LoadStatus = 'idle' | 'running' | 'ready' | 'error';
 type NotificationCategoryKey = 'friend' | 'group' | 'other';
@@ -84,7 +84,9 @@ function isUnseenNotification(notification?: NotificationRow | null): boolean {
     );
 }
 
-function shouldMarkSeenOnCenterClose(notification?: NotificationRow | null): boolean {
+function shouldMarkSeenOnCenterClose(
+    notification?: NotificationRow | null
+): boolean {
     const version = Number(notification?.version ?? 1);
     const type = String(notification?.type || '');
     return !(version !== 2 && ACTION_REQUIRED_V1_TYPES.has(type));
@@ -119,11 +121,11 @@ function buildCategories(rows: NotificationRow[]): NotificationCategories {
 
     for (const bucket of Object.values(categories)) {
         bucket.unseen.sort(
-            (left: any, right: any) =>
+            (left: NotificationRow, right: NotificationRow) =>
                 getNotificationTs(right) - getNotificationTs(left)
         );
         bucket.recent.sort(
-            (left: any, right: any) =>
+            (left: NotificationRow, right: NotificationRow) =>
                 getNotificationTs(right) - getNotificationTs(left)
         );
     }
@@ -131,9 +133,31 @@ function buildCategories(rows: NotificationRow[]): NotificationCategories {
     return categories;
 }
 
+function isNotificationRow(value: unknown): value is NotificationRow {
+    return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function normalizeNotificationId(value: unknown): string {
+    return typeof value === 'string'
+        ? value.trim()
+        : String(value ?? '').trim();
+}
+
+function toNotificationRows(rows: unknown): NotificationRow[] {
+    return Array.isArray(rows) ? rows.filter(isNotificationRow) : [];
+}
+
+function toNotificationIdSet(ids: unknown | unknown[]): Set<string> {
+    return new Set(
+        (Array.isArray(ids) ? ids : [ids])
+            .map(normalizeNotificationId)
+            .filter(Boolean)
+    );
+}
+
 function sortRows(rows: unknown): NotificationRow[] {
-    return [...(Array.isArray(rows) ? rows : [])].sort(
-        (left: any, right: any) => {
+    return [...toNotificationRows(rows)].sort(
+        (left: NotificationRow, right: NotificationRow) => {
             const leftTime = getNotificationTs(left);
             const rightTime = getNotificationTs(right);
             if (leftTime !== rightTime) {
@@ -146,7 +170,7 @@ function sortRows(rows: unknown): NotificationRow[] {
     );
 }
 
-function createNotificationState(rows: unknown, detail: any = '') {
+function createNotificationState(rows: unknown, detail = '') {
     const sortedRows = sortRows(rows);
     return {
         rows: sortedRows,
@@ -161,15 +185,15 @@ function getCurrentAuth(): RuntimeAuthSnapshot {
 }
 
 function getUnseenRows(rows: unknown): NotificationRow[] {
-    return (Array.isArray(rows) ? rows : []).filter(isUnseenNotification);
+    return toNotificationRows(rows).filter(isUnseenNotification);
 }
 
 function applyPendingSeenRows(rows: NotificationRow[]): NotificationRow[] {
     if (!pendingSeenIds.size) {
         return rows;
     }
-    return rows.map((row: any) =>
-        pendingSeenIds.has(row.id)
+    return rows.map((row) =>
+        pendingSeenIds.has(normalizeNotificationId(row.id))
             ? {
                   ...row,
                   seen: true
@@ -179,17 +203,17 @@ function applyPendingSeenRows(rows: NotificationRow[]): NotificationRow[] {
 }
 
 function delay(ms: number): Promise<void> {
-    return new Promise((resolve: any) => {
+    return new Promise((resolve) => {
         window.setTimeout(resolve, ms);
     });
 }
 
-function syncShellUnseenCount(unseenCount: unknown) {
+function syncShellUnseenCount(unseenCount: number) {
     useShellStore.getState().setVrcUnseenNotificationCount(unseenCount);
 }
 
 export const useVrcNotificationStore = create<VrcNotificationStore>(
-    (set: any, get: any) => ({
+    (set, get) => ({
         rows: [],
         categories: createEmptyCategories(),
         unseenCount: 0,
@@ -239,7 +263,7 @@ export const useVrcNotificationStore = create<VrcNotificationStore>(
                 throw error;
             }
         },
-        setCenterOpen(isCenterOpen: any) {
+        setCenterOpen(isCenterOpen: unknown) {
             const nextOpen = Boolean(isCenterOpen);
             set({ isCenterOpen: nextOpen });
             if (nextOpen) {
@@ -251,36 +275,31 @@ export const useVrcNotificationStore = create<VrcNotificationStore>(
         openCenter() {
             get().setCenterOpen(true);
         },
-        upsertNotification(notification: any) {
+        upsertNotification(notification: NotificationRow) {
             if (!notification?.id) {
                 return;
             }
-            set((state: any) => {
+            set((state) => {
                 const existing =
-                    state.rows.find((row: any) => row.id === notification.id) ||
-                    {};
+                    state.rows.find((row) => row.id === notification.id) || {};
                 const rows = [
                     { ...existing, ...notification },
-                    ...state.rows.filter(
-                        (row: any) => row.id !== notification.id
-                    )
+                    ...state.rows.filter((row) => row.id !== notification.id)
                 ];
                 return createNotificationState(rows, state.detail);
             });
             syncShellUnseenCount(get().unseenCount);
         },
-        expireNotifications(ids: any) {
-            const idSet = new Set(
-                (Array.isArray(ids) ? ids : [ids]).filter(Boolean)
-            );
+        expireNotifications(ids: unknown | unknown[]) {
+            const idSet = toNotificationIdSet(ids);
             if (!idSet.size) {
                 return;
             }
             const expiresAt = new Date().toISOString();
-            set((state: any) =>
+            set((state) =>
                 createNotificationState(
-                    state.rows.map((row: any) =>
-                        idSet.has(row.id)
+                    state.rows.map((row) =>
+                        idSet.has(normalizeNotificationId(row.id))
                             ? {
                                   ...row,
                                   expiresAt,
@@ -294,17 +313,15 @@ export const useVrcNotificationStore = create<VrcNotificationStore>(
             );
             syncShellUnseenCount(get().unseenCount);
         },
-        markNotificationsSeen(ids: any) {
-            const idSet = new Set(
-                (Array.isArray(ids) ? ids : [ids]).filter(Boolean)
-            );
+        markNotificationsSeen(ids: unknown | unknown[]) {
+            const idSet = toNotificationIdSet(ids);
             if (!idSet.size) {
                 return;
             }
-            set((state: any) =>
+            set((state) =>
                 createNotificationState(
-                    state.rows.map((row: any) =>
-                        idSet.has(row.id)
+                    state.rows.map((row) =>
+                        idSet.has(normalizeNotificationId(row.id))
                             ? {
                                   ...row,
                                   seen: true
@@ -316,7 +333,7 @@ export const useVrcNotificationStore = create<VrcNotificationStore>(
             );
             syncShellUnseenCount(get().unseenCount);
         },
-        async markNotificationSeen(notification: any) {
+        async markNotificationSeen(notification?: NotificationRow | null) {
             const auth = getCurrentAuth();
             if (
                 !auth.currentUserId ||
@@ -343,16 +360,14 @@ export const useVrcNotificationStore = create<VrcNotificationStore>(
 
             const markableRows = unseenRows.filter(shouldMarkSeenOnCenterClose);
             const ids = markableRows
-                .map((notification: any) => notification.id)
+                .map((notification) => notification.id)
                 .filter(Boolean);
             if (!ids.length) {
                 return;
             }
             const localV2Ids = markableRows
-                .filter(
-                    (notification: any) => Number(notification.version) === 2
-                )
-                .map((notification: any) => notification.id)
+                .filter((notification) => Number(notification.version) === 2)
+                .map((notification) => notification.id)
                 .filter(Boolean);
             for (const id of ids) {
                 pendingSeenIds.add(id);
@@ -371,7 +386,7 @@ export const useVrcNotificationStore = create<VrcNotificationStore>(
                             version: notification.version,
                             endpoint: auth.currentUserEndpoint
                         })
-                        .catch((error: any) => {
+                        .catch((error: unknown) => {
                             console.warn(
                                 'Failed to mark VRChat notification as seen:',
                                 error

@@ -1,7 +1,7 @@
 #[cfg(target_os = "windows")]
 mod platform {
     use std::sync::atomic::{AtomicBool, Ordering};
-    use std::sync::{Arc, Mutex};
+    use std::sync::{Arc, Mutex, MutexGuard};
     use std::thread::JoinHandle;
 
     use vrcx_0_core::ipc::IpcPacket;
@@ -19,6 +19,14 @@ mod platform {
         fn active(&self) -> bool {
             self.write_pipe.is_some()
         }
+    }
+
+    fn lock_clients(clients: &Arc<Mutex<Vec<ClientHandle>>>) -> MutexGuard<'_, Vec<ClientHandle>> {
+        clients.lock().unwrap_or_else(|error| error.into_inner())
+    }
+
+    fn lock_client(client: &ClientHandle) -> MutexGuard<'_, ClientState> {
+        client.lock().unwrap_or_else(|error| error.into_inner())
     }
 
     pub struct LocalIpcServer {
@@ -90,17 +98,17 @@ mod platform {
             let mut payload = json.into_bytes();
             payload.push(0x00);
 
-            let clients_snapshot = self.clients.lock().unwrap().clone();
+            let clients_snapshot = lock_clients(&self.clients).clone();
             for client_arc in clients_snapshot {
-                let mut guard = client_arc.lock().unwrap();
+                let mut guard = lock_client(&client_arc);
                 if let Some(ref mut pipe) = guard.write_pipe {
                     if pipe.write_all(&payload).is_err() {
                         guard.write_pipe = None;
                     }
                 }
             }
-            let mut clients = self.clients.lock().unwrap();
-            clients.retain(|client| client.lock().unwrap().active());
+            let mut clients = lock_clients(&self.clients);
+            clients.retain(|client| lock_client(client).active());
         }
 
         pub fn stop(&self) {
@@ -213,10 +221,10 @@ mod platform {
             );
         });
         {
-            let mut client = client_arc.lock().unwrap();
+            let mut client = lock_client(&client_arc);
             client.read_thread = Some(read_thread);
         }
-        clients.lock().unwrap().push(client_arc);
+        lock_clients(clients).push(client_arc);
 
         Ok(())
     }
@@ -264,12 +272,12 @@ mod platform {
         }
 
         {
-            let mut guard = client_arc.lock().unwrap();
+            let mut guard = lock_client(&client_arc);
             guard.write_pipe = None;
             guard.control_pipe = None;
         }
-        let mut all = clients.lock().unwrap();
-        all.retain(|client| client.lock().unwrap().active());
+        let mut all = lock_clients(clients);
+        all.retain(|client| lock_client(client).active());
     }
 }
 

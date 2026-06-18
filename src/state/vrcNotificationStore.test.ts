@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 const notificationRepositoryMock = vi.hoisted(() => ({
     queryNotifications: vi.fn(),
@@ -31,6 +31,16 @@ describe('vrcNotificationStore', () => {
         useVrcNotificationStore.getState().resetVrcNotificationState();
     });
 
+    it('keeps public notification actions typed', () => {
+        const store = useVrcNotificationStore.getState();
+
+        expectTypeOf(store.setCenterOpen).parameter(0).not.toBeAny();
+        expectTypeOf(store.upsertNotification).parameter(0).not.toBeAny();
+        expectTypeOf(store.expireNotifications).parameter(0).not.toBeAny();
+        expectTypeOf(store.markNotificationsSeen).parameter(0).not.toBeAny();
+        expectTypeOf(store.markNotificationSeen).parameter(0).not.toBeAny();
+    });
+
     it('keeps incoming v1 friend requests action-required after mark-all-seen', async () => {
         const friendRequest = {
             id: 'notif_friend_request',
@@ -51,6 +61,8 @@ describe('vrcNotificationStore', () => {
         });
         expect(useShellStore.getState().vrcUnseenNotificationCount).toBe(1);
         expect(notificationRepositoryMock.markSeen).not.toHaveBeenCalled();
-        expect(notificationRepositoryMock.markSeenLocalBulk).not.toHaveBeenCalled();
+        expect(
+            notificationRepositoryMock.markSeenLocalBulk
+        ).not.toHaveBeenCalled();
     });
 });

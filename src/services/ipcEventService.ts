@@ -19,7 +19,10 @@ import {
 import { bootstrapFavorites } from './favoriteBootstrapService';
 import { openFavoriteImportDialog } from './favoriteImportService';
 
-let ipcTimeoutId = null;
+type IpcPayload = Record<string, unknown>;
+type TimeoutHandle = ReturnType<typeof globalThis.setTimeout>;
+
+let ipcTimeoutId: TimeoutHandle | null = null;
 
 function scheduleIpcTimeout() {
     if (ipcTimeoutId) {
@@ -34,12 +37,12 @@ function scheduleIpcTimeout() {
     }, 60_000);
 }
 
-function parseIpcPayload(payload: unknown): Record<string, any> {
+function parseIpcPayload(payload: unknown): IpcPayload {
     if (typeof payload === 'string') {
         return JSON.parse(payload);
     }
     if (payload && typeof payload === 'object') {
-        return payload as Record<string, any>;
+        return payload as IpcPayload;
     }
     throw new Error('Unsupported IPC payload shape.');
 }
@@ -50,7 +53,7 @@ function normalizeString(value: unknown) {
         : String(value ?? '').trim();
 }
 
-async function persistVrcxMessage(data: Record<string, any>) {
+async function persistVrcxMessage(data: IpcPayload) {
     const runtimeState = useRuntimeStore.getState();
     const location =
         runtimeState.gameState.currentLocation ||
@@ -63,7 +66,7 @@ async function persistVrcxMessage(data: Record<string, any>) {
                 return;
             }
 
-            const entry: any = {
+            const entry: Record<string, unknown> = {
                 created_at: new Date().toJSON(),
                 type: 'Event',
                 data: normalizeString(data.Data)
@@ -72,12 +75,12 @@ async function persistVrcxMessage(data: Record<string, any>) {
             useNotificationStore.getState().pushNotification({
                 level: 'info',
                 title: 'External notifier',
-                message: entry.data
+                message: normalizeString(entry.data)
             });
             break;
         }
         case 'External': {
-            const entry: any = {
+            const entry: Record<string, unknown> = {
                 created_at: new Date().toJSON(),
                 type: 'External',
                 message: normalizeString(data.Data),
@@ -89,8 +92,8 @@ async function persistVrcxMessage(data: Record<string, any>) {
             if (data.notify ?? true) {
                 useNotificationStore.getState().pushNotification({
                     level: 'info',
-                    title: entry.displayName || 'External',
-                    message: entry.message
+                    title: normalizeString(entry.displayName) || 'External',
+                    message: normalizeString(entry.message)
                 });
             }
             break;
@@ -272,7 +275,8 @@ export async function handleIpcEvent(payload: unknown) {
             break;
         case 'MsgPing':
             useRuntimeStore.getState().setGameState({
-                externalNotifierVersion: Number.parseInt(data.version, 10) || 0
+                externalNotifierVersion:
+                    Number.parseInt(String(data.version ?? ''), 10) || 0
             });
             break;
         case 'VrcxMessage':

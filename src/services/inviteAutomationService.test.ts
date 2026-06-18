@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 const serviceMocks = vi.hoisted(() => ({
     configRepository: {
@@ -38,6 +38,7 @@ import { useVrcNotificationStore } from '@/state/vrcNotificationStore';
 
 import {
     handleInviteAutomationNotification,
+    type InviteAutomationNotification,
     resetInviteAutomationService
 } from './inviteAutomationService';
 
@@ -133,6 +134,15 @@ describe('inviteAutomationService', () => {
         serviceMocks.commands.appExpireRealtimeNotification.mockResolvedValue(
             undefined
         );
+    });
+
+    it('keeps the automation notification boundary typed', () => {
+        expectTypeOf<
+            Parameters<typeof handleInviteAutomationNotification>[0]
+        >().toEqualTypeOf<InviteAutomationNotification>();
+        expectTypeOf<
+            InviteAutomationNotification['senderUserId']
+        >().not.toBeAny();
     });
 
     it('sends an invite for selected remote favorite groups from an owned private instance', async () => {

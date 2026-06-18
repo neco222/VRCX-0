@@ -22,7 +22,14 @@ describe('worldInstanceResolver', () => {
             json: {
                 shortName: 'short_lookup',
                 secureName: 'secure_lookup'
-            }
+            },
+            status: 200,
+            raw: {},
+            instance: {
+                worldId: 'wrld_test',
+                instanceId: '123~region(us)'
+            },
+            params: {}
         });
 
         await expect(
@@ -38,7 +45,9 @@ describe('worldInstanceResolver', () => {
             accessType: 'public',
             ownerId: 'usr_owner'
         });
-        expect(vrchatInstanceRepository.getInstanceShortName).toHaveBeenCalledWith({
+        expect(
+            vrchatInstanceRepository.getInstanceShortName
+        ).toHaveBeenCalledWith({
             worldId: 'wrld_test',
             instanceId: '123~region(us)',
             endpoint: 'https://api.example.test'
@@ -81,6 +90,8 @@ describe('worldInstanceResolver', () => {
             accessType: 'invite',
             ownerId: 'usr_fallback'
         });
-        expect(vrchatInstanceRepository.getInstanceShortName).not.toHaveBeenCalled();
+        expect(
+            vrchatInstanceRepository.getInstanceShortName
+        ).not.toHaveBeenCalled();
     });
 });

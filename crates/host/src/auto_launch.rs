@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
@@ -156,7 +156,7 @@ impl AutoAppLaunchManager {
     }
 
     pub fn snapshot(&self) -> AppLauncherSnapshot {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.lock_inner();
         refresh_runs(&mut inner);
         inner.snapshot()
     }
@@ -164,7 +164,7 @@ impl AutoAppLaunchManager {
     pub fn set_enabled(&self, enabled: bool) -> AppLauncherSnapshot {
         let mut delayed = Vec::new();
         let snapshot = {
-            let mut inner = self.inner.lock().unwrap();
+            let mut inner = self.lock_inner();
             inner.generation = inner.generation.saturating_add(1);
             inner.enabled = enabled;
             if enabled {
@@ -182,7 +182,7 @@ impl AutoAppLaunchManager {
     pub fn set_entries(&self, entries: Vec<AppLauncherEntry>) -> AppLauncherSnapshot {
         let mut delayed = Vec::new();
         let snapshot = {
-            let mut inner = self.inner.lock().unwrap();
+            let mut inner = self.lock_inner();
             inner.generation = inner.generation.saturating_add(1);
             inner.entries = normalize_app_launcher_entries(entries);
             reconcile_active_session_entries(&mut inner, self, &mut delayed);
@@ -196,7 +196,7 @@ impl AutoAppLaunchManager {
     pub fn on_game_started(&self, is_steamvr_running: bool) {
         let mut delayed = Vec::new();
         {
-            let mut inner = self.inner.lock().unwrap();
+            let mut inner = self.lock_inner();
             inner.generation = inner.generation.saturating_add(1);
             let generation = inner.generation;
             let session_id = inner.next_prefixed_id("session");
@@ -243,7 +243,7 @@ impl AutoAppLaunchManager {
     }
 
     pub fn on_game_stopped(&self) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.lock_inner();
         inner.generation = inner.generation.saturating_add(1);
         stop_close_by_vrcx_session(&mut inner);
         inner.active_session = None;
@@ -252,7 +252,7 @@ impl AutoAppLaunchManager {
     pub fn on_steamvr_changed(&self, is_steamvr_running: bool) {
         let mut delayed = Vec::new();
         {
-            let mut inner = self.inner.lock().unwrap();
+            let mut inner = self.lock_inner();
             let needs_reconcile = inner
                 .active_session
                 .as_ref()
@@ -271,7 +271,7 @@ impl AutoAppLaunchManager {
     }
 
     pub fn test_entry(&self, entry_id: &str) -> Result<AppLauncherSnapshot, String> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.lock_inner();
         let Some(entry) = inner
             .entries
             .iter()
@@ -290,7 +290,7 @@ impl AutoAppLaunchManager {
     }
 
     pub fn stop_test_run(&self, run_id: &str) -> Result<AppLauncherSnapshot, String> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.lock_inner();
         let Some(run) = inner.test_runs.iter_mut().find(|run| run.id == run_id) else {
             return Err(format!("VRChat Startup Apps test run not found: {run_id}"));
         };
@@ -306,7 +306,7 @@ impl AutoAppLaunchManager {
         entry: AppLauncherEntry,
         generation: u64,
     ) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.lock_inner();
         if inner.generation != generation {
             return;
         }
@@ -320,6 +320,10 @@ impl AutoAppLaunchManager {
             return;
         };
         launch_entry(run, &entry);
+    }
+
+    fn lock_inner(&self) -> MutexGuard<'_, Inner> {
+        self.inner.lock().unwrap_or_else(|error| error.into_inner())
     }
 }
 
@@ -1481,6 +1485,23 @@ mod app_launcher_tests {
 
         let snapshot = manager.set_entries(Vec::new());
         assert!(snapshot.active_session.unwrap().runs.is_empty());
+    }
+
+    #[test]
+    fn app_launcher_snapshot_recovers_from_poisoned_lock() {
+        let manager = AutoAppLaunchManager::new(true, Vec::new());
+        let poisoned = manager.clone();
+
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = poisoned.inner.lock().expect("app launcher lock");
+            panic!("poison app launcher lock");
+        }));
+
+        assert!(result.is_err());
+
+        let snapshot = manager.snapshot();
+        assert!(snapshot.enabled);
+        assert!(snapshot.entries.is_empty());
     }
 
     #[test]

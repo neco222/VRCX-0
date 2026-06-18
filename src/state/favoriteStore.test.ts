@@ -1,10 +1,26 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 
 import { useFavoriteStore } from './favoriteStore';
 
 describe('favoriteStore', () => {
     beforeEach(() => {
         useFavoriteStore.getState().resetFavorites();
+    });
+
+    it('keeps public favorite actions typed', () => {
+        const store = useFavoriteStore.getState();
+
+        expectTypeOf(store.setFavoritesLoading).parameter(0).not.toBeAny();
+        expectTypeOf(store.setFavoritesSnapshot).parameter(0).not.toBeAny();
+        expectTypeOf(store.addLocalFavorite).parameter(0).not.toBeAny();
+        expectTypeOf(store.removeLocalFavorite).parameter(0).not.toBeAny();
+        expectTypeOf(store.renameLocalFavoriteGroup).parameter(0).not.toBeAny();
+        expectTypeOf(store.addRemoteFavorite).parameter(0).not.toBeAny();
+        expectTypeOf(store.removeRemoteFavorite).parameter(0).not.toBeAny();
+        expectTypeOf(store.getRemoteFavoriteByObjectId)
+            .parameter(0)
+            .not.toBeAny();
+        expectTypeOf(store.isInAnyLocalFriendGroup).parameter(0).not.toBeAny();
     });
 
     it('deduplicates local favorites and preserves newest-first group ordering', () => {
@@ -37,7 +53,7 @@ describe('favoriteStore', () => {
 
     it('keeps local entity details until the entity is removed from every group', () => {
         const store = useFavoriteStore.getState();
-        const world: any = {
+        const world: Record<string, unknown> = {
             name: 'Test World'
         };
 

@@ -65,6 +65,10 @@ function dialogFromBreadcrumb(crumb: DialogBreadcrumb): ActiveDialog | null {
     };
 }
 
+function normalizeBreadcrumbs(value: unknown): DialogBreadcrumb[] {
+    return Array.isArray(value) ? (value as DialogBreadcrumb[]) : [];
+}
+
 function isSameEntity(
     left: DialogBreadcrumb | ActiveDialog | null,
     rightKind: string,
@@ -76,23 +80,23 @@ function isSameEntity(
     );
 }
 
-export const useDialogStore = create<DialogStoreState>((set: any) => ({
+export const useDialogStore = create<DialogStoreState>((set) => ({
     ...initialState,
-    openDialog(dialog: any) {
-        set((state: any) => ({
+    openDialog(dialog) {
+        set((state) => ({
             activeDialog: dialog,
             breadcrumbs: dialog?.crumb
                 ? [...state.breadcrumbs, dialog.crumb]
                 : state.breadcrumbs
         }));
     },
-    setDialog(dialog: any) {
+    setDialog(dialog) {
         set({ activeDialog: dialog });
     },
-    setDialogTrail(dialog: any, breadcrumbs: any) {
+    setDialogTrail(dialog, breadcrumbs) {
         set({
             activeDialog: dialog,
-            breadcrumbs: Array.isArray(breadcrumbs) ? breadcrumbs : []
+            breadcrumbs: normalizeBreadcrumbs(breadcrumbs)
         });
     },
     updateEntityDialogMetadata({
@@ -100,7 +104,7 @@ export const useDialogStore = create<DialogStoreState>((set: any) => ({
         entityId,
         title = '',
         description = ''
-    }: any = {}) {
+    } = {}) {
         const normalizedKind = String(kind || '').trim();
         const normalizedEntityId = String(entityId ?? '').trim();
         const normalizedTitle = String(title || '').trim();
@@ -112,21 +116,25 @@ export const useDialogStore = create<DialogStoreState>((set: any) => ({
         ) {
             return;
         }
-        set((state: any) => ({
-            activeDialog: isSameEntity(
-                state.activeDialog,
-                normalizedKind,
-                normalizedEntityId
-            )
-                ? {
-                      ...state.activeDialog,
-                      ...(normalizedTitle ? { title: normalizedTitle } : {}),
-                      ...(normalizedDescription
-                          ? { description: normalizedDescription }
-                          : {})
-                  }
-                : state.activeDialog,
-            breadcrumbs: state.breadcrumbs.map((crumb: any) =>
+        set((state) => ({
+            activeDialog:
+                state.activeDialog &&
+                isSameEntity(
+                    state.activeDialog,
+                    normalizedKind,
+                    normalizedEntityId
+                )
+                    ? {
+                          ...state.activeDialog,
+                          ...(normalizedTitle
+                              ? { title: normalizedTitle }
+                              : {}),
+                          ...(normalizedDescription
+                              ? { description: normalizedDescription }
+                              : {})
+                      }
+                    : state.activeDialog,
+            breadcrumbs: state.breadcrumbs.map((crumb) =>
                 isSameEntity(crumb, normalizedKind, normalizedEntityId)
                     ? {
                           ...crumb,
@@ -147,16 +155,16 @@ export const useDialogStore = create<DialogStoreState>((set: any) => ({
     closeDialog() {
         set({ activeDialog: null, breadcrumbs: [] });
     },
-    setBreadcrumbs(breadcrumbs: any) {
+    setBreadcrumbs(breadcrumbs) {
         set({ breadcrumbs });
     },
-    pushBreadcrumb(crumb: any) {
-        set((state: any) => ({
+    pushBreadcrumb(crumb) {
+        set((state) => ({
             breadcrumbs: [...state.breadcrumbs, crumb]
         }));
     },
-    popToBreadcrumb(index: any) {
-        set((state: any) => ({
+    popToBreadcrumb(index) {
+        set((state) => ({
             activeDialog:
                 dialogFromBreadcrumb(state.breadcrumbs[index]) ??
                 state.activeDialog,

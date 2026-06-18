@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 
-type AlertMode = 'alert' | 'confirm';
-type OtpMode = 'totp' | 'emailOtp' | 'otp';
-type ModalResult = {
+export type AlertMode = 'alert' | 'confirm';
+export type OtpMode = 'totp' | 'emailOtp' | 'otp';
+export type ModalResult = {
     ok: boolean;
     reason: string;
     value?: unknown;
@@ -53,15 +53,15 @@ type BoopDialogState = {
     targetLabel: string;
     dismissible: boolean;
 };
-type AlertDialogOptions = Partial<AlertDialogState>;
-type PromptDialogOptions = Partial<PromptDialogState> & {
+export type AlertDialogOptions = Partial<AlertDialogState>;
+export type PromptDialogOptions = Partial<PromptDialogState> & {
     inputValue?: string;
     pattern?: RegExp | null;
 };
-type OtpDialogOptions = Partial<OtpDialogState>;
-type ImageDialogOptions = Partial<ImageDialogState>;
-type BoopDialogOptions = Partial<BoopDialogState>;
-type ModalStore = {
+export type OtpDialogOptions = Partial<OtpDialogState>;
+export type ImageDialogOptions = Partial<ImageDialogState>;
+export type BoopDialogOptions = Partial<BoopDialogState>;
+export type ModalStore = {
     alertDialog: AlertDialogState;
     promptDialog: PromptDialogState;
     otpDialog: OtpDialogState;
@@ -148,7 +148,11 @@ const createBoopDialogState = (): BoopDialogState => ({
     dismissible: true
 });
 
-function createResult(ok: boolean, reason: string, value?: unknown): ModalResult {
+function createResult(
+    ok: boolean,
+    reason: string,
+    value?: unknown
+): ModalResult {
     return {
         ok,
         reason,
@@ -165,7 +169,7 @@ function matchesPromptPattern(pattern: unknown, value: unknown): boolean {
     return new RegExp(pattern.source, flags).test((value ?? '') as string);
 }
 
-export const useModalStore = create<ModalStore>((set: any, get: any) => {
+export const useModalStore = create<ModalStore>((set, get) => {
     let pendingAlert: ModalResolver | null = null;
     let pendingPrompt: ModalResolver | null = null;
     let pendingBoop: ModalResolver | null = null;
@@ -203,10 +207,7 @@ export const useModalStore = create<ModalStore>((set: any, get: any) => {
         }
     }
 
-    function openBaseAlert(
-        mode: AlertMode,
-        options: AlertDialogOptions = {}
-    ) {
+    function openBaseAlert(mode: AlertMode, options: AlertDialogOptions = {}) {
         if (pendingAlert) {
             resolveAlert(createResult(false, 'replaced'));
         }
@@ -220,7 +221,7 @@ export const useModalStore = create<ModalStore>((set: any, get: any) => {
             }
         });
 
-        return new Promise<ModalResult>((resolve: any) => {
+        return new Promise<ModalResult>((resolve) => {
             pendingAlert = resolve;
         });
     }
@@ -250,7 +251,7 @@ export const useModalStore = create<ModalStore>((set: any, get: any) => {
             }
         });
 
-        return new Promise<ModalResult>((resolve: any) => {
+        return new Promise<ModalResult>((resolve) => {
             pendingPrompt = resolve;
         });
     }
@@ -276,7 +277,7 @@ export const useModalStore = create<ModalStore>((set: any, get: any) => {
             }
         });
 
-        return new Promise<ModalResult>((resolve: any) => {
+        return new Promise<ModalResult>((resolve) => {
             pendingBoop = resolve;
         });
     }
@@ -298,7 +299,7 @@ export const useModalStore = create<ModalStore>((set: any, get: any) => {
             }
         });
 
-        return new Promise<ModalResult>((resolve: any) => {
+        return new Promise<ModalResult>((resolve) => {
             pendingOtp = resolve;
         });
     }
@@ -309,31 +310,31 @@ export const useModalStore = create<ModalStore>((set: any, get: any) => {
         otpDialog: createOtpDialogState(),
         imageDialog: createImageDialogState(),
         boopDialog: createBoopDialogState(),
-        alert(options: any) {
+        alert(options?: AlertDialogOptions) {
             return openBaseAlert('alert', options);
         },
-        confirm(options: any) {
+        confirm(options?: AlertDialogOptions) {
             return openBaseAlert('confirm', options);
         },
-        prompt(options: any) {
+        prompt(options?: PromptDialogOptions) {
             return openBasePrompt(options);
         },
-        boopPrompt(options: any) {
+        boopPrompt(options?: BoopDialogOptions) {
             return openBaseBoop(options);
         },
-        otpPrompt(options: any) {
+        otpPrompt(options?: OtpDialogOptions) {
             return openBaseOtp(options);
         },
-        openAlert(options: any) {
+        openAlert(options?: AlertDialogOptions) {
             return openBaseAlert('alert', options);
         },
-        openPrompt(options: any) {
+        openPrompt(options?: PromptDialogOptions) {
             return openBasePrompt(options);
         },
-        openOtp(options: any) {
+        openOtp(options?: OtpDialogOptions) {
             return openBaseOtp(options);
         },
-        openImagePreview(options: any = {}) {
+        openImagePreview(options: ImageDialogOptions = {}) {
             set({
                 imageDialog: {
                     ...createImageDialogState(),
@@ -343,16 +344,16 @@ export const useModalStore = create<ModalStore>((set: any, get: any) => {
                 }
             });
         },
-        updatePromptValue(value: any) {
-            set((state: any) => ({
+        updatePromptValue(value: unknown) {
+            set((state) => ({
                 promptDialog: {
                     ...state.promptDialog,
                     value
                 }
             }));
         },
-        updateOtpValue(value: any) {
-            set((state: any) => ({
+        updateOtpValue(value: unknown) {
+            set((state) => ({
                 otpDialog: {
                     ...state.otpDialog,
                     value
@@ -395,7 +396,7 @@ export const useModalStore = create<ModalStore>((set: any, get: any) => {
 
             resolveAlert(createResult(false, 'dismiss'));
         },
-        handlePromptOk(value: any) {
+        handlePromptOk(value?: unknown) {
             const { promptDialog } = get();
             if (!pendingPrompt) {
                 return;
@@ -408,7 +409,7 @@ export const useModalStore = create<ModalStore>((set: any, get: any) => {
             set({ promptDialog: createPromptDialogState() });
             resolvePrompt(createResult(true, 'ok', value ?? ''));
         },
-        handlePromptCancel(value: any) {
+        handlePromptCancel(value?: unknown) {
             if (!pendingPrompt) {
                 return;
             }
@@ -416,7 +417,7 @@ export const useModalStore = create<ModalStore>((set: any, get: any) => {
             set({ promptDialog: createPromptDialogState() });
             resolvePrompt(createResult(false, 'cancel', value ?? ''));
         },
-        handlePromptDismiss(value: any) {
+        handlePromptDismiss(value?: unknown) {
             const { promptDialog } = get();
             if (!pendingPrompt || !promptDialog.dismissible) {
                 return;
@@ -425,7 +426,7 @@ export const useModalStore = create<ModalStore>((set: any, get: any) => {
             set({ promptDialog: createPromptDialogState() });
             resolvePrompt(createResult(false, 'dismiss', value ?? ''));
         },
-        handleBoopOk(value: any) {
+        handleBoopOk(value?: unknown) {
             if (!pendingBoop) {
                 return;
             }
@@ -433,7 +434,7 @@ export const useModalStore = create<ModalStore>((set: any, get: any) => {
             set({ boopDialog: createBoopDialogState() });
             resolveBoop(createResult(true, 'ok', value ?? ''));
         },
-        handleBoopCancel(value: any) {
+        handleBoopCancel(value?: unknown) {
             if (!pendingBoop) {
                 return;
             }
@@ -441,7 +442,7 @@ export const useModalStore = create<ModalStore>((set: any, get: any) => {
             set({ boopDialog: createBoopDialogState() });
             resolveBoop(createResult(false, 'cancel', value ?? ''));
         },
-        handleBoopDismiss(value: any) {
+        handleBoopDismiss(value?: unknown) {
             const { boopDialog } = get();
             if (!pendingBoop || !boopDialog.dismissible) {
                 return;
@@ -450,7 +451,7 @@ export const useModalStore = create<ModalStore>((set: any, get: any) => {
             set({ boopDialog: createBoopDialogState() });
             resolveBoop(createResult(false, 'dismiss', value ?? ''));
         },
-        handleOtpOk(value: any) {
+        handleOtpOk(value?: unknown) {
             if (!pendingOtp) {
                 return;
             }
@@ -458,7 +459,7 @@ export const useModalStore = create<ModalStore>((set: any, get: any) => {
             set({ otpDialog: createOtpDialogState() });
             resolveOtp(createResult(true, 'ok', value ?? ''));
         },
-        handleOtpCancel(value: any) {
+        handleOtpCancel(value?: unknown) {
             if (!pendingOtp) {
                 return;
             }
@@ -466,7 +467,7 @@ export const useModalStore = create<ModalStore>((set: any, get: any) => {
             set({ otpDialog: createOtpDialogState() });
             resolveOtp(createResult(false, 'cancel', value ?? ''));
         },
-        handleOtpDismiss(value: any) {
+        handleOtpDismiss(value?: unknown) {
             const { otpDialog } = get();
             if (!pendingOtp || !otpDialog.dismissible) {
                 return;

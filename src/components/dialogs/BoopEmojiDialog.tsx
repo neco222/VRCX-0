@@ -3,12 +3,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
+import { GalleryEmojiImage } from '@/features/tools/components/GalleryEmojiImage';
 import mediaRepository from '@/repositories/mediaRepository';
 import { convertFileUrlToImageUrl } from '@/services/entityMediaService';
-import {
-    photonEmojiId,
-    photonEmojis
-} from '@/shared/constants/photonEmojis';
+import { photonEmojiId, photonEmojis } from '@/shared/constants/photonEmojis';
 import { Button } from '@/ui/shadcn/button';
 import {
     Dialog,
@@ -39,6 +37,15 @@ const photonEmojiRows: PhotonEmojiRow[] = photonEmojis.map((name) => ({
 }));
 
 const noDefaultEmojiValue = '__none__';
+
+const BOOP_EMOJI_FILE_QUERIES = [
+    { n: 100, tag: 'emoji' },
+    { n: 100, tag: 'emojianimated' }
+] as const;
+
+export function getBoopEmojiFileQueries() {
+    return BOOP_EMOJI_FILE_QUERIES;
+}
 
 function getFileImageUrl(file: any) {
     const versions = Array.isArray(file?.versions) ? file.versions : [];
@@ -75,14 +82,18 @@ export function BoopEmojiDialog({
         setLoading(true);
         setError('');
         try {
-            const { json } = await mediaRepository.getFileList(
-                { n: 100, tag: 'emoji' },
-                { endpoint }
+            const responses = await Promise.all(
+                getBoopEmojiFileQueries().map((params) =>
+                    mediaRepository.getFileList(params, { endpoint })
+                )
             );
             if (requestIdRef.current !== requestId) {
                 return;
             }
-            setEmojiRows(Array.isArray(json) ? [...json].reverse() : []);
+            const rows = responses.flatMap(({ json }: any) =>
+                Array.isArray(json) ? [...json].reverse() : []
+            );
+            setEmojiRows(rows);
         } catch (nextError) {
             if (requestIdRef.current !== requestId) {
                 return;
@@ -218,9 +229,7 @@ export function BoopEmojiDialog({
                                 disabled={sending || !selectedDefaultEmojiId}
                                 onClick={() => setEmojiId('')}
                             >
-                                {t(
-                                    'view.notification.action.clear_selection'
-                                )}
+                                {t('view.notification.action.clear_selection')}
                             </Button>
                         </div>
                     </div>
@@ -288,8 +297,9 @@ export function BoopEmojiDialog({
                                                         )
                                                     }
                                                 >
-                                                    <img
-                                                        src={imageUrl}
+                                                    <GalleryEmojiImage
+                                                        file={emoji}
+                                                        imageUrl={imageUrl}
                                                         alt={
                                                             emoji.name ||
                                                             emoji.id

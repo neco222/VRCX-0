@@ -1,7 +1,9 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
     clearEntityQueryCache,
+    entityQueryPolicies,
+    fetchWithEntityPolicy,
     getEntityQueryCacheStats,
     queryKeys,
     setCachedQueryData
@@ -58,6 +60,26 @@ describe('entityQueryCache', () => {
             worlds: 1,
             avatars: 1,
             groups: 1
+        });
+    });
+
+    it('preserves typed cached fetch results through the entity policy helper', async () => {
+        const result = await fetchWithEntityPolicy({
+            queryKey: queryKeys.user('usr_1'),
+            policy: entityQueryPolicies.avatar,
+            queryFn: () => ({ id: 'usr_1', displayName: 'Example' })
+        });
+
+        expectTypeOf(result.data).toEqualTypeOf<{
+            id: string;
+            displayName: string;
+        }>();
+        expect(result).toEqual({
+            data: {
+                id: 'usr_1',
+                displayName: 'Example'
+            },
+            cache: false
         });
     });
 });

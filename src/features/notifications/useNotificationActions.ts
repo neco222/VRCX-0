@@ -25,6 +25,7 @@ import { withUploadTimeout } from '@/shared/utils/imageUpload';
 import { parseLocation } from '@/shared/utils/locationParser';
 import { useModalStore } from '@/state/modalStore';
 
+import { shouldOpenBoopReplyDialog } from './notificationResponseModel';
 import type {
     NotificationDialogRequest,
     NotificationRow
@@ -425,17 +426,11 @@ export function useNotificationActions({
     const sendNotificationResponse = useCallback(
         async (notification: any, response: any) => {
             try {
-                const responseType = String(response?.type || '').toLowerCase();
                 if (response?.type === 'link') {
                     openNotificationLink(response.data);
                     return;
                 }
-                if (
-                    notification.type === 'boop' &&
-                    (responseType === 'reply' ||
-                        responseType === 'boop' ||
-                        response?.icon === 'reply')
-                ) {
+                if (shouldOpenBoopReplyDialog(notification, response)) {
                     setBoopReplyRequest(notification);
                     return;
                 }

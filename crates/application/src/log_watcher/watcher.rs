@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
@@ -55,6 +55,18 @@ pub(super) struct Inner {
     pub(super) stop_requested: AtomicBool,
     pub(super) generation: AtomicU64,
     pub(super) handle: Mutex<Option<JoinHandle<()>>>,
+}
+
+fn lock_mutex<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(|error| error.into_inner())
+}
+
+fn read_lock<T>(lock: &RwLock<T>) -> RwLockReadGuard<'_, T> {
+    lock.read().unwrap_or_else(|error| error.into_inner())
+}
+
+fn write_lock<T>(lock: &RwLock<T>) -> RwLockWriteGuard<'_, T> {
+    lock.write().unwrap_or_else(|error| error.into_inner())
 }
 
 impl LogWatcher {
@@ -115,9 +127,9 @@ impl LogWatcher {
         }
         let generation = self.inner.generation.fetch_add(1, Ordering::AcqRel) + 1;
         self.inner.stop_requested.store(false, Ordering::Release);
-        *self.inner.log_dir.write().unwrap() = Some(log_dir.clone());
-        *self.inner.poll_without_process_monitor.lock().unwrap() = poll_without_process_monitor;
-        *self.inner.keep_polling_until.lock().unwrap() =
+        *write_lock(&self.inner.log_dir) = Some(log_dir.clone());
+        *lock_mutex(&self.inner.poll_without_process_monitor) = poll_without_process_monitor;
+        *lock_mutex(&self.inner.keep_polling_until) =
             Some(Instant::now() + INACTIVE_POLL_KEEPALIVE);
         let inner = Arc::clone(&self.inner);
         let handle = std::thread::spawn(move || thread_loop(inner, log_dir, generation));
@@ -144,23 +156,23 @@ impl LogWatcher {
 
     pub fn set_date_till(&self, date: &str) {
         if let Ok(dt) = date.parse::<chrono::DateTime<Utc>>() {
-            *self.inner.till_date.lock().unwrap() = Some(dt.naive_utc());
+            *lock_mutex(&self.inner.till_date) = Some(dt.naive_utc());
         } else if let Ok(dt) = NaiveDateTime::parse_from_str(date, "%Y-%m-%dT%H:%M:%S%.fZ") {
-            *self.inner.till_date.lock().unwrap() = Some(dt);
+            *lock_mutex(&self.inner.till_date) = Some(dt);
         }
-        *self.inner.active.lock().unwrap() = true;
-        *self.inner.keep_polling_until.lock().unwrap() =
+        *lock_mutex(&self.inner.active) = true;
+        *lock_mutex(&self.inner.keep_polling_until) =
             Some(Instant::now() + INACTIVE_POLL_KEEPALIVE);
     }
 
     pub fn reset(&self) {
-        *self.inner.reset_flag.lock().unwrap() = true;
-        *self.inner.keep_polling_until.lock().unwrap() =
+        *lock_mutex(&self.inner.reset_flag) = true;
+        *lock_mutex(&self.inner.keep_polling_until) =
             Some(Instant::now() + INACTIVE_POLL_KEEPALIVE);
     }
 
     pub fn get(&self) -> Vec<Vec<String>> {
-        let mut list = self.inner.log_list.write().unwrap();
+        let mut list = write_lock(&self.inner.log_list);
         if list.is_empty() {
             return Vec::new();
         }
@@ -170,31 +182,31 @@ impl LogWatcher {
     }
 
     pub fn drain_compat_event_payloads(&self) -> Vec<String> {
-        std::mem::take(&mut *self.inner.compat_event_buffer.lock().unwrap())
+        std::mem::take(&mut *lock_mutex(&self.inner.compat_event_buffer))
     }
 
     pub fn vrc_closed_gracefully(&self) -> bool {
-        *self.inner.vrc_closed_gracefully.lock().unwrap()
+        *lock_mutex(&self.inner.vrc_closed_gracefully)
     }
 
     pub fn current_location_snapshot(&self) -> Option<LogLocationSnapshot> {
-        let log_dir = self.inner.log_dir.read().unwrap().clone()?;
+        let log_dir = read_lock(&self.inner.log_dir).clone()?;
         self.inner
             .location_snapshot_scanner
             .scan_current_location_snapshot(&log_dir)
     }
 
     pub fn current_vr_mode(&self) -> Option<bool> {
-        let log_dir = self.inner.log_dir.read().unwrap().clone()?;
+        let log_dir = read_lock(&self.inner.log_dir).clone()?;
         self.inner
             .location_snapshot_scanner
             .scan_latest_vr_mode(&log_dir)
     }
 
     pub fn set_game_running(&self, running: bool) {
-        *self.inner.game_running.lock().unwrap() = running;
+        *lock_mutex(&self.inner.game_running) = running;
         if !running {
-            *self.inner.keep_polling_until.lock().unwrap() =
+            *lock_mutex(&self.inner.keep_polling_until) =
                 Some(Instant::now() + INACTIVE_POLL_KEEPALIVE);
         }
     }
@@ -207,27 +219,27 @@ fn thread_loop(inner: Arc<Inner>, log_dir: PathBuf, generation: u64) {
     while !inner.stop_requested.load(Ordering::Acquire)
         && inner.generation.load(Ordering::Acquire) == generation
     {
-        let active = *inner.active.lock().unwrap();
+        let active = *lock_mutex(&inner.active);
 
         {
-            let mut reset = inner.reset_flag.lock().unwrap();
+            let mut reset = lock_mutex(&inner.reset_flag);
             if *reset {
                 first_run = true;
                 *reset = false;
                 contexts.clear();
-                inner.log_list.write().unwrap().clear();
-                inner.event_buffer.lock().unwrap().clear();
-                inner.compat_event_buffer.lock().unwrap().clear();
+                write_lock(&inner.log_list).clear();
+                lock_mutex(&inner.event_buffer).clear();
+                lock_mutex(&inner.compat_event_buffer).clear();
             }
         }
 
         let should_poll = if active {
-            let poll_without_process_monitor = *inner.poll_without_process_monitor.lock().unwrap();
+            let poll_without_process_monitor = *lock_mutex(&inner.poll_without_process_monitor);
             if poll_without_process_monitor {
                 true
             } else {
-                let game_running = *inner.game_running.lock().unwrap();
-                let keep_polling_until = *inner.keep_polling_until.lock().unwrap();
+                let game_running = *lock_mutex(&inner.game_running);
+                let keep_polling_until = *lock_mutex(&inner.keep_polling_until);
                 game_running
                     || keep_polling_until.is_some_and(|deadline| Instant::now() <= deadline)
             }
@@ -238,7 +250,7 @@ fn thread_loop(inner: Arc<Inner>, log_dir: PathBuf, generation: u64) {
         if should_poll {
             let saw_new_data = update(&inner, &log_dir, &mut contexts, &mut first_run);
             if saw_new_data {
-                *inner.keep_polling_until.lock().unwrap() =
+                *lock_mutex(&inner.keep_polling_until) =
                     Some(Instant::now() + INACTIVE_POLL_KEEPALIVE);
             }
         }
@@ -257,11 +269,8 @@ fn update(
     contexts: &mut HashMap<String, LogContext>,
     first_run: &mut bool,
 ) -> bool {
-    let till_date_utc = inner
-        .till_date
-        .lock()
-        .unwrap()
-        .unwrap_or(chrono::DateTime::UNIX_EPOCH.naive_utc());
+    let till_date_utc =
+        lock_mutex(&inner.till_date).unwrap_or(chrono::DateTime::UNIX_EPOCH.naive_utc());
 
     let till_date = chrono::TimeZone::from_utc_datetime(&Local, &till_date_utc).naive_local();
 
@@ -313,4 +322,34 @@ fn update(
     queue::flush_game_log_events(inner);
     *first_run = false;
     saw_new_data
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+
+    #[test]
+    fn public_state_reads_recover_from_poisoned_locks() {
+        let watcher = LogWatcher::new(None);
+
+        let mutex_poisoned = catch_unwind(AssertUnwindSafe(|| {
+            let _guard = watcher
+                .inner
+                .vrc_closed_gracefully
+                .lock()
+                .expect("vrc closed lock");
+            panic!("poison vrc closed lock");
+        }));
+        assert!(mutex_poisoned.is_err());
+        assert!(!watcher.vrc_closed_gracefully());
+
+        let rwlock_poisoned = catch_unwind(AssertUnwindSafe(|| {
+            let mut log_dir = watcher.inner.log_dir.write().expect("log dir lock");
+            *log_dir = Some(PathBuf::from("Z:/not-a-real-vrcx-log-dir"));
+            panic!("poison log dir lock");
+        }));
+        assert!(rwlock_poisoned.is_err());
+        assert!(watcher.current_location_snapshot().is_none());
+    }
 }

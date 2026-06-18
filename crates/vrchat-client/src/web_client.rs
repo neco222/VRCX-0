@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::io::Cursor;
-use std::sync::Arc;
+use std::sync::{Arc, MutexGuard};
 
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use reqwest::header::{HeaderName, HeaderValue, CONTENT_TYPE, REFERER};
@@ -232,9 +232,13 @@ impl WebClient {
         Ok(wc)
     }
 
+    fn cookie_store(&self) -> MutexGuard<'_, CookieStore> {
+        self.jar.lock().unwrap_or_else(|error| error.into_inner())
+    }
+
     fn restore_cookies(&self, b64: &str) -> Result<bool> {
         if let Some(store) = Self::deserialize_cookie_store(b64) {
-            let mut jar = self.jar.lock().unwrap();
+            let mut jar = self.cookie_store();
             *jar = store;
             return Ok(true);
         }
@@ -246,7 +250,7 @@ impl WebClient {
     }
 
     fn serialize_cookie_store(&self) -> Option<String> {
-        let store = self.jar.lock().unwrap();
+        let store = self.cookie_store();
         let mut json = Vec::new();
         #[allow(deprecated)]
         store
@@ -267,7 +271,7 @@ impl WebClient {
     }
 
     fn apply_cookie_entries(&self, entries: &[CookieEntry]) -> Result<()> {
-        let mut store = self.jar.lock().unwrap();
+        let mut store = self.cookie_store();
         for e in entries {
             let url = legacy_cookie_url(e)?;
             let cookie = legacy_raw_cookie(e)?;
@@ -287,7 +291,7 @@ impl WebClient {
     }
 
     pub fn clear_cookies(&self) {
-        let mut store = self.jar.lock().unwrap();
+        let mut store = self.cookie_store();
         store.clear();
     }
 
@@ -555,6 +559,7 @@ mod tests {
     use super::*;
     use std::io::{Read, Write};
     use std::net::TcpListener;
+    use std::panic::{catch_unwind, AssertUnwindSafe};
     use std::thread::JoinHandle;
     use std::time::{Duration, Instant};
 
@@ -655,6 +660,27 @@ mod tests {
         }]));
 
         assert!(validate_vrchat_cookies_b64(&payload).is_err());
+    }
+
+    #[test]
+    fn cookie_store_recovers_from_poisoned_lock() -> Result<()> {
+        let web = WebClient::new(None, None)?;
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            let _guard = web.jar.lock().expect("cookie store lock");
+            panic!("poison cookie store lock");
+        }));
+        assert!(result.is_err());
+
+        let payload = legacy_cookie_payload(serde_json::json!([{
+            "Name": "auth",
+            "Value": "token",
+            "Domain": ".vrchat.com",
+            "Path": "/"
+        }]));
+
+        web.set_cookies(&payload)?;
+        assert!(!web.get_cookies().is_empty());
+        Ok(())
     }
 
     #[test]

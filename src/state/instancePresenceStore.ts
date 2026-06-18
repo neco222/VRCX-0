@@ -15,7 +15,10 @@ interface InstancePresenceStoreState {
     resetInstancePresence: () => void;
 }
 
-const initialState: any = {
+const initialState: Pick<
+    InstancePresenceStoreState,
+    'version' | 'presenceByKey' | 'locationsByEndpoint'
+> = {
     version: 0,
     presenceByKey: {},
     locationsByEndpoint: {}
@@ -26,10 +29,10 @@ function endpointFromKey(key: string): string {
 }
 
 export const useInstancePresenceStore = create<InstancePresenceStoreState>(
-    (set: any) => ({
+    (set) => ({
         ...initialState,
-        upsertInstancePresence(input: any) {
-            set((state: any) => {
+        upsertInstancePresence(input: InstancePresenceFactInput) {
+            set((state) => {
                 const key = instancePresenceKey(input.endpoint, input.location);
                 const fact = buildInstancePresenceFact(input);
                 if (!key || !fact) {

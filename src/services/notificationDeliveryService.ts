@@ -1,5 +1,5 @@
-import { commands } from '@/platform/tauri/bindings';
 import { getKnownUserFact } from '@/domain/users/userFactAccess';
+import { commands } from '@/platform/tauri/bindings';
 import configRepository from '@/repositories/configRepository';
 import memoPersistenceRepository from '@/repositories/memoPersistenceRepository';
 import { userImage as resolveUserImageUrl } from '@/services/entityMediaService';
@@ -8,20 +8,37 @@ import { extractFileId, extractFileVersion } from '@/shared/utils/fileUtils';
 import { useFriendRosterStore } from '@/state/friendRosterStore';
 import { useRuntimeStore } from '@/state/runtimeStore';
 
-const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
-    desktopToast: 'Never',
-    afkDesktopToast: false,
-    desktopNotificationSound: false,
-    notificationTTS: 'Never',
-    notificationTTSVoice: '0',
-    notificationTTSNickName: false,
-    xsNotifications: true,
-    ovrtHudNotifications: true,
-    ovrtWristNotifications: false,
-    imageNotifications: true,
-    notificationTimeout: 3000,
-    notificationOpacity: 100
-});
+interface NotificationPreferences {
+    desktopToast: string;
+    afkDesktopToast: boolean;
+    desktopNotificationSound: boolean;
+    notificationTTS: string;
+    notificationTTSVoice: string;
+    notificationTTSNickName: boolean;
+    xsNotifications: boolean;
+    ovrtHudNotifications: boolean;
+    ovrtWristNotifications: boolean;
+    imageNotifications: boolean;
+    notificationTimeout: number;
+    notificationOpacity: number;
+}
+
+const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = Object.freeze(
+    {
+        desktopToast: 'Never',
+        afkDesktopToast: false,
+        desktopNotificationSound: false,
+        notificationTTS: 'Never',
+        notificationTTSVoice: '0',
+        notificationTTSNickName: false,
+        xsNotifications: true,
+        ovrtHudNotifications: true,
+        ovrtWristNotifications: false,
+        imageNotifications: true,
+        notificationTimeout: 3000,
+        notificationOpacity: 100
+    }
+);
 
 const NOTIFICATION_PREFERENCE_KEYS = Object.keys(
     DEFAULT_NOTIFICATION_PREFERENCES
@@ -37,7 +54,7 @@ const LEGACY_OVERLAY_NOTIFICATION_KEYS = Object.freeze({
     notificationOpacity: 'VRCX-0_notificationOpacity'
 });
 
-interface NotificationDeliveryDirective {
+export interface NotificationDeliveryDirective {
     sourceId?: string;
     activityType?: string;
     desktop?: boolean;
@@ -49,10 +66,14 @@ interface NotificationDeliveryDirective {
     actorUserId?: string;
 }
 
-let cachedPreferences: Record<
-    NotificationPreferenceKey,
-    string | boolean | number
-> = {
+type NotificationGameState = Record<string, unknown> & {
+    isSteamVRRunning?: unknown;
+    isGameRunning?: unknown;
+    isGameNoVR?: unknown;
+    isHmdAfk?: unknown;
+};
+
+let cachedPreferences: NotificationPreferences = {
     ...DEFAULT_NOTIFICATION_PREFERENCES
 };
 let preferencesLoaded = false;
@@ -60,12 +81,12 @@ let preferencesLoadPromise: Promise<typeof cachedPreferences> | null = null;
 let unsubscribePreferences: (() => void) | null = null;
 
 function normalizeInteger(
-    value: any,
-    fallback: any,
-    min: any = Number.MIN_SAFE_INTEGER,
-    max: any = Number.MAX_SAFE_INTEGER
+    value: unknown,
+    fallback: number,
+    min: number = Number.MIN_SAFE_INTEGER,
+    max: number = Number.MAX_SAFE_INTEGER
 ) {
-    const parsed = Number.parseInt(value, 10);
+    const parsed = Number.parseInt(String(value ?? ''), 10);
     if (!Number.isFinite(parsed)) {
         return fallback;
     }
@@ -130,8 +151,10 @@ function initNotificationPreferenceSubscription() {
     }
     unsubscribePreferences = onPreferenceChanged(
         NOTIFICATION_PREFERENCE_KEYS,
-        (value: any, detail: any) => {
-            const key = detail.normalizedKey as NotificationPreferenceKey;
+        (value: unknown, detail: unknown) => {
+            const key = String(
+                (detail as Record<string, unknown>)?.normalizedKey ?? ''
+            ) as NotificationPreferenceKey;
             if (
                 !Object.prototype.hasOwnProperty.call(
                     DEFAULT_NOTIFICATION_PREFERENCES,
@@ -218,7 +241,20 @@ async function loadNotificationPreferences() {
                     imageNotifications,
                     notificationTimeout,
                     notificationOpacity
-                ]: any) => {
+                ]: [
+                    string,
+                    boolean,
+                    boolean,
+                    string,
+                    string,
+                    boolean,
+                    boolean,
+                    boolean,
+                    boolean,
+                    boolean,
+                    number,
+                    number
+                ]) => {
                     cachedPreferences = {
                         desktopToast,
                         afkDesktopToast,
@@ -248,7 +284,10 @@ async function loadNotificationPreferences() {
     return preferencesLoadPromise;
 }
 
-function shouldPlayForCondition(condition: any, gameState: any) {
+function shouldPlayForCondition(
+    condition: unknown,
+    gameState: NotificationGameState
+) {
     switch (condition) {
         case 'Always':
             return true;
@@ -267,7 +306,10 @@ function shouldPlayForCondition(condition: any, gameState: any) {
     }
 }
 
-function shouldPlayAfkDesktopToast(preferences: any, gameState: any) {
+function shouldPlayAfkDesktopToast(
+    preferences: NotificationPreferences,
+    gameState: NotificationGameState
+) {
     return Boolean(
         preferences.afkDesktopToast &&
         gameState.isHmdAfk &&
@@ -276,7 +318,10 @@ function shouldPlayAfkDesktopToast(preferences: any, gameState: any) {
     );
 }
 
-function speakNotification(text: any, preferences: any) {
+function speakNotification(
+    text: unknown,
+    preferences: NotificationPreferences
+) {
     if (
         !text ||
         typeof window === 'undefined' ||
@@ -296,7 +341,7 @@ function speakNotification(text: any, preferences: any) {
     if (voices[voiceIndex]) {
         utterance.voice = voices[voiceIndex];
     }
-    utterance.text = text;
+    utterance.text = String(text);
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
 }
@@ -305,7 +350,7 @@ async function resolveTtsText(
     directive: NotificationDeliveryDirective,
     overlayText: string,
     title: string,
-    preferences: any
+    preferences: NotificationPreferences
 ) {
     if (
         !preferences.notificationTTSNickName ||
@@ -372,8 +417,9 @@ export async function executeNotificationDelivery(
     if (!directive || (!directive.desktop && !directive.vr)) {
         return;
     }
-    const preferences: any = await loadNotificationPreferences();
-    const gameState: any = useRuntimeStore.getState().gameState || {};
+    const preferences = await loadNotificationPreferences();
+    const gameState: NotificationGameState =
+        useRuntimeStore.getState().gameState || {};
 
     const desktopAllowed = Boolean(directive.desktop);
     const vrAllowed = Boolean(directive.vr);

@@ -204,3 +204,50 @@ fn is_unity_player_prefs_name(key: &str) -> bool {
 fn is_unity_player_prefs_name_byte(byte: u8) -> bool {
     byte == b' ' || byte == b'.' || byte == b'_' || byte == b'-' || byte.is_ascii_alphanumeric()
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::validate_registry_json;
+
+    fn registry_json(key: &str, data: serde_json::Value, type_int: i32) -> String {
+        json!({
+            key: {
+                "type": type_int,
+                "data": data,
+            }
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn registry_json_accepts_unity_player_prefs_keys_with_hyphenated_user_ids() {
+        let json = registry_json(
+            "FRIEND_LAST_VISIT_HISTORY_usr_123-abc_h456",
+            json!("2026-06-17T00:00:00.000Z"),
+            3,
+        );
+
+        assert!(validate_registry_json(&json).is_ok());
+    }
+
+    #[test]
+    fn registry_json_rejects_keys_with_path_separators_or_quotes() {
+        for key in [
+            "FRIEND_LAST_VISIT_HISTORY_usr_123-abc/h456",
+            "FRIEND_LAST_VISIT_HISTORY_usr_123-abc\"_h456",
+        ] {
+            let json = registry_json(key, json!("value"), 3);
+
+            assert!(validate_registry_json(&json).is_err(), "{key}");
+        }
+    }
+
+    #[test]
+    fn registry_json_rejects_values_that_do_not_match_declared_type() {
+        let json = registry_json("VRC_DEBUG_LOGGING", json!("1"), 4);
+
+        assert!(validate_registry_json(&json).is_err());
+    }
+}

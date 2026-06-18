@@ -1,6 +1,10 @@
 import type { UserFact } from '@/domain/users/userFacts';
 
-type FriendRecord = Record<string, any>;
+import type {
+    FriendRosterDerivedField,
+    FriendRosterFactPatch,
+    FriendRosterRecord
+} from './friendRosterTypes';
 
 const FACT_DERIVED_FIELDS = [
     '$trustLevel',
@@ -10,35 +14,35 @@ const FACT_DERIVED_FIELDS = [
     '$isTroll',
     '$isProbableTroll',
     '$platform'
-] as const;
+] as const satisfies readonly FriendRosterDerivedField[];
 
 function applyFactDerivedFields(
-    friend: FriendRecord,
-    fact: UserFact | null | undefined
-): FriendRecord {
+    friend: FriendRosterRecord,
+    fact: FriendRosterFactPatch | null | undefined
+): FriendRosterRecord {
     if (!fact) {
         return friend;
     }
-    const factRecord = fact as Record<string, any>;
-    let next: FriendRecord | null = null;
+    let next: FriendRosterRecord | null = null;
     for (const field of FACT_DERIVED_FIELDS) {
-        const value = factRecord[field];
+        const value = fact[field];
         if (value === undefined || value === null || value === friend[field]) {
             continue;
         }
         if (!next) {
             next = { ...friend };
         }
-        next[field] = value;
+        const derivedFields = next as FriendRosterFactPatch;
+        derivedFields[field] = value;
     }
     return next ?? friend;
 }
 
 function mergeRosterFriendFacts(
-    friendsById: Record<string, FriendRecord>,
-    factsById: Record<string, UserFact>
-): Record<string, FriendRecord> {
-    let next: Record<string, FriendRecord> | null = null;
+    friendsById: Record<string, FriendRosterRecord>,
+    factsById: Record<string, UserFact | FriendRosterFactPatch | undefined>
+): Record<string, FriendRosterRecord> {
+    let next: Record<string, FriendRosterRecord> | null = null;
     for (const id of Object.keys(friendsById)) {
         const friend = friendsById[id];
         const merged = applyFactDerivedFields(friend, factsById[id]);

@@ -1,5 +1,5 @@
-import { commands } from '@/platform/tauri/bindings';
 import { normalizeLanguageCode } from '@/localization/locales';
+import { commands } from '@/platform/tauri/bindings';
 import configRepository from '@/repositories/configRepository';
 import storageRepository from '@/repositories/storageRepository';
 import {
@@ -28,6 +28,7 @@ import {
     normalizeTableLimits,
     normalizeTablePageSize,
     normalizeTablePageSizes,
+    type TableLimitsPreference,
     usePreferencesStore
 } from '@/state/preferencesStore';
 import {
@@ -67,10 +68,8 @@ const DEFAULT_TABLE_PAGE_SIZES = Array.isArray(
 )
     ? DEFAULT_PREFERENCES.tablePageSizes
     : [10, 15, 20, 25, 50, 100];
-const DEFAULT_TABLE_LIMITS = DEFAULT_PREFERENCES.tableLimits as Record<
-    string,
-    any
->;
+const DEFAULT_TABLE_LIMITS =
+    DEFAULT_PREFERENCES.tableLimits as unknown as TableLimitsPreference;
 const DISCORD_BOOL_PREFERENCE_KEYS = new Set([
     'discordActive',
     'discordInstance',
@@ -103,18 +102,37 @@ const LEGACY_OVERLAY_NOTIFICATION_KEYS = Object.freeze({
     notificationOpacity: 'VRCX-0_notificationOpacity'
 });
 
-function setDocumentLanguage(language: any) {
-    document.documentElement.setAttribute('lang', language);
+interface IntConfigPreferenceOptions {
+    min?: number;
+    max?: number;
+    fallback?: number;
 }
 
-function applyAccessibleStatusClass(enabled: any) {
+interface TranslationApiConfigPreferenceInput {
+    bioLanguage?: unknown;
+    translationAPIType?: unknown;
+    translationAPIKey?: unknown;
+    translationAPIEndpoint?: unknown;
+    translationAPIModel?: unknown;
+    translationAPIPrompt?: unknown;
+}
+
+interface ProxyServerPreferenceOptions {
+    restart?: boolean;
+}
+
+function setDocumentLanguage(language: unknown) {
+    document.documentElement.setAttribute('lang', String(language ?? ''));
+}
+
+function applyAccessibleStatusClass(enabled: unknown) {
     document.documentElement.classList.toggle(
         'accessible-status-indicators',
         Boolean(enabled)
     );
 }
 
-function applyTableDensityClass(density: any) {
+function applyTableDensityClass(density: unknown) {
     const normalized = normalizeTableDensity(density);
     document.documentElement.classList.remove('is-compact-table');
     if (normalized === 'compact') {
@@ -122,38 +140,38 @@ function applyTableDensityClass(density: any) {
     }
 }
 
-function applyDataTableStripedClass(enabled: any) {
+function applyDataTableStripedClass(enabled: unknown) {
     document.documentElement.classList.toggle(
         'is-striped-table',
         Boolean(enabled)
     );
 }
 
-function patchPreferences(patch: any) {
+function patchPreferences(patch: Record<string, unknown>) {
     usePreferencesStore.getState().patchPreferences(patch);
 }
 
-function patchPreferenceValue(key: any, value: any) {
+function patchPreferenceValue(key: string, value: unknown) {
     usePreferencesStore
         .getState()
         .setPreferenceValue(normalizePreferenceKey(key), value);
 }
 
-async function reloadWristOverlayRuntimeConfigIfNeeded(key: any) {
+async function reloadWristOverlayRuntimeConfigIfNeeded(key: string) {
     const normalizedKey = normalizePreferenceKey(key);
     if (!WRIST_OVERLAY_RUNTIME_CONFIG_KEYS.has(normalizedKey)) {
         return;
     }
-    await commands.appVrOverlayConfigReload().catch((error: any) => {
+    await commands.appVrOverlayConfigReload().catch((error: unknown) => {
         console.warn('Failed to reload wrist overlay runtime config:', error);
     });
 }
 
-function normalizeBioLanguage(language: any) {
+function normalizeBioLanguage(language: unknown) {
     return normalizeLanguageCode(language);
 }
 
-function normalizeStringList(value: any) {
+function normalizeStringList(value: unknown): string[] {
     return Array.isArray(value) ? value.filter(Boolean) : [];
 }
 
@@ -185,11 +203,11 @@ function getLegacyOverlayNotificationKey(key: string) {
     ];
 }
 
-function resolveTablePageSize(candidate: any, pageSizes: any) {
+function resolveTablePageSize(candidate: unknown, pageSizes: unknown) {
     const allowed = normalizeTablePageSizes(pageSizes);
     const fallbackPageSize = allowed[0] ?? DEFAULT_TABLE_PAGE_SIZE;
-    const nearestPageSize = (value: any) =>
-        allowed.reduce((previous: any, size: any) =>
+    const nearestPageSize = (value: number) =>
+        allowed.reduce((previous: number, size: number) =>
             Math.abs(size - value) < Math.abs(previous - value)
                 ? size
                 : previous
@@ -371,8 +389,7 @@ export async function loadPreferenceSnapshot() {
         configRepository.getBool('dtIsoFormat', false),
         configRepository.getBool('dtHour12', false),
         configRepository.getObject('VRCX_trustColor', null),
-        commands.appCurrentCulture()
-            .catch(() => navigator.language || 'en-gb'),
+        commands.appCurrentCulture().catch(() => navigator.language || 'en-gb'),
         storageRepository.getString('VRCX_ProxyServer', ''),
         configRepository.getInt('VRCX_tablePageSize', DEFAULT_TABLE_PAGE_SIZE),
         configRepository.getArray(
@@ -462,7 +479,7 @@ export async function loadPreferenceSnapshot() {
         );
     }
 
-    const snapshot: any = {
+    const snapshot: Record<string, unknown> = {
         notificationLayout: notificationLayout || DEFAULT_NOTIFICATION_LAYOUT,
         dataTableStriped: Boolean(dataTableStriped),
         tableDensity: resolvedTableDensity,
@@ -584,7 +601,7 @@ export async function loadPreferenceSnapshot() {
     return snapshot;
 }
 
-export async function setAppLanguagePreference(language: any) {
+export async function setAppLanguagePreference(language: unknown) {
     const nextLanguage = normalizeLanguageCode(language);
     useShellStore.getState().setLocale(nextLanguage);
     setDocumentLanguage(nextLanguage);
@@ -606,7 +623,7 @@ export async function setAppLanguagePreference(language: any) {
     await reloadWristOverlayRuntimeConfigIfNeeded('appLanguage');
 }
 
-export async function setThemeModePreference(themeMode: any) {
+export async function setThemeModePreference(themeMode: unknown) {
     if (isCommunityThemeAppearanceControlled()) {
         return getCommunityThemeAppearanceThemeMode();
     }
@@ -619,34 +636,34 @@ export async function setThemeModePreference(themeMode: any) {
     await applyThemeMode(nextThemeMode);
 }
 
-export async function setThemeColorPreference(themeColor: any) {
+export async function setThemeColorPreference(themeColor: unknown) {
     const nextThemeColor = resolveThemeColor(themeColor);
     await configRepository.setString('VRCX_themeColor', nextThemeColor);
     applyThemeColor(nextThemeColor);
     return nextThemeColor;
 }
 
-export async function setZoomLevelPreference(value: any) {
+export async function setZoomLevelPreference(value: unknown) {
     const zoomLevel = normalizeZoomLevel(value);
     await configRepository.setString('VRCX_ZoomLevel', String(zoomLevel));
     await applyZoomLevel(zoomLevel);
     return zoomLevel;
 }
 
-export async function setSidebarCollapsedPreference(collapsed: any) {
+export async function setSidebarCollapsedPreference(collapsed: unknown) {
     const isCollapsed = Boolean(collapsed);
     useShellStore.getState().setSidebarOpen(!isCollapsed);
     await configRepository.setBool('navIsCollapsed', isCollapsed);
     patchPreferences({ navIsCollapsed: isCollapsed });
 }
 
-export async function setRightSidebarOpenPreference(open: any) {
+export async function setRightSidebarOpenPreference(open: unknown) {
     const isOpen = Boolean(open);
     useShellStore.getState().setRightSidebarOpen(isOpen);
     await configRepository.setBool('rightSidebarOpen', isOpen);
 }
 
-export async function setNavWidthPreference(value: any) {
+export async function setNavWidthPreference(value: unknown) {
     const width = normalizeNavWidth(value);
     useShellStore.getState().setNavWidth(width);
     await configRepository.setInt('VRCX_navPanelWidth', width);
@@ -654,7 +671,7 @@ export async function setNavWidthPreference(value: any) {
     return width;
 }
 
-export async function setNotificationLayoutPreference(layout: any) {
+export async function setNotificationLayoutPreference(layout: unknown) {
     const nextLayout =
         layout === 'table' ? 'table' : DEFAULT_NOTIFICATION_LAYOUT;
     await configRepository.setString('notificationLayout', nextLayout);
@@ -664,7 +681,7 @@ export async function setNotificationLayoutPreference(layout: any) {
     return nextLayout;
 }
 
-export async function setDataTableStripedPreference(value: any) {
+export async function setDataTableStripedPreference(value: unknown) {
     const enabled = Boolean(value);
     await configRepository.setBool('dataTableStriped', enabled);
     applyDataTableStripedClass(enabled);
@@ -672,7 +689,7 @@ export async function setDataTableStripedPreference(value: any) {
     publishPreferenceChanged('dataTableStriped', enabled);
 }
 
-export async function setTableDensityPreference(value: any) {
+export async function setTableDensityPreference(value: unknown) {
     const density = normalizeTableDensity(value);
     useShellStore.getState().setTableDensity(density);
     applyTableDensityClass(density);
@@ -680,7 +697,7 @@ export async function setTableDensityPreference(value: any) {
     patchPreferences({ tableDensity: density });
 }
 
-export async function setAccessibleStatusIndicatorsPreference(value: any) {
+export async function setAccessibleStatusIndicatorsPreference(value: unknown) {
     const nextValue = Boolean(value);
     applyAccessibleStatusClass(nextValue);
     await configRepository.setBool(
@@ -690,14 +707,14 @@ export async function setAccessibleStatusIndicatorsPreference(value: any) {
     patchPreferences({ accessibleStatusIndicators: nextValue });
 }
 
-export async function setShowNewDashboardButtonPreference(value: any) {
+export async function setShowNewDashboardButtonPreference(value: unknown) {
     const enabled = Boolean(value);
     await configRepository.setBool('VRCX_showNewDashboardButton', enabled);
     patchPreferences({ showNewDashboardButton: enabled });
     publishPreferenceChanged('VRCX_showNewDashboardButton', enabled);
 }
 
-export async function setRecentActionCooldownEnabledPreference(value: any) {
+export async function setRecentActionCooldownEnabledPreference(value: unknown) {
     const enabled = Boolean(value);
     await configRepository.setBool('recentActionCooldownEnabled', enabled);
     configureRecentActionCooldown({ enabled });
@@ -705,8 +722,8 @@ export async function setRecentActionCooldownEnabledPreference(value: any) {
     publishPreferenceChanged('recentActionCooldownEnabled', enabled);
 }
 
-export async function setRecentActionCooldownMinutesPreference(value: any) {
-    const parsed = Number.parseInt(value, 10);
+export async function setRecentActionCooldownMinutesPreference(value: unknown) {
+    const parsed = Number.parseInt(String(value ?? ''), 10);
     const minutes = Number.isNaN(parsed)
         ? 60
         : Math.min(1440, Math.max(1, parsed));
@@ -720,13 +737,15 @@ export async function setRecentActionCooldownMinutesPreference(value: any) {
     return minutes;
 }
 
-export async function setScreenshotHelperPreference(value: any) {
+export async function setScreenshotHelperPreference(value: unknown) {
     const enabled = Boolean(value);
     await configRepository.setBool('VRCX_screenshotHelper', enabled);
     patchPreferences({ screenshotHelper: enabled });
 }
 
-export async function setScreenshotHelperModifyFilenamePreference(value: any) {
+export async function setScreenshotHelperModifyFilenamePreference(
+    value: unknown
+) {
     const enabled = Boolean(value);
     await configRepository.setBool(
         'VRCX_screenshotHelperModifyFilename',
@@ -735,7 +754,9 @@ export async function setScreenshotHelperModifyFilenamePreference(value: any) {
     patchPreferences({ screenshotHelperModifyFilename: enabled });
 }
 
-export async function setScreenshotHelperCopyToClipboardPreference(value: any) {
+export async function setScreenshotHelperCopyToClipboardPreference(
+    value: unknown
+) {
     const enabled = Boolean(value);
     await configRepository.setBool(
         'VRCX_screenshotHelperCopyToClipboard',
@@ -744,38 +765,38 @@ export async function setScreenshotHelperCopyToClipboardPreference(value: any) {
     patchPreferences({ screenshotHelperCopyToClipboard: enabled });
 }
 
-export async function setSaveInstancePrintsPreference(value: any) {
+export async function setSaveInstancePrintsPreference(value: unknown) {
     const enabled = Boolean(value);
     await configRepository.setBool('VRCX_saveInstancePrints', enabled);
     patchPreferences({ saveInstancePrints: enabled });
 }
 
-export async function setCropInstancePrintsPreference(value: any) {
+export async function setCropInstancePrintsPreference(value: unknown) {
     const enabled = Boolean(value);
     await configRepository.setBool('VRCX_cropInstancePrints', enabled);
     patchPreferences({ cropInstancePrints: enabled });
 }
 
-export async function setSaveInstanceStickersPreference(value: any) {
+export async function setSaveInstanceStickersPreference(value: unknown) {
     const enabled = Boolean(value);
     await configRepository.setBool('VRCX_saveInstanceStickers', enabled);
     patchPreferences({ saveInstanceStickers: enabled });
 }
 
-export async function setSaveInstanceEmojiPreference(value: any) {
+export async function setSaveInstanceEmojiPreference(value: unknown) {
     const enabled = Boolean(value);
     await configRepository.setBool('VRCX_saveInstanceEmoji', enabled);
     patchPreferences({ saveInstanceEmoji: enabled });
 }
 
-export async function setUserGeneratedContentPathPreference(value: any) {
+export async function setUserGeneratedContentPathPreference(value: unknown) {
     const nextPath = typeof value === 'string' ? value : '';
     await configRepository.setString('userGeneratedContentPath', nextPath);
     patchPreferences({ userGeneratedContentPath: nextPath });
     return nextPath;
 }
 
-export async function setStartAtWindowsStartupPreference(value: any) {
+export async function setStartAtWindowsStartupPreference(value: unknown) {
     const enabled = Boolean(value);
     const previousEnabled = Boolean(
         await configRepository.getBool('StartAtWindowsStartup', false)
@@ -784,8 +805,9 @@ export async function setStartAtWindowsStartupPreference(value: any) {
     try {
         await configRepository.setBool('StartAtWindowsStartup', enabled);
     } catch (error) {
-        await commands.appSetStartup(previousEnabled)
-            .catch((rollbackError: any) => {
+        await commands
+            .appSetStartup(previousEnabled)
+            .catch((rollbackError: unknown) => {
                 console.warn(
                     'Failed to roll back Windows startup setting:',
                     rollbackError
@@ -797,7 +819,7 @@ export async function setStartAtWindowsStartupPreference(value: any) {
     publishPreferenceChanged('StartAtWindowsStartup', enabled);
 }
 
-export async function setStartAsMinimizedPreference(value: any) {
+export async function setStartAsMinimizedPreference(value: unknown) {
     const enabled = Boolean(value);
     await storageRepository.setString(
         'VRCX_StartAsMinimizedState',
@@ -807,14 +829,14 @@ export async function setStartAsMinimizedPreference(value: any) {
     publishPreferenceChanged('VRCX_StartAsMinimizedState', enabled);
 }
 
-export async function setCloseToTrayPreference(value: any) {
+export async function setCloseToTrayPreference(value: unknown) {
     const enabled = Boolean(value);
     await storageRepository.setString('VRCX_CloseToTray', String(enabled));
     patchPreferences({ isCloseToTray: enabled });
     publishPreferenceChanged('VRCX_CloseToTray', enabled);
 }
 
-export async function setBoolConfigPreference(key: any, value: any) {
+export async function setBoolConfigPreference(key: string, value: unknown) {
     const enabled = Boolean(value);
     await configRepository.setBool(key, enabled);
     const normalizedKey = normalizePreferenceKey(key);
@@ -848,7 +870,7 @@ export async function setBoolConfigPreference(key: any, value: any) {
     await reloadWristOverlayRuntimeConfigIfNeeded(key);
 }
 
-export async function setStringConfigPreference(key: any, value: any) {
+export async function setStringConfigPreference(key: string, value: unknown) {
     const nextValue = String(value ?? '');
     await configRepository.setString(key, nextValue);
     patchPreferenceValue(key, nextValue);
@@ -857,15 +879,15 @@ export async function setStringConfigPreference(key: any, value: any) {
 }
 
 export async function setIntConfigPreference(
-    key: any,
-    value: any,
+    key: string,
+    value: unknown,
     {
         min = Number.MIN_SAFE_INTEGER,
         max = Number.MAX_SAFE_INTEGER,
         fallback = 0
-    }: any = {}
+    }: IntConfigPreferenceOptions = {}
 ) {
-    const parsed = Number.parseInt(value, 10);
+    const parsed = Number.parseInt(String(value ?? ''), 10);
     const nextValue = Number.isNaN(parsed)
         ? fallback
         : Math.min(max, Math.max(min, parsed));
@@ -876,8 +898,8 @@ export async function setIntConfigPreference(
 }
 
 export async function setProxyServerPreference(
-    value: any,
-    { restart = true }: any = {}
+    value: unknown,
+    { restart = true }: ProxyServerPreferenceOptions = {}
 ) {
     const nextProxyServer = String(value ?? '').trim();
     await storageRepository.setString('VRCX_ProxyServer', nextProxyServer);
@@ -889,7 +911,7 @@ export async function setProxyServerPreference(
     return nextProxyServer;
 }
 
-export async function setTablePageSizesPreference(value: any) {
+export async function setTablePageSizesPreference(value: unknown) {
     const tablePageSizes = normalizeTablePageSizes(value);
     const currentTablePageSize = normalizeTablePageSize(
         usePreferencesStore.getState().preferencesHydrated
@@ -920,7 +942,7 @@ export async function setTablePageSizesPreference(value: any) {
     return tablePageSizes;
 }
 
-export async function setTablePageSizePreference(value: any) {
+export async function setTablePageSizePreference(value: unknown) {
     const tablePageSize = normalizeTablePageSize(value);
     await configRepository.setInt('VRCX_tablePageSize', tablePageSize);
     patchPreferences({ tablePageSize });
@@ -929,7 +951,7 @@ export async function setTablePageSizePreference(value: any) {
 }
 
 export async function getTablePageSizePreference(
-    fallback: any = DEFAULT_TABLE_PAGE_SIZE
+    fallback: number = DEFAULT_TABLE_PAGE_SIZE
 ) {
     const preferenceState = usePreferencesStore.getState();
     if (preferenceState.preferencesHydrated) {
@@ -939,7 +961,7 @@ export async function getTablePageSizePreference(
 }
 
 export async function getTablePageSizesPreference(
-    fallback: any = DEFAULT_TABLE_PAGE_SIZES
+    fallback: number[] = DEFAULT_TABLE_PAGE_SIZES
 ) {
     const preferenceState = usePreferencesStore.getState();
     if (preferenceState.preferencesHydrated) {
@@ -948,7 +970,7 @@ export async function getTablePageSizesPreference(
     return configRepository.getArray('VRCX_tablePageSizes', fallback);
 }
 
-export async function setTableLimitsPreference(value: any) {
+export async function setTableLimitsPreference(value: unknown) {
     const tableLimits = normalizeTableLimits(value);
     await Promise.all([
         configRepository.setInt('maxTableSize_v2', tableLimits.maxTableSize),
@@ -972,7 +994,7 @@ export async function loadTrustColorPreference() {
     return trustColor;
 }
 
-export async function setTrustColorPreference(key: string, value: any) {
+export async function setTrustColorPreference(key: string, value: unknown) {
     if (
         !Object.prototype.hasOwnProperty.call(TRUST_COLOR_DEFAULTS, key) ||
         !isValidTrustColor(value)
@@ -999,7 +1021,7 @@ export async function resetTrustColorsPreference() {
     return trustColor;
 }
 
-export async function setSharedFeedFiltersPreference(value: any) {
+export async function setSharedFeedFiltersPreference(value: unknown) {
     const sharedFeedFilters = normalizeSharedFeedFilters(value);
     await configRepository.setString(
         'sharedFeedFilters',
@@ -1011,8 +1033,9 @@ export async function setSharedFeedFiltersPreference(value: any) {
 }
 
 async function loadOverlayActivityTypeDefinitionsForSave() {
-    return commands.appOverlayActivityDefinitionsGet()
-        .catch((error: any) => {
+    return commands
+        .appOverlayActivityDefinitionsGet()
+        .catch((error: unknown) => {
             console.warn(
                 'Failed to load overlay activity definitions for save:',
                 error
@@ -1022,7 +1045,7 @@ async function loadOverlayActivityTypeDefinitionsForSave() {
 }
 
 export async function setOverlayActivityFiltersPreference(
-    value: any,
+    value: unknown,
     definitions?: OverlayActivityTypeDefinition[]
 ) {
     const activityDefinitions =
@@ -1045,7 +1068,7 @@ export async function setOverlayActivityFiltersPreference(
 
 async function setNotificationActivityFilterSurfacePreference(
     key: 'vrNotificationActivityFilters' | 'desktopNotificationActivityFilters',
-    value: any
+    value: unknown
 ) {
     const normalized = normalizeOverlayActivityFilterProfile(value);
     await configRepository.setString(key, JSON.stringify(normalized));
@@ -1055,21 +1078,23 @@ async function setNotificationActivityFilterSurfacePreference(
     return normalized;
 }
 
-export function setVrNotificationActivityFiltersPreference(value: any) {
+export function setVrNotificationActivityFiltersPreference(value: unknown) {
     return setNotificationActivityFilterSurfacePreference(
         'vrNotificationActivityFilters',
         value
     );
 }
 
-export function setDesktopNotificationActivityFiltersPreference(value: any) {
+export function setDesktopNotificationActivityFiltersPreference(
+    value: unknown
+) {
     return setNotificationActivityFilterSurfacePreference(
         'desktopNotificationActivityFilters',
         value
     );
 }
 
-export async function setWristOverlayEnabledPreference(value: any) {
+export async function setWristOverlayEnabledPreference(value: unknown) {
     const snapshot = await commands.appVrOverlayEnabledSet(Boolean(value));
     const wristOverlayEnabled = Boolean(snapshot.enabled);
     patchPreferences({ wristOverlayEnabled });
@@ -1077,7 +1102,7 @@ export async function setWristOverlayEnabledPreference(value: any) {
     return wristOverlayEnabled;
 }
 
-export async function setLocalFavoriteFriendsGroupsPreference(value: any) {
+export async function setLocalFavoriteFriendsGroupsPreference(value: unknown) {
     const localFavoriteFriendsGroups = normalizeStringList(value);
     await configRepository.setArray(
         'localFavoriteFriendsGroups',
@@ -1091,7 +1116,7 @@ export async function setLocalFavoriteFriendsGroupsPreference(value: any) {
     return localFavoriteFriendsGroups;
 }
 
-export async function setYoutubeApiEnabledPreference(value: any) {
+export async function setYoutubeApiEnabledPreference(value: unknown) {
     const youtubeAPI = Boolean(value);
     await configRepository.setBool('youtubeAPI', youtubeAPI);
     patchPreferences({ youtubeAPI });
@@ -1099,14 +1124,14 @@ export async function setYoutubeApiEnabledPreference(value: any) {
     return youtubeAPI;
 }
 
-export async function setYoutubeApiKeyPreference(value: any) {
+export async function setYoutubeApiKeyPreference(value: unknown) {
     const youtubeAPIKey = String(value ?? '').trim();
     await configRepository.setString('youtubeAPIKey', youtubeAPIKey);
     publishPreferenceChanged('youtubeAPIKey', youtubeAPIKey);
     return youtubeAPIKey;
 }
 
-export async function setTranslationApiEnabledPreference(value: any) {
+export async function setTranslationApiEnabledPreference(value: unknown) {
     const translationAPI = Boolean(value);
     await configRepository.setBool('translationAPI', translationAPI);
     patchPreferences({ translationAPI });
@@ -1121,7 +1146,7 @@ export async function setTranslationApiConfigPreference({
     translationAPIEndpoint,
     translationAPIModel,
     translationAPIPrompt
-}: any) {
+}: TranslationApiConfigPreferenceInput) {
     const nextBioLanguage = normalizeBioLanguage(bioLanguage);
     const nextType = translationAPIType === 'openai' ? 'openai' : 'google';
     const nextKey = String(translationAPIKey ?? '').trim();
@@ -1163,20 +1188,20 @@ export async function setTranslationApiConfigPreference({
     };
 }
 
-export async function setDiscordBoolPreference(key: string, value: any) {
+export async function setDiscordBoolPreference(key: string, value: unknown) {
     if (!DISCORD_BOOL_PREFERENCE_KEYS.has(key)) {
         throw new Error(`Unsupported Discord preference: ${key}`);
     }
     const enabled = Boolean(value);
     await configRepository.setBool(key, enabled);
     if (key === 'discordActive' && enabled) {
-        await disableVrchatRichPresence().catch((error: any) => {
+        await disableVrchatRichPresence().catch((error: unknown) => {
             console.warn('Failed to disable VRChat Rich Presence:', error);
         });
     }
     patchPreferences({ [key]: enabled });
     publishPreferenceChanged(key, enabled);
-    refreshDiscordPresence({ force: true }).catch((error: any) => {
+    refreshDiscordPresence({ force: true }).catch((error: unknown) => {
         console.warn(
             'Failed to refresh Discord Rich Presence after setting change:',
             error
