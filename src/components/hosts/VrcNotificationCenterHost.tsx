@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
 import { InviteMessageDialog } from '@/components/dialogs/InviteMessageDialog';
+import { BoopReplyDialog } from '@/features/notifications/components/NotificationViewParts';
 import { NotificationDrawerList } from '@/features/notifications/drawer/NotificationDrawerList';
+import { shouldOpenBoopReplyDialog } from '@/features/notifications/notificationResponseModel';
 import { userFacingErrorMessage } from '@/lib/errorDisplay';
 import notificationPersistenceRepository from '@/repositories/notificationPersistenceRepository';
 import { openWorldDialog } from '@/services/dialogService';
@@ -53,6 +55,15 @@ export function VrcNotificationCenterHost() {
     const currentUserLocation = useRuntimeStore(
         (state: any) => state.auth.currentUserSnapshot?.location
     );
+    const isLocalUserVrcPlusSupporter = useRuntimeStore((state: any) =>
+        Boolean(
+            state.auth.currentUserSnapshot?.$isVRCPlus ||
+                state.auth.currentUserSnapshot?.tags?.includes?.(
+                    'system_supporter'
+                ) ||
+                globalThis?.$debug?.debugVrcPlus
+        )
+    );
     const currentLocation = useRuntimeStore(
         (state: any) => state.gameState.currentLocation
     );
@@ -94,6 +105,7 @@ export function VrcNotificationCenterHost() {
         (state: any) => state.markAllSeen
     );
     const [inviteResponseRequest, setInviteResponseRequest] = useState(null);
+    const [boopReplyRequest, setBoopReplyRequest] = useState<any>(null);
     const groupInstanceRows =
         groupInstancesUserId === currentUserId &&
         groupInstancesEndpoint === endpoint
@@ -149,6 +161,7 @@ export function VrcNotificationCenterHost() {
     function handleOpenChange(open: any) {
         if (!open) {
             setInviteResponseRequest(null);
+            setBoopReplyRequest(null);
         }
         setCenterOpen(open);
     }
@@ -331,26 +344,28 @@ export function VrcNotificationCenterHost() {
         toast.success(t('view.notification.success.invite_response_sent'));
     }
 
+    async function sendBoopReply(notification: any, emojiId: any = '') {
+        if (!notification) {
+            return;
+        }
+        await sendBoopReplyNotification({
+            currentUserId,
+            emojiId,
+            endpoint,
+            notification
+        });
+        await refreshCenter();
+        toast.success(t('view.notification.success.boop_sent'));
+    }
+
     async function sendNotificationResponse(notification: any, response: any) {
         try {
-            const responseType = String(response?.type || '').toLowerCase();
             if (response?.type === 'link') {
                 openNotificationLink(response.data);
                 return;
             }
-            if (
-                notification.type === 'boop' &&
-                (responseType === 'reply' ||
-                    responseType === 'boop' ||
-                    response?.icon === 'reply')
-            ) {
-                await sendBoopReplyNotification({
-                    currentUserId,
-                    endpoint,
-                    notification
-                });
-                await refreshCenter();
-                toast.success(t('view.notification.success.boop_sent'));
+            if (shouldOpenBoopReplyDialog(notification, response)) {
+                setBoopReplyRequest(notification);
                 return;
             }
             await sendNotificationButtonResponse({
@@ -546,6 +561,17 @@ export function VrcNotificationCenterHost() {
                         notification: inviteResponseRequest?.notification
                     })
                 }
+            />
+            <BoopReplyDialog
+                request={boopReplyRequest}
+                endpoint={endpoint}
+                isLocalUserVrcPlusSupporter={isLocalUserVrcPlusSupporter}
+                onOpenChange={(open: any) => {
+                    if (!open) {
+                        setBoopReplyRequest(null);
+                    }
+                }}
+                onSend={sendBoopReply}
             />
         </>
     );
