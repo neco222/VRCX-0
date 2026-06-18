@@ -183,7 +183,7 @@ mod tests {
     }
 
     #[test]
-    fn sync_friend_snapshot_emits_projection_for_active_state_changes() -> Result<()> {
+    fn sync_friend_snapshot_debounces_online_to_offline() -> Result<()> {
         let (_dir, runtime, active_session) = runtime_with_active_session("baseline-projection")?;
         let mut initial_friends = HashMap::new();
         initial_friends.insert(
@@ -237,14 +237,18 @@ mod tests {
         assert_eq!(projection.payload["baselineRevision"], 1);
         assert_eq!(projection.payload["patches"].as_array().unwrap().len(), 1);
         assert_eq!(projection.payload["patches"][0]["userId"], "usr_friend");
-        assert_eq!(projection.payload["patches"][0]["stateBucket"], "offline");
+        assert_eq!(projection.payload["patches"][0]["stateBucket"], "online");
         assert_eq!(
             projection.payload["patches"][0]["patch"]["stateBucket"],
-            "offline"
+            "online"
         );
         assert_eq!(
             projection.payload["patches"][0]["patch"]["location"],
-            "offline"
+            "wrld_old:123"
+        );
+        assert_eq!(
+            projection.payload["patches"][0]["patch"]["pendingOffline"],
+            true
         );
         Ok(())
     }
@@ -501,12 +505,11 @@ mod tests {
             },
         );
 
-        let result = runtime.sync_friend_snapshot_with_started_at(
+        let result = runtime.sync_friend_snapshot(
             active_session.user_id.clone(),
             active_session.endpoint.clone(),
             active_session.websocket.clone(),
             None,
-            123,
             friends_by_id,
         )?;
 
@@ -515,7 +518,6 @@ mod tests {
         assert!(result.accepted);
         assert_eq!(result.friend_count, 1);
         assert_eq!(pending.session, active_session);
-        assert_eq!(pending.baseline_started_ms, 123);
         assert!(pending.friends_by_id.contains_key("usr_cached"));
         Ok(())
     }

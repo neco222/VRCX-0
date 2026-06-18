@@ -13,7 +13,6 @@ pub(super) struct ActiveRealtimeContext {
 #[derive(Clone, Debug)]
 pub(super) struct PendingFriendBaseline {
     pub(super) session: RealtimeSessionContext,
-    pub(super) baseline_started_ms: i64,
     pub(super) friends_by_id: HashMap<String, FriendRecord>,
 }
 

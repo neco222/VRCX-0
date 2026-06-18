@@ -123,7 +123,6 @@ fn apply_friend_event_with_options(
             let previous = get_friend_value(state, &user_id);
             state.pending_offline.remove(&user_id);
             state.recent_gps.remove(&user_id);
-            state.friend_presence_updated_ms.remove(&user_id);
             if let Some(baseline) = state.baseline.as_mut() {
                 baseline.friends_by_id.remove(&user_id);
             }
@@ -593,9 +592,6 @@ pub(super) fn apply_patch_to_state_with_authority(
     if let Some(baseline) = state.baseline.as_mut() {
         baseline.friends_by_id.insert(user_id.to_string(), record);
     }
-    state
-        .friend_presence_updated_ms
-        .insert(user_id.to_string(), Utc::now().timestamp_millis());
     output.projection.patches.push(FriendProjectionPatch {
         user_id: user_id.to_string(),
         patch: projection_patch,

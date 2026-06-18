@@ -830,7 +830,7 @@ async function fetchSupplementalFriendProfile({
     }
 
     const nextStateBucket = resolveSnapshotStateBucket(
-        stateBucket || profile.stateBucket || profile.state
+        profile.state || profile.stateBucket || stateBucket
     );
     useFriendRosterStore.getState().applyFriendPatches(
         [
@@ -1103,7 +1103,8 @@ function startFriendRosterBackgroundTasks({
     websocket,
     currentUserSnapshot,
     fastFriendsById,
-    detail
+    detail,
+    preserveLoadedState
 }: {
     normalizedUserId: string;
     endpoint: string;
@@ -1111,17 +1112,20 @@ function startFriendRosterBackgroundTasks({
     currentUserSnapshot: unknown;
     fastFriendsById: Record<string, FriendRecord>;
     detail: string;
+    preserveLoadedState: boolean;
 }) {
-    void runFriendRosterBackgroundSupplements({
-        normalizedUserId,
-        endpoint,
-        websocket,
-        currentUserSnapshot,
-        fastFriendsById,
-        detail
-    }).catch((error) => {
-        console.warn('Friend roster background supplement failed:', error);
-    });
+    if (!preserveLoadedState) {
+        void runFriendRosterBackgroundSupplements({
+            normalizedUserId,
+            endpoint,
+            websocket,
+            currentUserSnapshot,
+            fastFriendsById,
+            detail
+        }).catch((error) => {
+            console.warn('Friend roster background supplement failed:', error);
+        });
+    }
     void runFriendLogStartupReconciliation({
         normalizedUserId,
         endpoint,
@@ -1284,7 +1288,8 @@ async function runFriendBootstrap({
         websocket: realtimeWebsocket,
         currentUserSnapshot: currentSnapshot,
         fastFriendsById: friendsById,
-        detail
+        detail,
+        preserveLoadedState
     });
 
     return {

@@ -50,7 +50,7 @@ const defaultPrefs: any = {
     sidebarTabDisplayMode: 'auto'
 };
 
-const FRIEND_REFRESH_COOLDOWN_MS = 3 * 60 * 1000;
+const FRIEND_REFRESH_COOLDOWN_MS = 30 * 1000;
 
 function parseConfigArray(value: any) {
     if (Array.isArray(value)) {

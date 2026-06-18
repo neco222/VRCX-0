@@ -473,8 +473,6 @@ fn build_fast_roster_snapshot(
     })
 }
 
-const SUSPICIOUS_REFETCH_LIMIT: usize = 50;
-
 fn infer_state_from_platform(platform: &str) -> &'static str {
     match platform {
         "" | "offline" => "offline",
@@ -501,9 +499,6 @@ fn collect_suspicious_friend_ids(
         let location = object_field_string(&profile.raw, &["location"]);
         if inferred != list_state || location == "traveling" {
             suspicious.push(friend_id.clone());
-            if suspicious.len() >= SUSPICIOUS_REFETCH_LIMIT {
-                break;
-            }
         }
     }
     suspicious
@@ -538,7 +533,7 @@ pub async fn build_friend_roster_baseline(
             .unwrap_or(cached_current_user);
 
     let CurrentUserSnapshotView {
-        state_by_id,
+        mut state_by_id,
         state_order_ids,
         friend_ids: snapshot_friend_ids,
         has_friend_list,
@@ -593,13 +588,17 @@ pub async fn build_friend_roster_baseline(
     if !suspicious_ids.is_empty() {
         let repaired = refetch_users_concurrent(&deps, &input.endpoint, suspicious_ids).await;
         for (repaired_id, user) in repaired {
+            let repaired_bucket = normalize_state_bucket(&object_field_string(&user, &["state"]));
             let Some(mut profile) = RemoteFriendProfile::from_raw(user, None) else {
                 continue;
             };
             profile.source_state_bucket = fetched_friends_by_id
                 .get(&repaired_id)
                 .and_then(|existing| existing.source_state_bucket.clone());
-            fetched_friends_by_id.insert(repaired_id, profile);
+            fetched_friends_by_id.insert(repaired_id.clone(), profile);
+            if !repaired_bucket.is_empty() {
+                state_by_id.insert(repaired_id, repaired_bucket);
+            }
         }
     }
 
@@ -675,6 +674,25 @@ mod tests {
             suspicious,
             vec!["usr_active_pc".to_string(), "usr_traveling".to_string()]
         );
+    }
+
+    #[test]
+    fn collect_suspicious_flags_stale_online_friend() {
+        let expected_ids = vec!["usr_stale".to_string()];
+        let state_by_id = HashMap::from([("usr_stale".to_string(), "online".to_string())]);
+        let fetched_friends_by_id = HashMap::from([(
+            "usr_stale".to_string(),
+            RemoteFriendProfile::from_raw(
+                json!({ "id": "usr_stale", "platform": "", "location": "offline" }),
+                None,
+            )
+            .expect("valid profile"),
+        )]);
+
+        let suspicious =
+            collect_suspicious_friend_ids(&expected_ids, &state_by_id, &fetched_friends_by_id);
+
+        assert_eq!(suspicious, vec!["usr_stale".to_string()]);
     }
 
     #[test]

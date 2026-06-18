@@ -33,7 +33,6 @@ impl RealtimeHostRuntime {
             ));
         }
         let mut friends_by_id = friends_by_id;
-        let mut baseline_started_ms = chrono::Utc::now().timestamp_millis();
         let generation = {
             let mut state = self
                 .state
@@ -63,7 +62,6 @@ impl RealtimeHostRuntime {
             });
             if let Some(pending) = state.pending_friend_baseline.take() {
                 if pending.session == session {
-                    baseline_started_ms = pending.baseline_started_ms;
                     friends_by_id = pending.friends_by_id;
                 }
             }
@@ -73,7 +71,7 @@ impl RealtimeHostRuntime {
             self.friends.clear();
             self.current_user.clear();
             let friend_user_ids = friends_by_id.keys().cloned().collect::<Vec<_>>();
-            self.friends.set_baseline_with_started_at(
+            self.friends.set_baseline(
                 FriendRosterBaseline {
                     current_user_id: session.user_id.clone(),
                     endpoint: session.endpoint.clone(),
@@ -82,7 +80,6 @@ impl RealtimeHostRuntime {
                 },
                 generation,
                 0,
-                baseline_started_ms,
             );
             self.deps
                 .overlay_activity

@@ -10,29 +10,10 @@ impl RealtimeHostRuntime {
         generation: Option<u64>,
         friends_by_id: HashMap<String, FriendRecord>,
     ) -> Result<FriendBaselineResult> {
-        self.sync_friend_snapshot_with_started_at(
-            user_id,
-            endpoint,
-            websocket,
-            generation,
-            0,
-            friends_by_id,
-        )
-    }
-
-    pub fn sync_friend_snapshot_with_started_at(
-        self: &Arc<Self>,
-        user_id: String,
-        endpoint: String,
-        websocket: String,
-        generation: Option<u64>,
-        baseline_started_ms: i64,
-        friends_by_id: HashMap<String, FriendRecord>,
-    ) -> Result<FriendBaselineResult> {
         let requested_session = RealtimeSessionContext::new(user_id, endpoint, websocket);
         let friend_count = friends_by_id.len();
         let friend_user_ids = friends_by_id.keys().cloned().collect::<Vec<_>>();
-        let (result, active, baseline_projection) = {
+        let (result, active, baseline_projection, baseline_schedules) = {
             let mut state = self
                 .state
                 .lock()
@@ -40,7 +21,6 @@ impl RealtimeHostRuntime {
             let Some(active) = state.active_context.clone() else {
                 state.pending_friend_baseline = Some(PendingFriendBaseline {
                     session: requested_session,
-                    baseline_started_ms,
                     friends_by_id,
                 });
                 drop(state);
@@ -95,7 +75,7 @@ impl RealtimeHostRuntime {
                 .as_ref()
                 .map(|snapshot| snapshot.baseline_revision.saturating_add(1))
                 .unwrap_or(0);
-            let result = self.friends.set_baseline_with_started_at(
+            let (result, baseline_schedules) = self.friends.set_baseline_with_schedules(
                 FriendRosterBaseline {
                     current_user_id: active.session.user_id.clone(),
                     endpoint: active.session.endpoint.clone(),
@@ -104,7 +84,6 @@ impl RealtimeHostRuntime {
                 },
                 active.generation,
                 baseline_revision,
-                baseline_started_ms,
             );
             let baseline_projection = if result.accepted {
                 self.friends
@@ -116,7 +95,7 @@ impl RealtimeHostRuntime {
             } else {
                 None
             };
-            (result, active, baseline_projection)
+            (result, active, baseline_projection, baseline_schedules)
         };
 
         if result.accepted {
@@ -129,6 +108,14 @@ impl RealtimeHostRuntime {
                 owner_user_id: active.session.user_id.clone(),
                 projection,
                 ..RealtimeFriendOutput::default()
+            });
+        }
+        for (user_id, token, delay_ms) in baseline_schedules {
+            let runtime = Arc::clone(self);
+            self.deps.tasks.spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
+                let now = chrono::Utc::now().to_rfc3339();
+                runtime.fire_pending_offline(&user_id, token, now);
             });
         }
         self.drain_queued_friend_messages(active);

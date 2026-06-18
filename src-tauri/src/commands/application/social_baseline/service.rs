@@ -81,7 +81,6 @@ pub async fn app__social_friend_roster_baseline_get(
     let command = "app__social_friend_roster_baseline_get";
     let diagnostics = state.runtime_context.diagnostics.clone();
     let sync = state.runtime_context.sync.clone();
-    let baseline_started_ms = chrono::Utc::now().timestamp_millis();
     let input_endpoint = input.endpoint.clone();
     let input_websocket = input.websocket.clone();
     diagnostics.record_command(command, "running", "Friend roster baseline started.");
@@ -102,16 +101,13 @@ pub async fn app__social_friend_roster_baseline_get(
                         friends_value,
                     ) {
                         Ok(friends_by_id) => {
-                            if let Err(error) =
-                                state.realtime_runtime.sync_friend_snapshot_with_started_at(
-                                    output.user_id.clone(),
-                                    input_endpoint.clone(),
-                                    input_websocket.clone(),
-                                    None,
-                                    baseline_started_ms,
-                                    friends_by_id,
-                                )
-                            {
+                            if let Err(error) = state.realtime_runtime.sync_friend_snapshot(
+                                output.user_id.clone(),
+                                input_endpoint.clone(),
+                                input_websocket.clone(),
+                                None,
+                                friends_by_id,
+                            ) {
                                 tracing::warn!(
                                     "Friend roster baseline realtime cache sync failed: {error}"
                                 );

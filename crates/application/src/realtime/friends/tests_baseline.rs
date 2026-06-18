@@ -56,7 +56,7 @@ mod tests {
     }
 
     #[test]
-    fn placeholder_baseline_refresh_keeps_ws_active_presence() {
+    fn placeholder_baseline_refresh_uses_official_list_bucket() {
         let runtime = RealtimeFriendsRuntime::new();
         runtime.set_baseline(
             FriendRosterBaseline {
@@ -107,12 +107,12 @@ mod tests {
             .friends_by_id
             .get("usr_friend")
             .expect("friend present");
-        assert_eq!(friend.state_bucket, "active");
-        assert_eq!(friend.state, "active");
+        assert_eq!(friend.state_bucket, "online");
+        assert_eq!(friend.state, "online");
     }
 
     #[test]
-    fn placeholder_baseline_refresh_does_not_resurrect_offline_friend() {
+    fn placeholder_baseline_refresh_follows_official_list_state() {
         let runtime = RealtimeFriendsRuntime::new();
         runtime.set_baseline(
             FriendRosterBaseline {
@@ -163,11 +163,11 @@ mod tests {
             .friends_by_id
             .get("usr_friend")
             .expect("friend present");
-        assert_eq!(friend.state_bucket, "offline");
+        assert_eq!(friend.state_bucket, "online");
     }
 
     #[test]
-    fn remote_baseline_refresh_still_updates_presence() {
+    fn refresh_baseline_debounces_online_to_offline() {
         let runtime = RealtimeFriendsRuntime::new();
         runtime.set_baseline(
             FriendRosterBaseline {
@@ -219,11 +219,12 @@ mod tests {
             .friends_by_id
             .get("usr_friend")
             .expect("friend present");
-        assert_eq!(friend.state_bucket, "offline");
+        assert_eq!(friend.state_bucket, "online");
+        assert_eq!(friend.extra.get("pendingOffline"), Some(&json!(true)));
     }
 
     #[test]
-    fn ws_event_racing_refresh_is_preserved_over_baseline() {
+    fn refresh_baseline_debounces_inflight_ws() {
         let runtime = RealtimeFriendsRuntime::new();
         runtime.set_baseline(
             FriendRosterBaseline {
@@ -261,7 +262,7 @@ mod tests {
         else {
             panic!("friend-online should produce an output");
         };
-        runtime.set_baseline_with_started_at(
+        runtime.set_baseline_with_schedules(
             FriendRosterBaseline {
                 current_user_id: "usr_self".into(),
                 friends_by_id: [(
@@ -280,7 +281,6 @@ mod tests {
             },
             1,
             1,
-            0,
         );
 
         let snapshot = runtime.snapshot().expect("baseline present");
@@ -289,6 +289,7 @@ mod tests {
             .get("usr_friend")
             .expect("friend present");
         assert_eq!(friend.state_bucket, "online");
+        assert_eq!(friend.extra.get("pendingOffline"), Some(&json!(true)));
     }
 
     #[test]
@@ -401,7 +402,7 @@ mod tests {
     }
 
     #[test]
-    fn older_rest_baseline_does_not_overwrite_newer_pending_offline_presence() {
+    fn refresh_baseline_overrides_pending_offline_with_official_state() {
         let runtime = RealtimeFriendsRuntime::new();
         runtime.set_baseline(
             FriendRosterBaseline {
@@ -424,7 +425,6 @@ mod tests {
             1,
             0,
         );
-        let baseline_started_ms = chrono::Utc::now().timestamp_millis() - 1_000;
 
         let RealtimeFriendApplyResult::Output(output) =
             runtime.apply_ws_message(&RealtimeWsMessagePayload {
@@ -442,7 +442,7 @@ mod tests {
             panic!("offline should schedule pending timer");
         };
 
-        runtime.set_baseline_with_started_at(
+        runtime.set_baseline_with_schedules(
             FriendRosterBaseline {
                 current_user_id: "usr_self".into(),
                 friends_by_id: [(
@@ -462,18 +462,17 @@ mod tests {
             },
             1,
             1,
-            baseline_started_ms,
         );
 
         let snapshot = runtime.snapshot().unwrap();
         let friend = snapshot.friends_by_id.get("usr_friend").unwrap();
         assert_eq!(friend.display_name, "Friend Fresh Name");
-        assert_eq!(friend.state_bucket, "online");
-        assert_eq!(friend.location, "wrld_1:123");
-        assert_eq!(friend.extra.get("pendingOffline"), Some(&json!(true)));
+        assert_eq!(friend.state_bucket, "offline");
+        assert_eq!(friend.location, "offline");
+        assert_eq!(friend.extra.get("pendingOffline"), None);
         assert!(runtime
             .fire_pending_offline("usr_friend", token, "2026-05-15T00:03:00Z".into())
-            .is_some());
+            .is_none());
     }
 
     #[test]
@@ -517,7 +516,7 @@ mod tests {
             panic!("offline should schedule pending timer");
         };
 
-        runtime.set_baseline_with_started_at(
+        runtime.set_baseline_with_schedules(
             FriendRosterBaseline {
                 current_user_id: "usr_self".into(),
                 friends_by_id: [(
@@ -537,7 +536,6 @@ mod tests {
             },
             1,
             1,
-            chrono::Utc::now().timestamp_millis() + 1_000,
         );
 
         let snapshot = runtime.snapshot().unwrap();
