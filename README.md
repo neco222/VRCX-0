@@ -14,28 +14,32 @@ English | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-Hant.md) | 
 
 </div>
 
-VRCX-0 is a rewrite of VRCX, rebuilt from the previous CefSharp + Vue architecture with **Tauri + React**. It is developed by one of VRCX's former maintainers.
+VRCX-0 is a ground-up rewrite of VRCX built on **Tauri + React**, replacing the original CefSharp + Vue stack. It is developed by one of VRCX's former maintainers.
 
-VRCX-0 focuses on players' everyday use: lower resource usage, a smaller app, and continued feature development and support.
-
-The current VRCX project is already largely stable, with future upstream changes likely to focus mainly on maintenance and fixes rather than major changes. VRCX-0 will continue feature development and support while moving forward with its own roadmap.
+VRCX-0 is designed for everyday use: dramatically lower resource usage, a smaller install, and an active development roadmap. As the upstream VRCX project has shifted toward maintenance, VRCX-0 is where new features are being built.
 
 ## Highlights
 
-- About 50%–70% lower memory usage compared to VRCX
-- Background mode keeps core services running with only a few dozen MB of memory usage
-- Installers are just over 10 MB (except the Linux AppImage), with a much smaller application size
-- New UI and interaction model
+- **50%–70% lower memory usage** than VRCX
+- Installer is just over 10 MB — a fraction of VRCX's footprint
+- **Background mode** — a step beyond minimizing to tray: opt in to drop memory
+  to just tens of MB while all core features keep running normally
+- **Social Automation** — auto-switch your status and bio based on time of day,
+  instance type, or who you're with; auto-accept invite requests; restores your
+  previous state when rules expire
+- **Lightweight VR wrist overlay** with minimal performance impact; supports both
+  OpenVR (SteamVR) and **OpenXR (Linux / WiVRn / Monado)**
+- **Community Themes** — browse and install themes from a catalog, set a custom
+  background image, and layer your own CSS on top
+- **Three notification channels** — desktop notifications, text-to-speech, and VR
+  overlay alerts, each independently configured per event type
 - Full keyboard navigation
-- Headless mode
-- Continued feature development and support
+- Headless mode for advanced setups — see `crates/headless`
+- Actively developed with new features on its own roadmap
 
 ## Data Migration
 
-On first run, VRCX-0 can automatically migrate your existing VRCX database and settings.
-
-Your original VRCX data is not modified.
-Existing users can start using VRCX-0 with their current data without any manual setup.
+On first launch, VRCX-0 can automatically import your existing VRCX database and settings. Your original data is never modified — existing users can pick up right where they left off without any manual setup.
 
 ## License
 
@@ -45,10 +49,8 @@ All modifications, additions, rewrites, and new code introduced after the fork a
 
 ## Development
 
-Requirements:
-
-- Node.js LTS
-- Latest stable Rust toolchain via rustup
+Requirements: Node.js ≥ 24.10, npm ≥ 11.5, and a stable Rust toolchain via rustup.
+On Windows, also install **Visual Studio Build Tools** with the **Desktop development with C++** workload.
 
 ```bash
 git clone https://github.com/Map1en/VRCX-0

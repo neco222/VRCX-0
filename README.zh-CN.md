@@ -14,42 +14,37 @@
 
 </div>
 
-VRCX-0 是 VRCX 的重写版本，使用 **Tauri + React** 重新构建，替代原有的 CefSharp + Vue 架构。
-它由 VRCX 前维护者之一开发。
+VRCX-0 是 VRCX 的重写版本，使用 **Tauri + React** 重新构建，替代原有的 CefSharp + Vue 架构。由 VRCX 前维护者之一开发。
 
-VRCX-0 关注玩家日常使用：更低占用、更小体积，以及持续推进的新功能开发和支持。
-
-现在 VRCX 整体已经比较稳定，后续变化不会太多，主要会以维护和修复为主；而VRCX-0 会继续推进、按照新路线路线图开发。
+VRCX-0 专注于玩家日常使用：更低的资源占用、更小的安装体积，以及持续推进的新功能开发。随着上游 VRCX 转向以维护为主，VRCX-0 将继续承担新功能的开发工作。
 
 ## 主要特点
 
-- 相比 VRCX，内存占用通常降低约 50%–70%
-- 后台模式下可继续使用基础服务，内存占用仅小几十 MB
-- 除 AppImage 外，安装包体积仅十几 MB，程序体积更小
-- 新的 UI 和交互设计
-- 支持完整键盘操作
-- 无头模式
-- 持续的新功能开发和支持
+- **内存占用比 VRCX 低约 50%–70%**
+- 安装包仅十几 MB，远小于 VRCX
+- **后台模式** — 比最小化到托盘更进一步：主动开启后，内存可降至仅几十 MB，同时所有核心功能照常运行
+- **社交自动化** — 按时间、实例类型或在场人员自动切换状态和签名；自动接受邀请请求；规则失效后自动恢复原有状态
+- **轻量 VR 腕部 Overlay**，性能影响极低；同时支持 OpenVR（SteamVR）和 **OpenXR（Linux / WiVRn / Monado）**
+- **社区主题** — 浏览并安装主题商城中的主题，设置自定义背景图片，还可叠加自己的 CSS
+- **三通道通知系统** — 桌面通知、TTS 语音、VR Overlay 推送，每个通道按事件类型独立配置
+- 全界面支持完整键盘导航
+- 无头模式（Headless），适合进阶用途 — 详见 `crates/headless`
+- 持续的新功能开发，有独立的开发路线图
 
 ## 数据迁移
 
-VRCX-0 首次运行时可以自动迁移现有 VRCX 的数据库和配置。
-
-原 VRCX 数据不会被修改。
-现有用户不需要手动设置，可以从原来的数据继续使用。
+首次启动时，VRCX-0 可自动导入现有 VRCX 的数据库和配置，原始数据不会被修改。现有用户无需手动设置，可直接从原来的数据继续使用。
 
 ## 许可
 
-本仓库的第一个提交对应 fork 时的上游 VRCX 项目快照，并遵循 MIT License。
+本仓库的第一个提交对应 fork 时的上游 VRCX 项目快照，遵循 MIT License。
 
-fork 之后新增、修改、重写的代码，均遵循 GNU General Public License v3.0（GPLv3）。
+fork 之后新增、修改、重写的所有代码，均遵循 GNU General Public License v3.0（GPLv3）。
 
 ## 开发
 
-需要安装：
-
-- Node.js LTS
-- Rust latest stable，建议通过 rustup 安装
+依赖：Node.js ≥ 24.10、npm ≥ 11.5，以及通过 rustup 安装的稳定版 Rust 工具链。
+Windows 用户还需安装 **Visual Studio Build Tools**，并勾选 **"使用 C++ 的桌面开发"** 工作负载。
 
 ```bash
 git clone https://github.com/Map1en/VRCX-0
