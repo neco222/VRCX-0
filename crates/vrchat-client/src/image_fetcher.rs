@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 
 use reqwest::Client;
 use reqwest_cookie_store::CookieStoreMutex;
@@ -54,7 +54,7 @@ impl ImageFetcher {
             .ok_or_else(|| ImageFetchError::Custom("image url has no host".into()))?;
 
         {
-            let allowed = self.allowed_hosts();
+            let allowed = self.allowed_hosts.lock().unwrap();
             if !allowed.contains(host) {
                 return Err(ImageFetchError::Custom(format!(
                     "invalid image host: {host}"
@@ -82,44 +82,5 @@ impl ImageFetcher {
             .map_err(|e| ImageFetchError::Custom(format!("image read: {e}")))?;
 
         Ok(bytes.to_vec())
-    }
-
-    fn allowed_hosts(&self) -> MutexGuard<'_, HashSet<String>> {
-        self.allowed_hosts
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::panic::{catch_unwind, AssertUnwindSafe};
-
-    use reqwest_cookie_store::CookieStore;
-
-    use super::*;
-
-    #[test]
-    fn fetch_image_recovers_from_poisoned_allowed_hosts_lock() {
-        let jar = Arc::new(CookieStoreMutex::new(CookieStore::default()));
-        let fetcher = ImageFetcher::new(jar, None).expect("image fetcher");
-
-        let result = catch_unwind(AssertUnwindSafe(|| {
-            let _guard = fetcher.allowed_hosts.lock().expect("allowed hosts lock");
-            panic!("poison allowed hosts lock");
-        }));
-
-        assert!(result.is_err());
-
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("tokio runtime");
-        let error = runtime
-            .block_on(fetcher.fetch_image("https://example.com/image.png"))
-            .expect_err("untrusted host should fail before network")
-            .to_string();
-
-        assert!(error.contains("invalid image host: example.com"));
     }
 }

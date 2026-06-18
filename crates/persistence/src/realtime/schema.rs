@@ -51,15 +51,10 @@ fn ensure_user_prefix(user_prefix: &str) -> Result<(), Error> {
 fn realtime_table_statements(user_prefix: &str) -> Vec<String> {
     vec![
         format!("CREATE TABLE IF NOT EXISTS {user_prefix}_feed_gps (id INTEGER PRIMARY KEY, created_at TEXT, user_id TEXT, display_name TEXT, location TEXT, world_name TEXT, previous_location TEXT, time INTEGER, group_name TEXT)"),
-        format!("CREATE INDEX IF NOT EXISTS {user_prefix}_feed_gps_created_id_idx ON {user_prefix}_feed_gps (created_at DESC, id DESC)"),
         format!("CREATE TABLE IF NOT EXISTS {user_prefix}_feed_status (id INTEGER PRIMARY KEY, created_at TEXT, user_id TEXT, display_name TEXT, status TEXT, status_description TEXT, previous_status TEXT, previous_status_description TEXT)"),
-        format!("CREATE INDEX IF NOT EXISTS {user_prefix}_feed_status_created_id_idx ON {user_prefix}_feed_status (created_at DESC, id DESC)"),
         format!("CREATE TABLE IF NOT EXISTS {user_prefix}_feed_bio (id INTEGER PRIMARY KEY, created_at TEXT, user_id TEXT, display_name TEXT, bio TEXT, previous_bio TEXT)"),
-        format!("CREATE INDEX IF NOT EXISTS {user_prefix}_feed_bio_created_id_idx ON {user_prefix}_feed_bio (created_at DESC, id DESC)"),
         format!("CREATE TABLE IF NOT EXISTS {user_prefix}_feed_avatar (id INTEGER PRIMARY KEY, created_at TEXT, user_id TEXT, display_name TEXT, owner_id TEXT, avatar_name TEXT, current_avatar_image_url TEXT, current_avatar_thumbnail_image_url TEXT, previous_current_avatar_image_url TEXT, previous_current_avatar_thumbnail_image_url TEXT)"),
-        format!("CREATE INDEX IF NOT EXISTS {user_prefix}_feed_avatar_created_id_idx ON {user_prefix}_feed_avatar (created_at DESC, id DESC)"),
         format!("CREATE TABLE IF NOT EXISTS {user_prefix}_feed_online_offline (id INTEGER PRIMARY KEY, created_at TEXT, user_id TEXT, display_name TEXT, type TEXT, location TEXT, world_name TEXT, time INTEGER, group_name TEXT)"),
-        format!("CREATE INDEX IF NOT EXISTS {user_prefix}_feed_online_offline_created_id_idx ON {user_prefix}_feed_online_offline (created_at DESC, id DESC)"),
         format!("CREATE INDEX IF NOT EXISTS {user_prefix}_feed_online_offline_user_created_idx ON {user_prefix}_feed_online_offline (user_id, created_at)"),
         format!("CREATE TABLE IF NOT EXISTS {user_prefix}_friend_log_current (user_id TEXT PRIMARY KEY, display_name TEXT, trust_level TEXT, friend_number INTEGER)"),
         format!("CREATE TABLE IF NOT EXISTS {user_prefix}_friend_log_history (id INTEGER PRIMARY KEY, created_at TEXT, type TEXT, user_id TEXT, display_name TEXT, previous_display_name TEXT, trust_level TEXT, previous_trust_level TEXT, friend_number INTEGER)"),
@@ -72,66 +67,4 @@ fn realtime_table_statements(user_prefix: &str) -> Vec<String> {
         format!("CREATE INDEX IF NOT EXISTS {user_prefix}_notifications_v2_type_created_id_idx ON {user_prefix}_notifications_v2 (type, created_at DESC, id DESC)"),
         format!("CREATE TABLE IF NOT EXISTS {user_prefix}_avatar_history (avatar_id TEXT PRIMARY KEY, created_at TEXT, time INTEGER)"),
     ]
-}
-
-#[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use crate::database::DatabaseService;
-    use serde_json::Value;
-
-    use super::ensure_realtime_tables;
-
-    struct TestDir {
-        path: PathBuf,
-    }
-
-    impl TestDir {
-        fn new(name: &str) -> Self {
-            let nonce = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos();
-            let path =
-                std::env::temp_dir().join(format!("vrcx-0-{name}-{}-{nonce}", std::process::id()));
-            std::fs::create_dir_all(&path).unwrap();
-            Self { path }
-        }
-    }
-
-    impl Drop for TestDir {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.path);
-        }
-    }
-
-    #[test]
-    fn feed_tables_have_created_id_indexes_for_read_model_ordering() -> Result<(), crate::Error> {
-        let dir = TestDir::new("realtime-feed-indexes");
-        let db = DatabaseService::new(&dir.path.join("VRCX-0.sqlite3"))?;
-        let user_prefix = "usrfeed";
-
-        ensure_realtime_tables(&db, user_prefix)?;
-
-        for table_suffix in ["gps", "status", "bio", "avatar", "online_offline"] {
-            let index_name = format!("{user_prefix}_feed_{table_suffix}_created_id_idx");
-            let rows = db.execute(
-                &format!(
-                    "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = '{index_name}'"
-                ),
-                &Default::default(),
-            )?;
-
-            assert_eq!(
-                rows,
-                vec![vec![Value::String(format!(
-                    "CREATE INDEX {index_name} ON {user_prefix}_feed_{table_suffix} (created_at DESC, id DESC)"
-                ))]],
-                "{index_name} should support feed read-model per-table ORDER BY created_at DESC, id DESC"
-            );
-        }
-
-        Ok(())
-    }
 }

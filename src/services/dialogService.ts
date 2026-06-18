@@ -2,18 +2,13 @@ import { toast } from 'sonner';
 
 import { recordUserProfile } from '@/domain/users/userFactAccess';
 import i18n from '@/services/i18nService';
-import {
-    useDialogStore,
-    type ActiveDialog,
-    type DialogBreadcrumb
-} from '@/state/dialogStore';
+import { useDialogStore } from '@/state/dialogStore';
 import { useRuntimeStore } from '@/state/runtimeStore';
 
 let entityDialogOpenNonce = 0;
 
 type EntityDialogKind = 'user' | 'world' | 'avatar' | 'group' | string;
-type EntityDialogSeed = Record<string, unknown>;
-type EntityDialogPayload = EntityDialogSeed | null;
+type EntityDialogPayload = Record<string, any> | null;
 
 type OpenEntityDialogOptions = {
     kind?: EntityDialogKind;
@@ -27,7 +22,7 @@ type OpenUserDialogOptions = {
     userId?: unknown;
     title?: unknown;
     description?: unknown;
-    seedData?: EntityDialogSeed | null;
+    seedData?: Record<string, any> | null;
     initialAction?: string;
 };
 
@@ -35,30 +30,24 @@ type OpenWorldDialogOptions = {
     worldId?: unknown;
     title?: unknown;
     description?: unknown;
-    seedData?: EntityDialogSeed | null;
+    seedData?: Record<string, any> | null;
     initialAction?: string;
-    initialNewInstanceDefaults?: EntityDialogSeed | null;
+    initialNewInstanceDefaults?: Record<string, any> | null;
 };
 
 type OpenAvatarDialogOptions = {
     avatarId?: unknown;
     title?: unknown;
     description?: unknown;
-    seedData?: EntityDialogSeed | null;
+    seedData?: Record<string, any> | null;
 };
 
 type OpenGroupDialogOptions = {
     groupId?: unknown;
     title?: unknown;
     description?: unknown;
-    seedData?: EntityDialogSeed | null;
+    seedData?: Record<string, any> | null;
 };
-
-function asEntityRecord(value: unknown): EntityDialogSeed {
-    return value && typeof value === 'object'
-        ? (value as EntityDialogSeed)
-        : {};
-}
 
 function normalizeEntityId(value: unknown) {
     return typeof value === 'string'
@@ -91,7 +80,7 @@ function readSeedTitle(kind: EntityDialogKind, seedData: unknown) {
     if (!seedData || typeof seedData !== 'object') {
         return '';
     }
-    const seed = asEntityRecord(seedData);
+    const seed = seedData as Record<string, any>;
     switch (kind) {
         case 'user':
             return normalizeTitle(
@@ -111,7 +100,7 @@ function readSeedTitle(kind: EntityDialogKind, seedData: unknown) {
 function recordUserDialogSeed(
     userId: unknown,
     title: unknown,
-    seedData: EntityDialogSeed | null
+    seedData: Record<string, any> | null
 ) {
     const normalizedUserId = normalizeEntityId(
         userId || seedData?.id || seedData?.userId
@@ -120,7 +109,7 @@ function recordUserDialogSeed(
         return;
     }
 
-    const seed: EntityDialogSeed =
+    const seed: Record<string, any> =
         seedData && typeof seedData === 'object'
             ? {
                   ...seedData,
@@ -180,19 +169,19 @@ function openEntityDialog({
         normalizeEntityId(store.activeDialog?.entityId) === normalizedEntityId
     ) {
         if (kind === 'user' && payload?.initialAction) {
-            const nextPayload: EntityDialogSeed = {
-                ...asEntityRecord(store.activeDialog.payload),
+            const nextPayload: any = {
+                ...((store.activeDialog.payload as Record<string, any>) || {}),
                 ...payload
             };
             entityDialogOpenNonce += 1;
-            const nextDialog: ActiveDialog = {
+            const nextDialog: any = {
                 ...store.activeDialog,
                 payload: nextPayload,
                 openNonce: entityDialogOpenNonce
             };
             store.setDialogTrail(
                 nextDialog,
-                store.breadcrumbs.map((crumb, index) =>
+                store.breadcrumbs.map((crumb: any, index: any) =>
                     index === store.breadcrumbs.length - 1
                         ? {
                               ...crumb,
@@ -217,7 +206,7 @@ function openEntityDialog({
     const label = sanitizeEntityTitle(kind, normalizedEntityId, title, payload);
     entityDialogOpenNonce += 1;
     const openNonce = entityDialogOpenNonce;
-    const dialog: ActiveDialog = {
+    const dialog: any = {
         kind,
         entityId: normalizedEntityId,
         title: label,
@@ -225,7 +214,7 @@ function openEntityDialog({
         payload,
         openNonce
     };
-    const crumb: DialogBreadcrumb = {
+    const crumb: any = {
         key: `${kind}:${normalizedEntityId}`,
         kind,
         entityId: normalizedEntityId,
@@ -322,13 +311,3 @@ export function openGroupDialog({
         payload: seedData ? { seedData } : null
     });
 }
-
-export type {
-    EntityDialogKind,
-    EntityDialogPayload,
-    EntityDialogSeed,
-    OpenAvatarDialogOptions,
-    OpenGroupDialogOptions,
-    OpenUserDialogOptions,
-    OpenWorldDialogOptions
-};

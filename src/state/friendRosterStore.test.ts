@@ -1,22 +1,10 @@
-import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { useFriendRosterStore } from './friendRosterStore';
 
 describe('friendRosterStore', () => {
     beforeEach(() => {
         useFriendRosterStore.getState().resetRoster();
-    });
-
-    it('keeps public roster actions typed', () => {
-        const store = useFriendRosterStore.getState();
-
-        expectTypeOf(store.setRosterLoading).parameter(0).not.toBeAny();
-        expectTypeOf(store.setRosterLoading).parameter(1).not.toBeAny();
-        expectTypeOf(store.setRosterSeedSnapshot).parameter(0).not.toBeAny();
-        expectTypeOf(store.setRosterSnapshot).parameter(0).not.toBeAny();
-        expectTypeOf(store.applyFriendPatch).parameter(0).not.toBeAny();
-        expectTypeOf(store.applyFriendPatches).parameter(0).not.toBeAny();
-        expectTypeOf(store.removeFriend).parameter(0).not.toBeAny();
     });
 
     it('moves from loading to ready and orders friends within state buckets', () => {

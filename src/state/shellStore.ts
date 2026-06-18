@@ -180,51 +180,51 @@ function resolveTrayIconNotify(state: ShellStore): boolean {
     );
 }
 
-export const useShellStore = create<ShellStore>((set, get) => ({
+export const useShellStore = create<ShellStore>((set: any, get: any) => ({
     ...initialState,
-    setSidebarOpen(sidebarOpen) {
+    setSidebarOpen(sidebarOpen: any) {
         set({ sidebarOpen: Boolean(sidebarOpen) });
     },
-    setNavWidth(navWidth) {
+    setNavWidth(navWidth: any) {
         set({ navWidth: normalizeNavWidth(navWidth) });
     },
     toggleSidebar() {
-        set((state) => ({ sidebarOpen: !state.sidebarOpen }));
+        set((state: any) => ({ sidebarOpen: !state.sidebarOpen }));
     },
-    setRightSidebarOpen(rightSidebarOpen) {
+    setRightSidebarOpen(rightSidebarOpen: any) {
         set({ rightSidebarOpen: Boolean(rightSidebarOpen) });
     },
     toggleRightSidebar() {
-        set((state) => ({ rightSidebarOpen: !state.rightSidebarOpen }));
+        set((state: any) => ({ rightSidebarOpen: !state.rightSidebarOpen }));
     },
-    setLocale(locale) {
+    setLocale(locale: any) {
         set({ locale: locale || 'en' });
     },
-    setThemeMode(themeMode) {
+    setThemeMode(themeMode: any) {
         set({ themeMode: normalizeThemeMode(themeMode) });
     },
-    setThemeColor(themeColor) {
+    setThemeColor(themeColor: any) {
         set({ themeColor: normalizeThemeColor(themeColor) });
     },
-    setTableDensity(tableDensity) {
+    setTableDensity(tableDensity: any) {
         set({ tableDensity: normalizeTableDensity(tableDensity) });
     },
-    setNotificationLayout(notificationLayout) {
+    setNotificationLayout(notificationLayout: any) {
         set({
             notificationLayout:
                 notificationLayout === 'table' ? 'table' : 'notification-center'
         });
         get().updateTrayIconNotification(true);
     },
-    setNotificationIconDot(notificationIconDot) {
+    setNotificationIconDot(notificationIconDot: any) {
         set({ notificationIconDot: Boolean(notificationIconDot) });
         get().updateTrayIconNotification(true);
     },
     setAppearancePreferences({
         displayVRCPlusIconsAsAvatar,
         hideNicknames
-    } = {}) {
-        set((state) => ({
+    }: any = {}) {
+        set((state: any) => ({
             displayVRCPlusIconsAsAvatar:
                 displayVRCPlusIconsAsAvatar === undefined
                     ? state.displayVRCPlusIconsAsAvatar
@@ -235,17 +235,17 @@ export const useShellStore = create<ShellStore>((set, get) => ({
                     : Boolean(hideNicknames)
         }));
     },
-    setZoomLevel(zoomLevel) {
+    setZoomLevel(zoomLevel: any) {
         set({ zoomLevel });
     },
-    setDatePreferences({ dateCulture, dateIsoFormat, dateHour12 }) {
+    setDatePreferences({ dateCulture, dateIsoFormat, dateHour12 }: any) {
         set({
             dateCulture: dateCulture || 'en-gb',
             dateIsoFormat: Boolean(dateIsoFormat),
             dateHour12: Boolean(dateHour12)
         });
     },
-    setTimeUnitLabels(labels) {
+    setTimeUnitLabels(labels: any) {
         set({
             timeUnitLabels: {
                 ...DEFAULT_TIME_UNIT_LABELS,
@@ -253,8 +253,8 @@ export const useShellStore = create<ShellStore>((set, get) => ({
             }
         });
     },
-    setVrcUnseenNotificationCount(unseenCount) {
-        const nextCount = Number.parseInt(String(unseenCount ?? ''), 10);
+    setVrcUnseenNotificationCount(unseenCount: any) {
+        const nextCount = Number.parseInt(unseenCount as string, 10);
         set({
             vrcUnseenNotificationCount: Number.isFinite(nextCount)
                 ? nextCount
@@ -262,7 +262,7 @@ export const useShellStore = create<ShellStore>((set, get) => ({
         });
         get().updateTrayIconNotification();
     },
-    updateTrayIconNotification(force = false) {
+    updateTrayIconNotification(force: any = false) {
         const nextTrayIconNotify = resolveTrayIconNotify(get());
         if (!force && get().trayIconNotify === nextTrayIconNotify) {
             return;
@@ -270,11 +270,11 @@ export const useShellStore = create<ShellStore>((set, get) => ({
         set({ trayIconNotify: nextTrayIconNotify });
         setTrayIconNotification(nextTrayIconNotify).catch(() => {});
     },
-    notifyMenu(index) {
+    notifyMenu(index: any) {
         if (!index) {
             return;
         }
-        set((state) =>
+        set((state: any) =>
             isCurrentMenuRoute(index) || state.notifiedMenus.includes(index)
                 ? {}
                 : {
@@ -283,12 +283,14 @@ export const useShellStore = create<ShellStore>((set, get) => ({
         );
         get().updateTrayIconNotification();
     },
-    removeNotify(index) {
+    removeNotify(index: any) {
         if (!index) {
             return;
         }
-        set((state) => ({
-            notifiedMenus: state.notifiedMenus.filter((item) => item !== index)
+        set((state: any) => ({
+            notifiedMenus: state.notifiedMenus.filter(
+                (item: any) => item !== index
+            )
         }));
         get().updateTrayIconNotification();
     },

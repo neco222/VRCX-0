@@ -61,14 +61,6 @@ interface InstanceRosterModelInput {
     instanceCreatorLabel?: string;
 }
 
-interface InstanceRosterModel {
-    ownerId: string;
-    ownerIsGroup: boolean;
-    rows: RosterUserRow[];
-    friendCount: number;
-    playerCount: number;
-}
-
 interface RosterUserRow {
     id: string;
     userId: string;
@@ -158,10 +150,7 @@ function instancePresenceKey(endpoint: unknown, location: unknown): string {
     return key ? `${endpointText(endpoint)}::${key}` : '';
 }
 
-function createRosterRow(
-    user: unknown,
-    fallback: Record<string, unknown> = {}
-) {
+function createRosterRow(user: unknown, fallback: Record<string, unknown> = {}) {
     const source = record(user);
     const nested = record(source.user);
     const id = firstText(userId(source), fallback.id, fallback.userId);
@@ -206,14 +195,11 @@ function valuePresent(value: unknown): boolean {
     return value !== undefined && value !== null && value !== '';
 }
 
-function mergeRosterRow(
-    existing: RosterUserRow | undefined,
-    incoming: RosterUserRow
-) {
+function mergeRosterRow(existing: RosterUserRow | undefined, incoming: RosterUserRow) {
     if (!existing) {
         return incoming;
     }
-    const merged: RosterUserRow = { ...incoming, ...existing };
+    const merged: any = { ...incoming, ...existing };
     for (const [key, value] of Object.entries(incoming)) {
         if (!valuePresent(merged[key]) && valuePresent(value)) {
             merged[key] = value;
@@ -313,7 +299,7 @@ function buildInstanceRosterModel({
     ownerUser = null,
     ownerGroup = null,
     instanceCreatorLabel = 'Instance creator'
-}: InstanceRosterModelInput = {}): InstanceRosterModel {
+}: InstanceRosterModelInput = {}) {
     const parsed = parseLocation(normalizeLocationValue(location));
     const rowsByKey = new Map<string, RosterUserRow>();
 
@@ -368,7 +354,7 @@ function buildInstanceRosterModel({
     }
     const mergedOwnerRow = ownerRowId ? rowsByKey.get(ownerRowId) : null;
     const playerRows = Array.from(rowsByKey.values()).filter(
-        (row) => !ownerRowId || row.id !== ownerRowId
+        (row: any) => !ownerRowId || row.id !== ownerRowId
     );
     const rows = mergedOwnerRow ? [mergedOwnerRow, ...playerRows] : playerRows;
 
@@ -376,7 +362,7 @@ function buildInstanceRosterModel({
         ownerId,
         ownerIsGroup,
         rows,
-        friendCount: rows.filter((row) => row.isFriend).length,
+        friendCount: rows.filter((row: any) => row.isFriend).length,
         playerCount: rows.length
     };
 }
@@ -393,6 +379,5 @@ export type {
     InstancePresenceFactInput,
     InstancePresenceSource,
     InstanceRosterModelInput,
-    InstanceRosterModel,
     RosterUserRow
 };

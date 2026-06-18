@@ -13,12 +13,12 @@ type EntityQueryPolicy = Readonly<{
     refetchOnWindowFocus: boolean;
 }>;
 
-type EntityQueryParams = Record<string, unknown>;
+type EntityQueryParams = Record<string, any>;
 
-type FetchWithEntityPolicyOptions<TData = unknown> = {
+type FetchWithEntityPolicyOptions = {
     queryKey: QueryKey;
     policy: EntityQueryPolicy;
-    queryFn: () => Promise<TData> | TData;
+    queryFn: () => Promise<any> | any;
     force?: boolean;
 };
 
@@ -157,7 +157,7 @@ export const entityQueryPolicies = Object.freeze({
     })
 });
 
-function withEndpoint(queryKey: unknown[], endpoint: unknown = ''): QueryKey {
+function withEndpoint(queryKey: unknown[], endpoint: any = ''): QueryKey {
     const normalizedEndpoint = normalizeVrchatEndpointKey(endpoint);
     return normalizedEndpoint
         ? [...queryKey, { endpoint: normalizedEndpoint }]
@@ -171,45 +171,39 @@ function stableParams(params: unknown = {}): Record<string, unknown> {
 
     return Object.fromEntries(
         Object.entries(params)
-            .filter(([, value]) => value !== undefined)
-            .sort(([left], [right]) => left.localeCompare(right))
+            .filter(([, value]: any) => value !== undefined)
+            .sort(([left]: any, [right]: any) => left.localeCompare(right))
     );
 }
 
 export const queryKeys = Object.freeze({
-    user: (userId: unknown, endpoint: unknown = '') =>
+    user: (userId: any, endpoint: any = '') =>
         withEndpoint(['user', userId], endpoint),
-    mutualCounts: (userId: unknown, endpoint: unknown = '') =>
+    mutualCounts: (userId: any, endpoint: any = '') =>
         withEndpoint(['user', userId, 'mutualCounts'], endpoint),
-    userGroups: (userId: unknown, endpoint: unknown = '') =>
+    userGroups: (userId: any, endpoint: any = '') =>
         withEndpoint(['user', userId, 'groups'], endpoint),
-    instance: (worldId: unknown, instanceId: unknown, endpoint: unknown = '') =>
+    instance: (worldId: any, instanceId: any, endpoint: any = '') =>
         withEndpoint(['instance', worldId, instanceId], endpoint),
-    instanceShortName: (
-        worldId: unknown,
-        instanceId: unknown,
-        endpoint: unknown = ''
-    ) => withEndpoint(['instance', worldId, instanceId, 'shortName'], endpoint),
-    avatar: (avatarId: unknown, endpoint: unknown = '') =>
+    instanceShortName: (worldId: any, instanceId: any, endpoint: any = '') =>
+        withEndpoint(['instance', worldId, instanceId, 'shortName'], endpoint),
+    avatar: (avatarId: any, endpoint: any = '') =>
         withEndpoint(['avatar', avatarId], endpoint),
-    world: (worldId: unknown, endpoint: unknown = '') =>
+    world: (worldId: any, endpoint: any = '') =>
         withEndpoint(['world', worldId], endpoint),
-    group: (
-        groupId: unknown,
-        includeRoles: unknown = false,
-        endpoint: unknown = ''
-    ) => withEndpoint(['group', groupId, Boolean(includeRoles)], endpoint),
-    worldsByUser: (params: EntityQueryParams = {}, endpoint: unknown = '') =>
+    group: (groupId: any, includeRoles: any = false, endpoint: any = '') =>
+        withEndpoint(['group', groupId, Boolean(includeRoles)], endpoint),
+    worldsByUser: (params: EntityQueryParams = {}, endpoint: any = '') =>
         withEndpoint(
             ['worlds', 'user', params.userId, stableParams(params)],
             endpoint
         ),
-    groupMembers: (params: EntityQueryParams = {}, endpoint: unknown = '') =>
+    groupMembers: (params: EntityQueryParams = {}, endpoint: any = '') =>
         withEndpoint(
             ['group', params.groupId, 'members', stableParams(params)],
             endpoint
         ),
-    groupGallery: (params: EntityQueryParams = {}, endpoint: unknown = '') =>
+    groupGallery: (params: EntityQueryParams = {}, endpoint: any = '') =>
         withEndpoint(
             [
                 'group',
@@ -221,47 +215,44 @@ export const queryKeys = Object.freeze({
             endpoint
         ),
     groupCalendarList: (
-        kind: unknown = 'all',
+        kind: any = 'all',
         params: EntityQueryParams = {},
-        endpoint: unknown = ''
+        endpoint: any = ''
     ) => withEndpoint(['calendar', kind, stableParams(params)], endpoint),
     groupCalendarEvent: (
-        { groupId = '', eventId = '' }: EntityQueryParams = {},
-        endpoint: unknown = ''
+        { groupId = '', eventId = '' }: any = {},
+        endpoint: any = ''
     ) => withEndpoint(['calendar', groupId, eventId], endpoint),
-    avatarGallery: (avatarId: unknown, endpoint: unknown = '') =>
+    avatarGallery: (avatarId: any, endpoint: any = '') =>
         withEndpoint(['avatar', avatarId, 'gallery'], endpoint),
-    favoriteLimits: (endpoint: unknown = '') =>
+    favoriteLimits: (endpoint: any = '') =>
         withEndpoint(['favorite', 'limits'], endpoint),
     userInventoryItem: (
-        { inventoryId = '', userId = '' }: EntityQueryParams = {},
-        endpoint: unknown = ''
+        { inventoryId = '', userId = '' }: any = {},
+        endpoint: any = ''
     ) => withEndpoint(['inventory', 'item', userId, inventoryId], endpoint),
     fileAnalysis: (
-        { fileId = '', version = 0, variant = '' }: EntityQueryParams = {},
-        endpoint: unknown = ''
+        { fileId = '', version = 0, variant = '' }: any = {},
+        endpoint: any = ''
     ) =>
         withEndpoint(
             ['analysis', fileId, Number(version), String(variant || '')],
             endpoint
         ),
-    file: (fileId: unknown, endpoint: unknown = '') =>
+    file: (fileId: any, endpoint: any = '') =>
         withEndpoint(['file', fileId], endpoint),
-    avatarStyles: (endpoint: unknown = '') =>
+    avatarStyles: (endpoint: any = '') =>
         withEndpoint(['avatar', 'styles'], endpoint),
-    representedGroup: (userId: unknown, endpoint: unknown = '') =>
+    representedGroup: (userId: any, endpoint: any = '') =>
         withEndpoint(['user', userId, 'representedGroup'], endpoint),
-    userDialogTabCounts: (
-        params: EntityQueryParams = {},
-        endpoint: unknown = ''
-    ) =>
+    userDialogTabCounts: (params: EntityQueryParams = {}, endpoint: any = '') =>
         withEndpoint(
             ['user', params.userId, 'dialogTabCounts', stableParams(params)],
             endpoint
         ),
     worldPersistData: (
-        { userId = '', worldId = '' }: EntityQueryParams = {},
-        endpoint: unknown = ''
+        { userId = '', worldId = '' }: any = {},
+        endpoint: any = ''
     ) => withEndpoint(['world', worldId, 'persistData', userId], endpoint)
 });
 
@@ -278,12 +269,12 @@ export function toQueryOptions(
     };
 }
 
-export async function fetchWithEntityPolicy<TData = unknown>({
+export async function fetchWithEntityPolicy<TData = any>({
     queryKey,
     policy,
     queryFn,
     force = false
-}: FetchWithEntityPolicyOptions<TData>): Promise<{
+}: FetchWithEntityPolicyOptions): Promise<{
     data: TData;
     cache: boolean;
 }> {
@@ -307,8 +298,8 @@ export async function fetchWithEntityPolicy<TData = unknown>({
     };
 }
 
-export async function fetchCachedData<TData = unknown>(
-    options: FetchWithEntityPolicyOptions<TData>
+export async function fetchCachedData<TData = any>(
+    options: FetchWithEntityPolicyOptions
 ): Promise<TData> {
     const { data } = await fetchWithEntityPolicy(options);
     return data;

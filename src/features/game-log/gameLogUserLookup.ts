@@ -3,11 +3,7 @@ import { toast } from 'sonner';
 import { openUserDialog } from '@/services/dialogService';
 import { resolveUserByDisplayName } from '@/services/userIdentityService';
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return Boolean(value && typeof value === 'object');
-}
-
-export function normalizeId(value: unknown) {
+export function normalizeId(value: any) {
     return typeof value === 'string'
         ? value.trim()
         : String(value ?? '').trim();
@@ -32,15 +28,16 @@ export async function openGameLogUser(row: any, t: any) {
             openUserDialog({
                 userId: resolved.userId,
                 title: resolved.title || displayName,
-                seedData: isRecord(resolved.seedData) ? resolved.seedData : null
+                seedData: resolved.seedData || null
             });
             return;
         }
 
         toast.info(
-            t('view.game_log.dynamic.no_user_id_was_found_for_value', {
-                value: displayName
-            })
+            t(
+                'view.game_log.dynamic.no_user_id_was_found_for_value',
+                { value: displayName }
+            )
         );
     } catch (error) {
         toast.error(

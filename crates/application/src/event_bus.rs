@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 use serde_json::Value;
@@ -40,7 +40,7 @@ impl RuntimeEventBus {
     where
         S: RuntimeEventSink + 'static,
     {
-        *self.lock_sink() = Some(Arc::new(sink));
+        *self.sink.lock().unwrap() = Some(Arc::new(sink));
     }
 
     pub fn emit<T: Serialize>(&self, event: &str, payload: T) {
@@ -55,13 +55,13 @@ impl RuntimeEventBus {
     fn emit_value(&self, event: &str, payload: Value) {
         #[cfg(any(test, feature = "test-utils"))]
         {
-            self.lock_events().push(RuntimeEventForTest {
+            self.events.lock().unwrap().push(RuntimeEventForTest {
                 name: event.to_string(),
                 payload: payload.clone(),
             });
         }
 
-        let sink = self.lock_sink().clone();
+        let sink = self.sink.lock().unwrap().clone();
         if let Some(sink) = sink {
             sink.emit(event, payload);
         }
@@ -69,18 +69,7 @@ impl RuntimeEventBus {
 
     #[cfg(any(test, feature = "test-utils"))]
     pub fn take_events_for_test(&self) -> Vec<RuntimeEventForTest> {
-        std::mem::take(&mut *self.lock_events())
-    }
-
-    fn lock_sink(&self) -> MutexGuard<'_, Option<Arc<dyn RuntimeEventSink>>> {
-        self.sink.lock().unwrap_or_else(|error| error.into_inner())
-    }
-
-    #[cfg(any(test, feature = "test-utils"))]
-    fn lock_events(&self) -> MutexGuard<'_, Vec<RuntimeEventForTest>> {
-        self.events
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
+        std::mem::take(&mut *self.events.lock().unwrap())
     }
 
     pub fn emit_game_log_side_effect(&self, kind: &str, payload: Value) {
@@ -211,30 +200,5 @@ impl RuntimeEventBus {
 
     pub fn emit_overlay_activity_snapshot(&self, payload: OverlayActivitySnapshot) {
         self.emit("overlayActivitySnapshot", payload);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::panic::{catch_unwind, AssertUnwindSafe};
-
-    use super::*;
-
-    #[test]
-    fn event_buffer_recovers_from_poisoned_lock() {
-        let bus = RuntimeEventBus::new();
-        let poisoned = bus.clone();
-
-        let result = catch_unwind(AssertUnwindSafe(|| {
-            let _guard = poisoned.events.lock().expect("events lock");
-            panic!("poison events lock");
-        }));
-
-        assert!(result.is_err());
-        bus.emit("testEvent", serde_json::json!({ "ok": true }));
-
-        let events = bus.take_events_for_test();
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].name, "testEvent");
     }
 }

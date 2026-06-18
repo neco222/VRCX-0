@@ -16,109 +16,22 @@ const DEFAULT_AUTO_INVITE_SENDER_COOLDOWN_MS = 10 * 60 * 1000;
 const senderCooldowns = new Map<string, number>();
 const pendingSenderInvites = new Set<string>();
 
-type UnknownRecord = Record<string, unknown>;
-type AutoAcceptMode =
-    | typeof AUTO_ACCEPT_OFF
-    | typeof AUTO_ACCEPT_ALL_FAVORITES
-    | typeof AUTO_ACCEPT_SELECTED_FAVORITES;
-type LocalFavoriteGroups = Record<string, string[]>;
-
-export type InviteAutomationNotification = {
-    id?: string;
-    type?: string;
-    senderUserId?: string;
-    version?: number;
-};
-
-type RuntimeGameState = {
-    isGameRunning?: boolean;
-    currentLocation?: unknown;
-};
-
-type CurrentInviteScope = {
-    endpoint: string;
-    currentUserId: string;
-};
-
-type SenderAllowlistInput = {
-    senderUserId: string;
-    mode: AutoAcceptMode;
-    selectedGroups: string[];
-};
-
-type CurrentInviteValidationInput = CurrentInviteScope & {
-    expectedLocation?: string;
-};
-
-type CurrentInviteValidation =
-    | {
-          valid: true;
-          currentInviteLocation: string;
-          parsedLocation: ReturnType<typeof parseLocation>;
-      }
-    | {
-          valid: false;
-          reason: string;
-      };
-
-type SendInviteForRequestInput = CurrentInviteScope & {
-    notification: InviteAutomationNotification;
-    currentInviteLocation: string;
-    parsedLocation: ReturnType<typeof parseLocation>;
-};
-
-type CleanupInviteNotificationInput = CurrentInviteScope & {
-    notification: InviteAutomationNotification;
-    senderUserId: string;
-};
-
-type ExpireNotificationInput = {
-    userId: string;
-    notification: InviteAutomationNotification;
-};
-
-type SendInviteResult =
-    | {
-          sent: true;
-      }
-    | {
-          sent: false;
-          reason: string;
-      };
-
-export type InviteAutomationResult = {
-    handled: boolean;
-    reason: string;
-    senderUserId?: string;
-    notificationId?: string;
-};
-
-function isRecord(value: unknown): value is UnknownRecord {
-    return Boolean(value && typeof value === 'object' && !Array.isArray(value));
-}
-
-function normalizeText(value: unknown): string {
-    return typeof value === 'string'
-        ? value.trim()
-        : String(value ?? '').trim();
-}
-
-function safeJsonStringArray(value: unknown, fallback: string[]): string[] {
+function safeJsonParse(value: any, fallback: any) {
     if (Array.isArray(value)) {
-        return value as string[];
+        return value;
     }
     if (typeof value !== 'string' || !value.trim()) {
         return fallback;
     }
     try {
-        const parsed: unknown = JSON.parse(value);
-        return Array.isArray(parsed) ? (parsed as string[]) : fallback;
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : fallback;
     } catch {
         return fallback;
     }
 }
 
-function normalizeAutoAcceptMode(value: unknown): AutoAcceptMode {
+function normalizeAutoAcceptMode(value: any) {
     if (
         value === true ||
         value === 'true' ||
@@ -132,37 +45,42 @@ function normalizeAutoAcceptMode(value: unknown): AutoAcceptMode {
     return AUTO_ACCEPT_OFF;
 }
 
-function getCachedInstanceLocation(instance: unknown) {
-    const record = isRecord(instance) ? instance : {};
+function getCachedInstanceLocation(instance: any) {
     return String(
-        record.location ||
-            record.$location ||
-            record.instanceLocation ||
-            record.instanceId ||
+        instance?.location ||
+            instance?.$location ||
+            instance?.instanceLocation ||
+            instance?.instanceId ||
             ''
     ).trim();
 }
 
-function buildCachedInstanceMap(instances: unknown) {
-    const map = new Map<string, unknown>();
+function buildCachedInstanceMap(instances: any) {
+    const map = new Map();
     for (const instance of Array.isArray(instances) ? instances : []) {
         const location = getCachedInstanceLocation(instance);
         if (location) {
-            const record = instance as UnknownRecord;
-            map.set(location, record.instance || instance);
+            map.set(location, instance?.instance || instance);
         }
     }
     return map;
 }
 
-function resolveCurrentInviteLocation(gameState?: RuntimeGameState) {
+function resolveCurrentInviteLocation(gameState: any) {
     const currentLocation = String(gameState?.currentLocation || '').trim();
     return currentLocation && currentLocation !== 'traveling'
         ? currentLocation
         : '';
 }
 
-function isCurrentInviteScope({ endpoint, currentUserId }: CurrentInviteScope) {
+function getVerifiedCurrentLocation(gameState: any) {
+    const currentLocation = String(gameState?.currentLocation || '').trim();
+    return currentLocation && currentLocation !== 'traveling'
+        ? currentLocation
+        : '';
+}
+
+function isCurrentInviteScope({ endpoint, currentUserId }: any) {
     const auth = useRuntimeStore.getState().auth;
     const authCurrentUserId =
         auth.currentUserId || auth.currentUserSnapshot?.id || '';
@@ -172,11 +90,7 @@ function isCurrentInviteScope({ endpoint, currentUserId }: CurrentInviteScope) {
     );
 }
 
-function isUserInLocalGroups(
-    userId: string,
-    localFriendFavorites: LocalFavoriteGroups,
-    groupNames: string[] = []
-) {
+function isUserInLocalGroups(userId: any, localFriendFavorites: any, groupNames: any[] = []) {
     const localGroups = groupNames?.length
         ? groupNames
         : Object.keys(localFriendFavorites || {});
@@ -189,11 +103,7 @@ function isUserInLocalGroups(
     return false;
 }
 
-function isSenderAllowed({
-    senderUserId,
-    mode,
-    selectedGroups
-}: SenderAllowlistInput) {
+function isSenderAllowed({ senderUserId, mode, selectedGroups }: any) {
     if (!senderUserId || mode === AUTO_ACCEPT_OFF) {
         return false;
     }
@@ -234,15 +144,11 @@ function isSenderAllowed({
     return false;
 }
 
-function buildSenderScopeKey({
-    endpoint,
-    currentUserId,
-    senderUserId
-}: CurrentInviteScope & { senderUserId: string }) {
+function buildSenderScopeKey({ endpoint, currentUserId, senderUserId }: any) {
     return [endpoint || '', currentUserId || '', senderUserId || ''].join(':');
 }
 
-function isSenderCoolingDown(senderScopeKey: string, nowMs: number) {
+function isSenderCoolingDown(senderScopeKey: any, nowMs: any) {
     const lastSentAt = senderCooldowns.get(senderScopeKey) || 0;
     return nowMs - lastSentAt < DEFAULT_AUTO_INVITE_SENDER_COOLDOWN_MS;
 }
@@ -251,7 +157,7 @@ function validateCurrentInviteLocation({
     endpoint,
     currentUserId,
     expectedLocation = ''
-}: CurrentInviteValidationInput): CurrentInviteValidation {
+}: any) {
     if (!isCurrentInviteScope({ endpoint, currentUserId })) {
         return { valid: false, reason: 'auth-context-changed' };
     }
@@ -282,7 +188,7 @@ function validateCurrentInviteLocation({
     const cachedInstances = buildCachedInstanceMap(groupInstances);
     const canInviteFromCurrentLocation = checkCanInvite(currentInviteLocation, {
         currentUserId,
-        lastLocationStr: resolveCurrentInviteLocation(runtimeState.gameState),
+        lastLocationStr: getVerifiedCurrentLocation(runtimeState.gameState),
         cachedInstances
     });
     if (!canInviteFromCurrentLocation) {
@@ -301,10 +207,7 @@ function validateCurrentInviteLocation({
     };
 }
 
-async function expireNotificationLocally({
-    userId,
-    notification
-}: ExpireNotificationInput) {
+async function expireNotificationLocally({ userId, notification }: any) {
     if (!userId || !notification?.id) {
         return;
     }
@@ -319,7 +222,7 @@ async function cleanupHandledInviteRequestNotification({
     endpoint,
     notification,
     senderUserId
-}: CleanupInviteNotificationInput) {
+}: any) {
     let cleanupFailed = false;
 
     try {
@@ -339,10 +242,7 @@ async function cleanupHandledInviteRequestNotification({
     }
 
     try {
-        await expireNotificationLocally({
-            userId: currentUserId,
-            notification
-        });
+        await expireNotificationLocally({ userId: currentUserId, notification });
     } catch (error) {
         cleanupFailed = true;
         console.warn(
@@ -360,7 +260,7 @@ async function sendInviteForRequest({
     currentUserId,
     currentInviteLocation,
     parsedLocation
-}: SendInviteForRequestInput): Promise<SendInviteResult> {
+}: any) {
     const worldResponse = await vrchatSearchRepository.getWorlds(
         {},
         parsedLocation.worldId,
@@ -371,33 +271,30 @@ async function sendInviteForRequest({
         currentUserId,
         expectedLocation: currentInviteLocation
     });
-    if (currentLocationValidation.valid === false) {
+    if (!currentLocationValidation.valid) {
         return { sent: false, reason: currentLocationValidation.reason };
     }
-    const worldJson = isRecord(worldResponse.json) ? worldResponse.json : {};
+    const worldJson = worldResponse.json as Record<string, any> | undefined;
     await notificationPersistenceRepository.sendInvite({
-        receiverUserId: normalizeText(notification.senderUserId),
+        receiverUserId: notification.senderUserId,
         endpoint,
         params: {
             instanceId: currentInviteLocation,
             worldId: parsedLocation.worldId,
-            worldName: normalizeText(worldJson.name) || parsedLocation.worldId,
+            worldName: worldJson?.name || parsedLocation.worldId,
             rsvp: true
         }
     });
     return { sent: true };
 }
 
-export async function handleInviteAutomationNotification(
-    notification: InviteAutomationNotification
-): Promise<InviteAutomationResult> {
+export async function handleInviteAutomationNotification(notification: any) {
     if (notification?.type !== 'requestInvite') {
         return { handled: false, reason: 'not-request-invite' };
     }
 
-    const senderUserId = normalizeText(notification.senderUserId);
-    const notificationId = normalizeText(notification.id);
-    if (!notificationId || !senderUserId) {
+    const senderUserId = String(notification.senderUserId || '').trim();
+    if (!notification.id || !senderUserId) {
         return { handled: false, reason: 'missing-notification-or-sender' };
     }
 
@@ -411,7 +308,7 @@ export async function handleInviteAutomationNotification(
         return { handled: false, reason: 'disabled' };
     }
 
-    const selectedGroups = safeJsonStringArray(
+    const selectedGroups = safeJsonParse(
         await configRepository.getString('autoAcceptInviteGroups', '[]'),
         []
     );
@@ -425,18 +322,14 @@ export async function handleInviteAutomationNotification(
         return { handled: false, reason: 'game-not-running' };
     }
 
-    const currentUserId = normalizeText(
-        auth.currentUserId || auth.currentUserSnapshot?.id
-    );
-    const endpoint = normalizeText(auth.currentUserEndpoint);
+    const currentUserId =
+        auth.currentUserId || auth.currentUserSnapshot?.id || '';
+    const endpoint = auth.currentUserEndpoint || '';
     const currentInviteLocation = resolveCurrentInviteLocation(
         runtimeState.gameState
     );
     if (!currentUserId || !currentInviteLocation) {
-        return {
-            handled: false,
-            reason: 'missing-current-session-or-location'
-        };
+        return { handled: false, reason: 'missing-current-session-or-location' };
     }
 
     const nowMs = Date.now();
@@ -457,7 +350,7 @@ export async function handleInviteAutomationNotification(
         currentUserId,
         expectedLocation: currentInviteLocation
     });
-    if (currentLocationValidation.valid === false) {
+    if (!currentLocationValidation.valid) {
         return {
             handled: false,
             reason: currentLocationValidation.reason
@@ -476,7 +369,7 @@ export async function handleInviteAutomationNotification(
             currentInviteLocation,
             parsedLocation: currentLocationValidation.parsedLocation
         });
-        if (sendResult.sent === false) {
+        if (!sendResult.sent) {
             return { handled: false, reason: sendResult.reason };
         }
         senderCooldowns.set(senderScopeKey, nowMs);
@@ -485,7 +378,7 @@ export async function handleInviteAutomationNotification(
                 handled: true,
                 reason: 'invite-sent-auth-context-changed',
                 senderUserId,
-                notificationId
+                notificationId: notification.id
             };
         }
 
@@ -493,13 +386,13 @@ export async function handleInviteAutomationNotification(
             currentUserId,
             endpoint,
             notification,
-            senderUserId
+            senderUserId,
         });
         return {
             handled: true,
             reason: cleanupReason,
             senderUserId,
-            notificationId
+            notificationId: notification.id
         };
     } finally {
         pendingSenderInvites.delete(senderScopeKey);
