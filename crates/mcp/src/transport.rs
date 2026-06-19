@@ -148,8 +148,6 @@ fn header_to_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
 
 pub(crate) fn bind_loopback_listener(port: u16) -> Result<TcpListener, std::io::Error> {
     let socket = Socket::new(Domain::IPV4, SocketType::STREAM, Some(Protocol::TCP))?;
-    #[cfg(windows)]
-    socket.set_exclusive_address_use(true)?;
     #[cfg(not(windows))]
     socket.set_reuse_address(true)?;
     socket.bind(&SocketAddr::V4(SocketAddrV4::new([127, 0, 0, 1].into(), port)).into())?;
