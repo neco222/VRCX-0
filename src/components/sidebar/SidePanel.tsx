@@ -555,8 +555,8 @@ export const SidePanel = forwardRef(function SidePanel(
         const cooldownRemainingMs = friendRefreshCooldownUntil - Date.now();
         if (cooldownRemainingMs > 0) {
             toast.info(
-                t('side_panel.refresh_available_in_minutes', {
-                    count: Math.max(1, Math.ceil(cooldownRemainingMs / 60000))
+                t('side_panel.refresh_available_in_seconds', {
+                    count: Math.max(1, Math.ceil(cooldownRemainingMs / 1000))
                 })
             );
             return;

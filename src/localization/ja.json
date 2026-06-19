@@ -338,7 +338,7 @@
         "search_result_offline": "アクティブ",
         "search_result_more": "さらに検索:",
         "refresh_tooltip": "フレンドを更新",
-        "refresh_available_in_minutes": "同期したばかりです。あと {count} 分後にもう一度お試しください",
+        "refresh_available_in_seconds": "同期したばかりです。あと {count} 秒後にもう一度お試しください",
         "groups": "グループ",
         "friends": "フレンド",
         "me": "自分",

@@ -338,7 +338,7 @@
         "search_result_offline": "在線",
         "search_result_more": "更多搜尋：",
         "refresh_tooltip": "重新整理好友",
-        "refresh_available_in_minutes": "已同步，請 {count} 分鐘後再試",
+        "refresh_available_in_seconds": "已同步，請 {count} 秒後再試",
         "groups": "群組",
         "friends": "好友",
         "me": "我",

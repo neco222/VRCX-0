@@ -338,7 +338,7 @@
         "search_result_offline": "离线",
         "search_result_more": "更多：",
         "refresh_tooltip": "刷新好友列表",
-        "refresh_available_in_minutes": "已同步，请 {count} 分钟后再试",
+        "refresh_available_in_seconds": "已同步，请 {count} 秒后再试",
         "groups": "群组房间",
         "friends": "好友",
         "me": "我",

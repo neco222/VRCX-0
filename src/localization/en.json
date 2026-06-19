@@ -338,7 +338,7 @@
         "search_result_offline": "Active",
         "search_result_more": "Search More:",
         "refresh_tooltip": "Refresh friends",
-        "refresh_available_in_minutes": "Recently synced. Please try again in {count} min.",
+        "refresh_available_in_seconds": "Recently synced. Please try again in {count} sec.",
         "groups": "Groups",
         "friends": "Friends",
         "me": "ME",

@@ -425,7 +425,7 @@
         "empty": {
             "no_authenticated_user_snapshot_is_available": "친구를 새로 고치기 전에 로그인하세요"
         },
-        "refresh_available_in_minutes": "최근에 동기화되었습니다. {count}분 후에 다시 시도해 주세요."
+        "refresh_available_in_seconds": "최근에 동기화되었습니다. {count}초 후에 다시 시도해 주세요."
     },
     "view": {
         "login": {
