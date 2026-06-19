@@ -442,3 +442,67 @@
         }
     }
 }
+
+/* no real reason, I wanted it so I added it. XD */
+@property --owner-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+}
+
+:root {
+    --owner-gold: #f5c453;
+    --owner-violet: #8b6cff;
+    --owner-cyan: #3fe1c8;
+}
+
+.owner-dialog {
+    border: 2px solid transparent;
+    background:
+        linear-gradient(var(--popover), var(--popover)) padding-box,
+        conic-gradient(
+                from var(--owner-angle),
+                var(--owner-gold),
+                var(--owner-violet),
+                var(--owner-cyan),
+                var(--owner-gold)
+            )
+            border-box;
+    animation: owner-spin 10s linear infinite;
+}
+
+@keyframes owner-spin {
+    to {
+        --owner-angle: 360deg;
+    }
+}
+
+.owner-badge {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex: none;
+    border-radius: 50%;
+    color: var(--owner-gold);
+    background: radial-gradient(
+        circle at 50% 35%,
+        rgba(245, 196, 83, 0.22),
+        rgba(245, 196, 83, 0.05)
+    );
+    box-shadow: 0 0 10px -3px rgba(245, 196, 83, 0.6);
+    overflow: hidden;
+}
+
+.owner-badge svg {
+    width: 12px;
+    height: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .owner-dialog {
+        animation: none;
+    }
+}

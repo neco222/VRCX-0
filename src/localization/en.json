@@ -2907,7 +2907,8 @@
                 "hidden": "Hidden",
                 "visible": "Visible",
                 "visibility": "Visibility",
-                "showcased": "Showcased"
+                "showcased": "Showcased",
+                "developer": "VRCX-0 Developer"
             },
             "actions": {
                 "favorites_tooltip": "Favorites",

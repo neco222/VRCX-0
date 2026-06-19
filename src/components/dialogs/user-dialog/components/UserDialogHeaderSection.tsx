@@ -2,6 +2,7 @@ import {
     ClockIcon,
     CopyIcon,
     ExternalLinkIcon,
+    GemIcon,
     PencilIcon,
     UsersIcon
 } from 'lucide-react';
@@ -11,9 +12,11 @@ import { useTranslation } from 'react-i18next';
 import { userFacingErrorMessage } from '@/lib/errorDisplay';
 import { cn } from '@/lib/utils';
 import { userImage } from '@/services/entityMediaService';
+import { OWNER_USER_ID } from '@/shared/constants/user';
 import { Button } from '@/ui/shadcn/button';
 import { CardTitle } from '@/ui/shadcn/card';
 import { Separator } from '@/ui/shadcn/separator';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/shadcn/tooltip';
 
 import { EntityOverviewCard } from '../../EntityDialogScaffold';
 import { formatStatsDuration } from '../userDialogRows';
@@ -339,6 +342,7 @@ export function UserDialogHeaderSection(props: any) {
         ? formatStatsDuration(estimatedOnlineDurationMs)
         : '';
     const hasProfileBadges = hasRenderableUserProfileBadges(profile);
+    const isOwner = profile.id === OWNER_USER_ID;
 
     return (
         <EntityOverviewCard
@@ -418,6 +422,27 @@ export function UserDialogHeaderSection(props: any) {
                                 {profileTitle}
                             </span>
                         )}
+                        {isOwner ? (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span
+                                        className="owner-badge"
+                                        role="img"
+                                        aria-label={t(
+                                            'dialog.user.badges.developer',
+                                            { defaultValue: 'VRCX-0 Developer' }
+                                        )}
+                                    >
+                                        <GemIcon aria-hidden="true" />
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    {t('dialog.user.badges.developer', {
+                                        defaultValue: 'VRCX-0 Developer'
+                                    })}
+                                </TooltipContent>
+                            </Tooltip>
+                        ) : null}
                         {pronounsText ? (
                             <span
                                 className="text-muted-foreground shrink-0 font-mono text-xs font-normal"

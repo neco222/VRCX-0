@@ -5,6 +5,7 @@ import { GroupDialogContent } from '@/components/dialogs/GroupDialogContent';
 import { UserDialogContent } from '@/components/dialogs/UserDialogContent';
 import { WorldDialogContent } from '@/components/dialogs/WorldDialogContent';
 import { cn } from '@/lib/utils';
+import { OWNER_USER_ID } from '@/shared/constants/user';
 import { useDialogStore } from '@/state/dialogStore';
 import {
     Breadcrumb,
@@ -26,11 +27,15 @@ export function DialogHost() {
     const activeDialog = useDialogStore((state: any) => state.activeDialog);
     const breadcrumbs = useDialogStore((state: any) => state.breadcrumbs);
     const closeDialog = useDialogStore((state: any) => state.closeDialog);
-    const popToBreadcrumb = useDialogStore((state: any) => state.popToBreadcrumb);
+    const popToBreadcrumb = useDialogStore(
+        (state: any) => state.popToBreadcrumb
+    );
 
     const dialogKind = activeDialog?.kind || '';
     const dialogPayload = activeDialog?.payload || null;
     const isUserDialog = dialogKind === 'user';
+    const isOwnerDialog =
+        isUserDialog && activeDialog?.entityId === OWNER_USER_ID;
     const isWorldDialog = dialogKind === 'world';
     const isAvatarDialog = dialogKind === 'avatar';
     const isGroupDialog = dialogKind === 'group';
@@ -64,7 +69,8 @@ export function DialogHost() {
                     'flex max-h-[90vh] w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] flex-col overflow-hidden',
                     isUserDialog || isWorldDialog || isGroupDialog
                         ? 'sm:w-[min(96vw,72rem)] sm:!max-w-[min(96vw,72rem)]'
-                        : 'sm:w-[65rem] sm:!max-w-[65rem]'
+                        : 'sm:w-[65rem] sm:!max-w-[65rem]',
+                    isOwnerDialog && 'owner-dialog'
                 )}
             >
                 <DialogHeader className="sr-only">
