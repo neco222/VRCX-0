@@ -15,6 +15,7 @@ import { Switch } from '@/ui/shadcn/switch';
 
 import { Field, SettingsGroup } from '../SettingsField';
 import { SettingsTabContent } from '../SettingsViewParts';
+import { WebhookSettingsGroup } from './WebhookSettingsGroup';
 
 type McpCommandOptions = {
     successMessage?: string;
@@ -23,9 +24,14 @@ type McpCommandOptions = {
 
 export function SettingsIntegrationsTab({ integrations }: any) {
     const {
+        prefs,
         discordPrefs,
         integrationPrefs,
         avatarProviderConfig,
+        setPrefs,
+        setWebhookNotificationsDialogOpen,
+        saveStringPreference,
+        saveBoolPreference,
         onDiscordActiveChange,
         onDiscordWorldIntegrationChange,
         onDiscordInstanceChange,
@@ -173,6 +179,55 @@ export function SettingsIntegrationsTab({ integrations }: any) {
         }
     }
 
+    function saveWebhookEnabled(checked: boolean) {
+        saveBoolPreference('webhookEnabled', 'webhookEnabled', checked);
+    }
+
+    function setWebhookUrlDraft(value: string) {
+        setPrefs((current: any) => ({
+            ...current,
+            webhookUrl: String(value ?? '')
+        }));
+    }
+
+    function saveWebhookUrl(value: string) {
+        saveStringPreference('webhookUrl', 'webhookUrl', value);
+    }
+
+    function saveWebhookFormat(value: string) {
+        saveStringPreference('webhookFormat', 'webhookFormat', value);
+    }
+
+    function saveWebhookFields(value: string) {
+        saveStringPreference('webhookFields', 'webhookFields', value);
+    }
+
+    function openWebhookNotificationFilters() {
+        setWebhookNotificationsDialogOpen(true);
+    }
+
+    function sendTestWebhook() {
+        commands
+            .appWebhookSendTest(
+                String(prefs.webhookUrl || ''),
+                String(prefs.webhookFormat || 'generic'),
+                String(prefs.webhookFields || '')
+            )
+            .then((status) => {
+                toast.success(
+                    t(
+                        'view.settings.notifications.notifications.webhook.test_sent',
+                        { status }
+                    )
+                );
+            })
+            .catch((error: unknown) => {
+                toast.error(
+                    error instanceof Error ? error.message : String(error)
+                );
+            });
+    }
+
     return (
         <SettingsTabContent value="integrations">
             <SettingsGroup
@@ -300,6 +355,19 @@ export function SettingsIntegrationsTab({ integrations }: any) {
                     />
                 </Field>
             </SettingsGroup>
+
+            <WebhookSettingsGroup
+                prefs={prefs}
+                onWebhookEnabledChange={saveWebhookEnabled}
+                onWebhookUrlDraftChange={setWebhookUrlDraft}
+                onWebhookUrlBlur={saveWebhookUrl}
+                onWebhookFormatChange={saveWebhookFormat}
+                onWebhookFieldsChange={saveWebhookFields}
+                onOpenWebhookNotificationFiltersDialog={
+                    openWebhookNotificationFilters
+                }
+                onTestWebhook={sendTestWebhook}
+            />
 
             <SettingsGroup
                 title={t('view.settings.integrations.mcp_server.header')}

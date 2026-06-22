@@ -1,7 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
 
-import { commands } from '@/platform/tauri/bindings';
 import { POST_UPDATE_CHANGELOG_TOAST_CONFIG_KEY } from '@/services/changelogService';
 import { showDesktopNotification } from '@/services/shellIntegrationService';
 
@@ -22,7 +20,6 @@ export function SettingsNotificationsSection({ notifications }: any) {
         setPrefs,
         setFeedFilterDialogOpen,
         setDesktopNotificationsDialogOpen,
-        setWebhookNotificationsDialogOpen,
         saveStringPreference,
         saveBoolPreference,
         saveNotificationTtsMode,
@@ -83,9 +80,6 @@ export function SettingsNotificationsSection({ notifications }: any) {
             onOpenDesktopNotificationFiltersDialog={() =>
                 setDesktopNotificationsDialogOpen(true)
             }
-            onOpenWebhookNotificationFiltersDialog={() =>
-                setWebhookNotificationsDialogOpen(true)
-            }
             onTestDesktopNotification={() => {
                 showDesktopNotification(
                     'VRCX-0',
@@ -110,47 +104,6 @@ export function SettingsNotificationsSection({ notifications }: any) {
                     'desktopNotificationSound',
                     checked
                 );
-            }}
-            onWebhookEnabledChange={(checked: any) => {
-                saveBoolPreference('webhookEnabled', 'webhookEnabled', checked);
-            }}
-            onWebhookUrlDraftChange={(value: any) => {
-                setPrefs((current: any) => ({
-                    ...current,
-                    webhookUrl: String(value ?? '')
-                }));
-            }}
-            onWebhookUrlBlur={(value: any) => {
-                saveStringPreference('webhookUrl', 'webhookUrl', value);
-            }}
-            onWebhookFormatChange={(value: any) => {
-                saveStringPreference('webhookFormat', 'webhookFormat', value);
-            }}
-            onWebhookFieldsChange={(value: any) => {
-                saveStringPreference('webhookFields', 'webhookFields', value);
-            }}
-            onTestWebhook={() => {
-                commands
-                    .appWebhookSendTest(
-                        String(prefs.webhookUrl || ''),
-                        String(prefs.webhookFormat || 'generic'),
-                        String(prefs.webhookFields || '')
-                    )
-                    .then((status) => {
-                        toast.success(
-                            t(
-                                'view.settings.notifications.notifications.webhook.test_sent',
-                                { status }
-                            )
-                        );
-                    })
-                    .catch((error: unknown) => {
-                        toast.error(
-                            error instanceof Error
-                                ? error.message
-                                : String(error)
-                        );
-                    });
             }}
             onNotificationTtsModeChange={(value: any) => {
                 saveNotificationTtsMode(value);

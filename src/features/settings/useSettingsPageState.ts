@@ -576,10 +576,15 @@ export function useSettingsPageState() {
             }
         },
         integrations: {
+            prefs,
             discordPrefs,
             integrationPrefs,
             avatarProviderConfig,
             saveDiscordBoolPreference,
+            setPrefs,
+            setWebhookNotificationsDialogOpen,
+            saveStringPreference,
+            saveBoolPreference,
             commit,
             setTranslationApiEnabledPreference,
             setIntegrationValue,
@@ -693,7 +698,6 @@ export function useSettingsPageState() {
             setPrefs,
             setFeedFilterDialogOpen,
             setDesktopNotificationsDialogOpen,
-            setWebhookNotificationsDialogOpen,
             saveStringPreference,
             saveBoolPreference,
             saveNotificationTtsMode,
