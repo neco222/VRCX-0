@@ -72,6 +72,10 @@
         },
         "error": {
             "failed_open_instance_in_vrchat_falling_back_to_self_invite": "VRChat でインスタンスを開けなかったため、自分への招待に切り替えます"
+        },
+        "affinity": {
+            "friend": "フレンド",
+            "favorite": "お気に入り"
         }
     },
     "overlay": {
@@ -650,8 +654,6 @@
                 "joined": "参加済み",
                 "left": "退出",
                 "videos": "動画",
-                "friend": "フレンド",
-                "favorite": "お気に入り",
                 "unknown_user": "不明なユーザー",
                 "unknown_video": "不明な動画",
                 "played_by": "{name} が再生",

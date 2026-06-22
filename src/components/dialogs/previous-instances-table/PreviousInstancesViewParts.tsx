@@ -1,7 +1,7 @@
-import { HeartIcon, StarIcon } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { AffinityBadge } from '@/components/affinity/AffinityBadge';
 import { InstanceActionBar } from '@/components/instances/InstanceActionBar';
 import {
     PageBackButton,
@@ -202,27 +202,10 @@ function PreviousInstancePlayerNameButton({
             }}
         >
             <span className="truncate">{displayName || userId}</span>
-            {knownUser?.isFriend ? (
-                <span
-                    className={[
-                        'inline-flex h-[18px] shrink-0 items-center gap-1 rounded-md px-1.5 text-[0.7rem] font-medium',
-                        isFavorite
-                            ? 'bg-amber-500/15 text-amber-300'
-                            : 'bg-rose-500/15 text-rose-300'
-                    ].join(' ')}
-                >
-                    {isFavorite ? (
-                        <StarIcon className="size-3 shrink-0 fill-current" />
-                    ) : (
-                        <HeartIcon className="size-3 shrink-0 fill-current" />
-                    )}
-                    {t(
-                        isFavorite
-                            ? 'view.game_log.sessions.favorite'
-                            : 'view.game_log.sessions.friend'
-                    )}
-                </span>
-            ) : null}
+            <AffinityBadge
+                isFriend={knownUser?.isFriend}
+                isFavorite={isFavorite}
+            />
         </Button>
     );
 }

@@ -1,5 +1,4 @@
 import type { Table as ReactTable } from '@tanstack/react-table';
-import type { ReactNode } from 'react';
 import {
     CalendarRangeIcon,
     LogsIcon,
@@ -9,6 +8,7 @@ import {
     Table2Icon,
     XIcon
 } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { TableColumnVisibilityMenu } from '@/components/data-table/TableColumnVisibilityMenu';
@@ -33,10 +33,7 @@ import type {
     GameLogRow,
     GameLogViewMode
 } from '../gameLogTypes';
-import {
-    TypeFilterDropdown,
-    TypeFilterToggleGroup
-} from './GameLogTableParts';
+import { TypeFilterDropdown, TypeFilterToggleGroup } from './GameLogTableParts';
 
 function GameLogViewModeToggle({
     viewMode,
@@ -75,10 +72,7 @@ function GameLogViewModeToggle({
             </Tooltip>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <ToggleGroupItem
-                        value="table"
-                        aria-label={tableLabel}
-                    >
+                    <ToggleGroupItem value="table" aria-label={tableLabel}>
                         <Table2Icon data-icon="inline-start" />
                     </ToggleGroupItem>
                 </TooltipTrigger>
@@ -103,7 +97,7 @@ function GameLogFavoritesToggle({
             <TooltipTrigger asChild>
                 <Button
                     type="button"
-                    variant={favoritesOnly ? 'default' : 'outline'}
+                    variant={favoritesOnly ? 'secondary' : 'outline'}
                     size="icon-sm"
                     aria-label={label}
                     onClick={onToggle}
@@ -247,9 +241,7 @@ function GameLogSearchInput({
                             type="button"
                             size="icon-xs"
                             aria-label={t('common.actions.clear')}
-                            onMouseDown={(event: any) =>
-                                event.preventDefault()
-                            }
+                            onMouseDown={(event: any) => event.preventDefault()}
                             onClick={onClear}
                         >
                             <XIcon data-icon="icon" />

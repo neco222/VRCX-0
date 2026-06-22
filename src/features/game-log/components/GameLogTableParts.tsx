@@ -188,7 +188,7 @@ function TypeFilterToggleGroup({
         <div className={className}>
             <Button
                 type="button"
-                variant={selectedTypes.length === 0 ? 'default' : 'outline'}
+                variant={selectedTypes.length === 0 ? 'secondary' : 'outline'}
                 size="sm"
                 onClick={() => onSelectedTypesChange([])}
             >

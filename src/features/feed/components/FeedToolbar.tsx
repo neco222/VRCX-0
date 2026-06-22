@@ -4,10 +4,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { TableColumnVisibilityMenu } from '@/components/data-table/TableColumnVisibilityMenu';
-import {
-    PageToolbar,
-    PageToolbarRow
-} from '@/components/layout/PageScaffold';
+import { PageToolbar, PageToolbarRow } from '@/components/layout/PageScaffold';
 import type { FeedFilterType } from '@/repositories/feedRepository';
 import { Button } from '@/ui/shadcn/button';
 import { Calendar } from '@/ui/shadcn/calendar';
@@ -171,7 +168,7 @@ function FeedFilterButtons({
         <div className="flex min-w-0 flex-[0_1_auto] flex-nowrap items-center gap-2 overflow-x-auto">
             <Button
                 type="button"
-                variant={activeFilters.length === 0 ? 'default' : 'outline'}
+                variant={activeFilters.length === 0 ? 'secondary' : 'outline'}
                 size="sm"
                 className="shrink-0"
                 onClick={onClearFeedFilters}
@@ -184,7 +181,7 @@ function FeedFilterButtons({
                     <Button
                         key={filter}
                         type="button"
-                        variant={active ? 'default' : 'outline'}
+                        variant={active ? 'secondary' : 'outline'}
                         size="sm"
                         className="shrink-0"
                         onClick={() => onToggleFeedFilter(filter)}
@@ -301,16 +298,16 @@ export function FeedToolbar({
     return (
         <PageToolbar>
             <PageToolbarRow className="flex-nowrap">
-                <div className="flex shrink-0 items-center">
-                    {modeToggle}
-                </div>
+                <div className="flex shrink-0 items-center">{modeToggle}</div>
 
                 <div className="flex shrink-0 items-center">
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
                                 type="button"
-                                variant={favoritesOnly ? 'default' : 'outline'}
+                                variant={
+                                    favoritesOnly ? 'secondary' : 'outline'
+                                }
                                 size="icon-sm"
                                 aria-label={favoritesOnlyLabel}
                                 onClick={onToggleFavoritesOnly}

@@ -2,14 +2,13 @@ import {
     ChevronRightIcon,
     CopyIcon,
     ExternalLinkIcon,
-    HeartIcon,
-    StarIcon,
     UsersIcon,
     VideoIcon
 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { AffinityBadge } from '@/components/affinity/AffinityBadge';
 import { formatDateFilter, timeToText } from '@/lib/dateTime';
 import { cn } from '@/lib/utils';
 import {
@@ -117,35 +116,6 @@ function DurationBadge({ value }: { value: number }) {
     );
 }
 
-function AffinityBadges({ item }: any) {
-    const { t } = useTranslation();
-
-    if (!item?.isFriend) {
-        return null;
-    }
-
-    const isFavorite = Boolean(item.isFavorite);
-    const Icon = isFavorite ? StarIcon : HeartIcon;
-    const labelKey = isFavorite
-        ? 'view.game_log.sessions.favorite'
-        : 'view.game_log.sessions.friend';
-    const colorClass = isFavorite
-        ? 'bg-amber-500/15 text-amber-300'
-        : 'bg-rose-500/15 text-rose-300';
-
-    return (
-        <span
-            className={cn(
-                'inline-flex h-[18px] shrink-0 items-center gap-1 rounded-md px-1.5 text-[0.7rem] font-medium',
-                colorClass
-            )}
-        >
-            <Icon className="size-3 shrink-0 fill-current" />
-            {t(labelKey)}
-        </span>
-    );
-}
-
 function PlayerNameButton({ item }: any) {
     const { t } = useTranslation();
     const displayName =
@@ -178,7 +148,10 @@ function PlayerCell({ item }: any) {
     return (
         <div className="flex min-w-0 items-center gap-1.5">
             <PlayerNameButton item={item} />
-            <AffinityBadges item={item} />
+            <AffinityBadge
+                isFriend={item?.isFriend}
+                isFavorite={item?.isFavorite}
+            />
         </div>
     );
 }

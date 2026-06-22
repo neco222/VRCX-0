@@ -428,7 +428,7 @@ export function FriendLocationCard({
                 <Card
                     size="sm"
                     className={cn(
-                        'border-border/70 bg-card/80 hover:bg-muted/40 h-full cursor-pointer overflow-hidden backdrop-blur',
+                        'border-border/70 bg-card/40 hover:bg-muted/40 h-full cursor-pointer overflow-hidden backdrop-blur',
                         isDense
                             ? 'flex-row items-center gap-[var(--friend-card-gap)] rounded-lg p-[var(--friend-card-padding)]'
                             : 'gap-[var(--friend-card-gap)] py-[var(--friend-card-padding)]'
@@ -495,7 +495,7 @@ export function FriendLocationCard({
                                 ) : null}
 
                                 {resolvedDensityConfig.showStatusDescription ? (
-                                    <CardDescription className="flex items-start gap-2">
+                                    <CardDescription className="text-muted-foreground/70 flex items-start gap-2">
                                         {friend?.statusDescription ? (
                                             <PencilIcon className="mt-0.5 size-4 shrink-0" />
                                         ) : null}

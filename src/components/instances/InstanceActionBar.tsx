@@ -510,7 +510,7 @@ export function InstanceActionBar({
                 </span>
             ) : null}
             {hasAgeGate ? (
-                <Badge variant="destructive">
+                <Badge className="bg-amber-500/15 text-amber-300">
                     {t('dialog.new_instance.ageGate')}
                 </Badge>
             ) : null}

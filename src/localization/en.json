@@ -72,6 +72,10 @@
         },
         "error": {
             "failed_open_instance_in_vrchat_falling_back_to_self_invite": "Failed to open instance in VRChat, falling back to self invite"
+        },
+        "affinity": {
+            "friend": "Friend",
+            "favorite": "Favorite"
         }
     },
     "overlay": {
@@ -650,8 +654,6 @@
                 "joined": "Joined",
                 "left": "Left",
                 "videos": "Videos",
-                "friend": "Friend",
-                "favorite": "Favorite",
                 "unknown_user": "Unknown user",
                 "unknown_video": "Unknown video",
                 "played_by": "Played by {name}",

@@ -72,6 +72,10 @@
         },
         "error": {
             "failed_open_instance_in_vrchat_falling_back_to_self_invite": "無法在 VRChat 中開啟房間，改用自我邀請"
+        },
+        "affinity": {
+            "friend": "好友",
+            "favorite": "收藏"
         }
     },
     "overlay": {
@@ -650,8 +654,6 @@
                 "joined": "已加入",
                 "left": "離開",
                 "videos": "影片",
-                "friend": "好友",
-                "favorite": "收藏",
                 "unknown_user": "未知使用者",
                 "unknown_video": "未知影片",
                 "played_by": "{name} 播放",
