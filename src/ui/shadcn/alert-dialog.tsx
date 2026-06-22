@@ -1,9 +1,9 @@
 import { AlertDialog as AlertDialogPrimitive } from 'radix-ui';
 import * as React from 'react';
 
+import { preserveAppTitleBarOutsideInteraction } from '@/lib/overlay-titlebar';
 import { cn } from '@/lib/utils';
 import { Button } from '@/ui/shadcn/button';
-import { preserveAppTitleBarOutsideInteraction } from '@/ui/shadcn/overlay-titlebar';
 
 function AlertDialog({
     ...props

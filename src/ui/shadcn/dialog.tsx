@@ -3,9 +3,9 @@ import { Dialog as DialogPrimitive } from 'radix-ui';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { preserveAppTitleBarOutsideInteraction } from '@/lib/overlay-titlebar';
 import { cn } from '@/lib/utils';
 import { Button } from '@/ui/shadcn/button';
-import { preserveAppTitleBarOutsideInteraction } from '@/ui/shadcn/overlay-titlebar';
 
 function Dialog({
     ...props
