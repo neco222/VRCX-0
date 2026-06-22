@@ -4,6 +4,7 @@ use crate::world_enrich::{self, PendingWorldNameResolution};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use vrcx_0_persistence::config as config_store;
 
 const NOTIFICATION_RESOLVE_BUDGET_MS: u64 = 2_500;
 const NOTIFICATION_RESOLVE_ATTEMPTS: usize = 3;
@@ -51,6 +52,21 @@ impl RealtimeHostRuntime {
         }
     }
 
+    pub(super) fn enrich_notification_images(&self, projection: &mut RealtimeNotificationProjection) {
+        let endpoint = self.active_endpoint();
+        if endpoint.is_empty() {
+            return;
+        }
+        let allow_user_icon = self.display_vrc_plus_icons_as_avatar();
+        for upsert in &mut projection.upserts {
+            self.enrich_notification_image(
+                &endpoint,
+                &mut upsert.notification,
+                allow_user_icon,
+            );
+        }
+    }
+
     pub(super) fn enrich_persistence_sender_names(
         &self,
         persistence: &mut RealtimePersistenceBatch,
@@ -85,12 +101,47 @@ impl RealtimeHostRuntime {
 
     fn cached_user_display_name(&self, endpoint: &str, user_id: &str) -> Option<String> {
         let user = self.user_cache.get_user(endpoint, user_id)?;
-        let display_name = user
-            .get("displayName")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .unwrap_or_default();
-        is_meaningful_actor_name(display_name).then(|| display_name.to_string())
+        user_display_name(&Value::Object(user))
+    }
+
+    fn cached_user_image_url(
+        &self,
+        endpoint: &str,
+        user_id: &str,
+        allow_user_icon: bool,
+    ) -> Option<String> {
+        let user = self.user_cache.get_user(endpoint, user_id)?;
+        user_notification_image_url(&Value::Object(user), allow_user_icon)
+    }
+
+    fn enrich_notification_image(
+        &self,
+        endpoint: &str,
+        value: &mut Value,
+        allow_user_icon: bool,
+    ) -> bool {
+        if notification_has_direct_image(value) {
+            return true;
+        }
+        let user_id = notification_image_user_id(value);
+        if !user_id.starts_with("usr_") {
+            return false;
+        }
+        let Some(image_url) = self.cached_user_image_url(endpoint, &user_id, allow_user_icon)
+        else {
+            return false;
+        };
+        apply_notification_image_url(value, &image_url);
+        true
+    }
+
+    fn display_vrc_plus_icons_as_avatar(&self) -> bool {
+        config_store::get_bool(
+            self.deps.db.as_ref(),
+            "displayVRCPlusIconsAsAvatar",
+            true,
+        )
+        .unwrap_or(true)
     }
 
     pub(super) fn finalize_notification_output_for_delivery(
@@ -121,12 +172,20 @@ impl RealtimeHostRuntime {
             return;
         }
         let deadline = Instant::now() + Duration::from_millis(NOTIFICATION_RESOLVE_BUDGET_MS);
+        let allow_user_icon = self.display_vrc_plus_icons_as_avatar();
         for upsert in &mut output.projection.upserts {
             if !notification_upsert_needs_remote_resolution(upsert) {
                 continue;
             }
             self.resolve_notification_sender_name(&endpoint, &mut upsert.notification, deadline)
                 .await;
+            self.resolve_notification_image(
+                &endpoint,
+                &mut upsert.notification,
+                allow_user_icon,
+                deadline,
+            )
+            .await;
             self.resolve_notification_world_name(&endpoint, &mut upsert.notification, deadline)
                 .await;
         }
@@ -147,12 +206,37 @@ impl RealtimeHostRuntime {
             return;
         }
         let Some(display_name) = self
-            .fetch_user_display_name_with_retries(endpoint, &sender_id, deadline)
+            .fetch_user_value_with_retries(endpoint, &sender_id, deadline, user_display_name)
             .await
         else {
             return;
         };
         apply_sender_display_name(value, &display_name);
+    }
+
+    async fn resolve_notification_image(
+        self: &Arc<Self>,
+        endpoint: &str,
+        value: &mut Value,
+        allow_user_icon: bool,
+        deadline: Instant,
+    ) {
+        if self.enrich_notification_image(endpoint, value, allow_user_icon) {
+            return;
+        }
+        let user_id = notification_image_user_id(value);
+        if !user_id.starts_with("usr_") {
+            return;
+        }
+        let Some(image_url) = self
+            .fetch_user_value_with_retries(endpoint, &user_id, deadline, |profile| {
+                user_notification_image_url(profile, allow_user_icon)
+            })
+            .await
+        else {
+            return;
+        };
+        apply_notification_image_url(value, &image_url);
     }
 
     async fn resolve_notification_world_name(
@@ -173,15 +257,21 @@ impl RealtimeHostRuntime {
         apply_world_name(value, &world_name);
     }
 
-    async fn fetch_user_display_name_with_retries(
+    async fn fetch_user_value_with_retries<F>(
         self: &Arc<Self>,
         endpoint: &str,
         user_id: &str,
         deadline: Instant,
-    ) -> Option<String> {
+        mut select: F,
+    ) -> Option<String>
+    where
+        F: FnMut(&Value) -> Option<String>,
+    {
         for attempt in 0..NOTIFICATION_RESOLVE_ATTEMPTS {
-            if let Some(display_name) = self.cached_user_display_name(endpoint, user_id) {
-                return Some(display_name);
+            if let Some(user) = self.user_cache.get_user(endpoint, user_id) {
+                if let Some(value) = select(&Value::Object(user)) {
+                    return Some(value);
+                }
             }
             let remaining = deadline.checked_duration_since(Instant::now())?;
             let response = tokio::time::timeout(
@@ -198,15 +288,7 @@ impl RealtimeHostRuntime {
             match response {
                 Ok(Ok(response)) if (200..300).contains(&response.status) => {
                     let profile = serde_json::from_str::<Value>(&response.data).ok()?;
-                    let display_name = profile
-                        .get("displayName")
-                        .and_then(Value::as_str)
-                        .map(str::trim)
-                        .unwrap_or_default();
-                    if is_meaningful_actor_name(display_name) {
-                        return Some(display_name.to_string());
-                    }
-                    return None;
+                    return select(&profile);
                 }
                 Ok(Ok(response)) if (500..600).contains(&response.status) => {}
                 Ok(Err(_)) => {}
@@ -464,6 +546,7 @@ fn notification_upsert_needs_remote_resolution(upsert: &RealtimeNotificationUpse
         return false;
     }
     notification_has_unresolved_required_display(&upsert.notification)
+        || upsert.deliver_runtime && notification_needs_avatar_image_resolution(&upsert.notification)
 }
 
 fn notification_upsert_is_visible(upsert: &RealtimeNotificationUpsert) -> bool {
@@ -482,6 +565,26 @@ fn notification_has_unresolved_required_display(value: &Value) -> bool {
         || notification_requires_world_name(value)
             && !notification_has_meaningful_world_name(value)
             && !notification_has_private_location_label(value)
+}
+
+fn notification_needs_avatar_image_resolution(value: &Value) -> bool {
+    !notification_has_direct_image(value) && notification_image_user_id(value).starts_with("usr_")
+}
+
+fn notification_has_direct_image(value: &Value) -> bool {
+    let Some(object) = value.as_object() else {
+        return false;
+    };
+    [
+        object_string(object, "thumbnailImageUrl"),
+        nested_object_string(object, &["details", "imageUrl"]),
+        object_string(object, "imageUrl"),
+        object_string(object, "currentAvatarThumbnailImageUrl"),
+        object_string(object, "currentAvatarImageUrl"),
+        object_string(object, "thumbnailUrl"),
+    ]
+    .iter()
+    .any(|value| !value.trim().is_empty())
 }
 
 fn notification_requires_sender_name(value: &Value) -> bool {
@@ -567,6 +670,41 @@ fn sender_user_id(value: &Value) -> String {
     }
 }
 
+fn notification_image_user_id(value: &Value) -> String {
+    let Some(object) = value.as_object() else {
+        return String::new();
+    };
+    [
+        object_string(object, "senderUserId"),
+        object_string(object, "userId"),
+        object_string(object, "receiverUserId"),
+    ]
+    .into_iter()
+    .find(|user_id| !user_id.is_empty())
+    .unwrap_or_default()
+}
+
+fn user_display_name(value: &Value) -> Option<String> {
+    let display_name = value
+        .get("displayName")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .unwrap_or_default();
+    is_meaningful_actor_name(display_name).then(|| display_name.to_string())
+}
+
+fn user_notification_image_url(value: &Value, allow_user_icon: bool) -> Option<String> {
+    let object = value.as_object()?;
+    [
+        allow_user_icon.then(|| object_string(object, "userIcon")),
+        Some(object_string(object, "profilePicOverride")),
+        Some(object_string(object, "currentAvatarThumbnailImageUrl")),
+    ]
+    .into_iter()
+    .flatten()
+    .find(|url| !url.trim().is_empty())
+}
+
 fn apply_sender_display_name(value: &mut Value, display_name: &str) {
     let display_name = display_name.trim();
     if !is_meaningful_actor_name(display_name) {
@@ -586,6 +724,17 @@ fn apply_sender_display_name(value: &mut Value, display_name: &str) {
             Value::String(display_name.to_string()),
         );
     }
+}
+
+fn apply_notification_image_url(value: &mut Value, image_url: &str) {
+    let image_url = image_url.trim();
+    if image_url.is_empty() || notification_has_direct_image(value) {
+        return;
+    }
+    let Some(object) = value.as_object_mut() else {
+        return;
+    };
+    object.insert("imageUrl".into(), Value::String(image_url.to_string()));
 }
 
 fn apply_world_name(value: &mut Value, world_name: &str) {

@@ -8,6 +8,7 @@ mod tests {
     use serde_json::json;
     use vrcx_0_core::friends::FriendRecord;
     use vrcx_0_persistence::cache_entities::CacheEntityInput;
+    use vrcx_0_persistence::config as config_store;
     use vrcx_0_persistence::favorites::favorite_add;
     use vrcx_0_persistence::notifications::{notification_list_query, NotificationListQueryInput};
     use vrcx_0_persistence::realtime::NotificationV2Update;
@@ -607,6 +608,279 @@ mod tests {
             .expect("notification should be persisted");
         assert_eq!(row.sender_username, "Cached Sender");
         assert_eq!(row.details["worldName"], "Cached World");
+        Ok(())
+    }
+
+    #[test]
+    fn notification_cache_hit_enriches_avatar_image_for_runtime_delivery() -> Result<()> {
+        let (_dir, runtime, active_session) =
+            runtime_with_active_session("notification-avatar-cache-hit")?;
+        runtime.ingest_user_facts(vec![json!({
+            "user": {
+                "id": "usr_sender",
+                "displayName": "Cached Sender",
+                "userIcon": "https://images.example/user-icon.png",
+                "profilePicOverride": "https://images.example/profile.png",
+                "currentAvatarThumbnailImageUrl": "https://images.example/avatar-thumb.png"
+            },
+            "source": "test",
+            "isFriend": false
+        })]);
+        runtime.deps.event_bus.take_events_for_test();
+        let notification = json!({
+            "id": "notif-avatar-cache-hit",
+            "createdAt": "2026-06-21T00:00:00.000Z",
+            "type": "friendRequest",
+            "senderUserId": "usr_sender",
+            "senderUsername": "usr_sender",
+            "message": "Friend request"
+        });
+
+        runtime.apply_notification_output(RealtimeNotificationOutput {
+            owner_user_id: active_session.user_id.clone(),
+            projection: RealtimeNotificationProjection {
+                generation: 7,
+                upserts: vec![RealtimeNotificationUpsert {
+                    notification: notification.clone(),
+                    insert_defaults: None,
+                    notify_menu: true,
+                    deliver_runtime: true,
+                    run_automation: false,
+                }],
+                ..RealtimeNotificationProjection::default()
+            },
+            persistence: RealtimePersistenceBatch {
+                notification_v2_upserts: vec![notification],
+                ..RealtimePersistenceBatch::default()
+            },
+        });
+
+        let events = runtime.deps.event_bus.take_events_for_test();
+        let projection = events
+            .iter()
+            .find(|event| event.name == "realtimeNotificationProjection")
+            .expect("cache-hit notification should emit a realtime projection");
+        let projected = &projection.payload["upserts"][0]["notification"];
+        assert_eq!(projected["imageUrl"], "https://images.example/user-icon.png");
+
+        let entries = runtime.deps.overlay_activity.snapshot().entries;
+        let entry = entries
+            .iter()
+            .find(|entry| entry.source_id == "notification:notif-avatar-cache-hit")
+            .expect("runtime delivery should be projected to overlay activity");
+        assert_eq!(entry.content.image_url, "https://images.example/user-icon.png");
+        Ok(())
+    }
+
+    #[test]
+    fn notification_avatar_fallback_uses_receiver_actor_when_sender_is_absent() -> Result<()> {
+        let (_dir, runtime, active_session) =
+            runtime_with_active_session("notification-avatar-receiver")?;
+        runtime.ingest_user_facts(vec![json!({
+            "user": {
+                "id": "usr_receiver",
+                "displayName": "Receiver",
+                "userIcon": "https://images.example/receiver-icon.png",
+                "profilePicOverride": "https://images.example/receiver-profile.png",
+                "currentAvatarThumbnailImageUrl": "https://images.example/receiver-avatar.png"
+            },
+            "source": "test",
+            "isFriend": false
+        })]);
+        runtime.deps.event_bus.take_events_for_test();
+        let notification = json!({
+            "id": "notif-avatar-receiver",
+            "createdAt": "2026-06-21T00:00:00.000Z",
+            "type": "friendRequest",
+            "receiverUserId": "usr_receiver",
+            "displayName": "Receiver",
+            "message": "Friend request"
+        });
+
+        runtime.apply_notification_output(RealtimeNotificationOutput {
+            owner_user_id: active_session.user_id.clone(),
+            projection: RealtimeNotificationProjection {
+                generation: 7,
+                upserts: vec![RealtimeNotificationUpsert {
+                    notification: notification.clone(),
+                    insert_defaults: None,
+                    notify_menu: true,
+                    deliver_runtime: true,
+                    run_automation: false,
+                }],
+                ..RealtimeNotificationProjection::default()
+            },
+            persistence: RealtimePersistenceBatch {
+                notification_v2_upserts: vec![notification],
+                ..RealtimePersistenceBatch::default()
+            },
+        });
+
+        let events = runtime.deps.event_bus.take_events_for_test();
+        let projection = events
+            .iter()
+            .find(|event| event.name == "realtimeNotificationProjection")
+            .expect("receiver-only notification should emit a realtime projection");
+        let projected = &projection.payload["upserts"][0]["notification"];
+        assert_eq!(
+            projected["imageUrl"],
+            "https://images.example/receiver-icon.png"
+        );
+
+        let entries = runtime.deps.overlay_activity.snapshot().entries;
+        let entry = entries
+            .iter()
+            .find(|entry| entry.source_id == "notification:notif-avatar-receiver")
+            .expect("runtime delivery should be projected to overlay activity");
+        assert_eq!(entry.actor_user_id, "usr_receiver");
+        assert_eq!(
+            entry.content.image_url,
+            "https://images.example/receiver-icon.png"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn notification_avatar_fallback_respects_vrc_plus_icon_preference() -> Result<()> {
+        let (_dir, runtime, active_session) =
+            runtime_with_active_session("notification-avatar-vrc-plus-disabled")?;
+        config_store::set_bool(
+            runtime.deps.db.as_ref(),
+            "displayVRCPlusIconsAsAvatar",
+            false,
+        )?;
+        runtime.ingest_user_facts(vec![json!({
+            "user": {
+                "id": "usr_sender",
+                "displayName": "Cached Sender",
+                "userIcon": "https://images.example/user-icon.png",
+                "profilePicOverride": "https://images.example/profile.png",
+                "currentAvatarThumbnailImageUrl": "https://images.example/avatar-thumb.png"
+            },
+            "source": "test",
+            "isFriend": false
+        })]);
+        runtime.deps.event_bus.take_events_for_test();
+        let notification = json!({
+            "id": "notif-avatar-vrc-plus-disabled",
+            "createdAt": "2026-06-21T00:00:00.000Z",
+            "type": "friendRequest",
+            "senderUserId": "usr_sender",
+            "senderUsername": "usr_sender",
+            "message": "Friend request"
+        });
+
+        runtime.apply_notification_output(RealtimeNotificationOutput {
+            owner_user_id: active_session.user_id,
+            projection: RealtimeNotificationProjection {
+                generation: 7,
+                upserts: vec![RealtimeNotificationUpsert {
+                    notification: notification.clone(),
+                    insert_defaults: None,
+                    notify_menu: true,
+                    deliver_runtime: true,
+                    run_automation: false,
+                }],
+                ..RealtimeNotificationProjection::default()
+            },
+            persistence: RealtimePersistenceBatch {
+                notification_v2_upserts: vec![notification],
+                ..RealtimePersistenceBatch::default()
+            },
+        });
+
+        let events = runtime.deps.event_bus.take_events_for_test();
+        let projection = events
+            .iter()
+            .find(|event| event.name == "realtimeNotificationProjection")
+            .expect("cache-hit notification should emit a realtime projection");
+        let projected = &projection.payload["upserts"][0]["notification"];
+        assert_eq!(projected["imageUrl"], "https://images.example/profile.png");
+        Ok(())
+    }
+
+    #[test]
+    fn notification_avatar_fallback_preserves_existing_image_and_skips_group_sender() -> Result<()> {
+        let (_dir, runtime, active_session) =
+            runtime_with_active_session("notification-avatar-existing-and-group")?;
+        runtime.ingest_user_facts(vec![json!({
+            "user": {
+                "id": "usr_sender",
+                "displayName": "Cached Sender",
+                "userIcon": "https://images.example/user-icon.png",
+                "currentAvatarThumbnailImageUrl": "https://images.example/avatar-thumb.png"
+            },
+            "source": "test",
+            "isFriend": false
+        })]);
+        runtime.deps.event_bus.take_events_for_test();
+        let existing_image = json!({
+            "id": "notif-avatar-existing",
+            "createdAt": "2026-06-21T00:00:00.000Z",
+            "type": "friendRequest",
+            "senderUserId": "usr_sender",
+            "senderUsername": "Cached Sender",
+            "message": "Friend request",
+            "imageUrl": "https://images.example/existing.png"
+        });
+        let group_sender = json!({
+            "id": "notif-avatar-group",
+            "createdAt": "2026-06-21T00:00:01.000Z",
+            "type": "friendRequest",
+            "senderUserId": "grp_sender",
+            "senderUsername": "Group Sender",
+            "message": "Group request"
+        });
+
+        runtime.apply_notification_output(RealtimeNotificationOutput {
+            owner_user_id: active_session.user_id,
+            projection: RealtimeNotificationProjection {
+                generation: 7,
+                upserts: vec![
+                    RealtimeNotificationUpsert {
+                        notification: existing_image.clone(),
+                        insert_defaults: None,
+                        notify_menu: true,
+                        deliver_runtime: true,
+                        run_automation: false,
+                    },
+                    RealtimeNotificationUpsert {
+                        notification: group_sender.clone(),
+                        insert_defaults: None,
+                        notify_menu: true,
+                        deliver_runtime: true,
+                        run_automation: false,
+                    },
+                ],
+                ..RealtimeNotificationProjection::default()
+            },
+            persistence: RealtimePersistenceBatch {
+                notification_v2_upserts: vec![existing_image, group_sender],
+                ..RealtimePersistenceBatch::default()
+            },
+        });
+
+        let events = runtime.deps.event_bus.take_events_for_test();
+        let projection = events
+            .iter()
+            .find(|event| event.name == "realtimeNotificationProjection")
+            .expect("notifications should emit a realtime projection");
+        let upserts = projection.payload["upserts"]
+            .as_array()
+            .expect("projection upserts");
+        let existing = upserts
+            .iter()
+            .find(|upsert| upsert["notification"]["id"] == "notif-avatar-existing")
+            .expect("existing image notification");
+        let group = upserts
+            .iter()
+            .find(|upsert| upsert["notification"]["id"] == "notif-avatar-group")
+            .expect("group notification");
+        assert_eq!(
+            existing["notification"]["imageUrl"],
+            "https://images.example/existing.png"
+        );
+        assert!(group["notification"]["imageUrl"].is_null());
         Ok(())
     }
 

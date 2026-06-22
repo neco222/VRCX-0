@@ -16,6 +16,7 @@ use crate::vr_overlay::{OverlayLocale, OverlayLocalizer};
 
 const APP_LANGUAGE_CONFIG_KEY: &str = "appLanguage";
 const WEBHOOK_TIMEOUT: Duration = Duration::from_secs(10);
+const OVERLAY_NOTIFICATION_APP_TITLE: &str = "VRCX-0";
 const WEBHOOK_RETRY_DELAYS: &[Duration] = &[Duration::from_millis(750), Duration::from_secs(2)];
 const DEFAULT_WEBHOOK_FIELDS: &[&str] = &[
     "version",
@@ -292,6 +293,7 @@ async fn dispatch_rendered_notification(
     let local_image_ref = local_image.as_deref();
     let timeout_seconds = (preferences.notification_timeout_ms.max(0) / 1000).max(0);
     let opacity = (preferences.notification_opacity_percent.clamp(0, 100) as f64) / 100.0;
+    let overlay_render = overlay_notification_render(&render);
 
     if plan.desktop {
         if let Err(error) = desktop.show(
@@ -306,8 +308,8 @@ async fn dispatch_rendered_notification(
 
     if plan.xs {
         if let Err(error) = send_xs_notification(
-            &render.title,
-            &render.text,
+            overlay_render.title,
+            overlay_render.text,
             timeout_seconds,
             opacity,
             local_image_ref,
@@ -320,8 +322,8 @@ async fn dispatch_rendered_notification(
         ovrt.send_notification(
             plan.ovrt_hud,
             plan.ovrt_wrist,
-            &render.title,
-            &render.body_or_text(),
+            overlay_render.title,
+            overlay_render.text,
             timeout_seconds,
             opacity,
             local_image_ref,
@@ -341,15 +343,13 @@ struct RenderedNotification {
     image_url: String,
 }
 
-impl RenderedNotification {
-    fn body_or_text(&self) -> String {
-        if self.body.trim().is_empty() {
-            self.text.clone()
-        } else {
-            self.body.clone()
-        }
-    }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct OverlayRenderedNotification<'a> {
+    title: &'static str,
+    text: &'a str,
+}
 
+impl RenderedNotification {
     fn tts_payload(&self, delivery: &OverlayActivityDelivery) -> Value {
         json!({
             "sourceId": &delivery.entry.source_id,
@@ -362,6 +362,13 @@ impl RenderedNotification {
             "imageUrl": &self.image_url,
             "actorUserId": &delivery.entry.actor_user_id,
         })
+    }
+}
+
+fn overlay_notification_render(render: &RenderedNotification) -> OverlayRenderedNotification<'_> {
+    OverlayRenderedNotification {
+        title: OVERLAY_NOTIFICATION_APP_TITLE,
+        text: &render.text,
     }
 }
 
@@ -801,7 +808,7 @@ mod tests {
         OverlayActivityDelivery, OverlayActivityEntry,
     };
 
-    use super::{webhook_payload, RenderedNotification};
+    use super::{overlay_notification_render, webhook_payload, RenderedNotification};
 
     #[test]
     fn generic_webhook_payload_exposes_location_id_and_local_time() {
@@ -827,6 +834,17 @@ mod tests {
         assert_eq!(local_time.len(), "2026-06-18 17:30:00".len());
         assert!(payload.get("timestamp").is_none());
         assert!(payload.get("worldName").is_none());
+    }
+
+    #[test]
+    fn overlay_notification_render_uses_app_title_and_combined_text() {
+        let render = rendered();
+
+        let overlay = overlay_notification_render(&render);
+
+        assert_eq!(overlay.title, "VRCX-0");
+        assert_eq!(overlay.text, "Traveler joined Named World");
+        assert_eq!(render.title, "Traveler");
     }
 
     fn rendered() -> RenderedNotification {
