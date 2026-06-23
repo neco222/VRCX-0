@@ -65,6 +65,7 @@ mod tests {
             &storage,
             db.as_ref(),
             "wss://pipeline.vrchat.cloud".to_string(),
+            env!("CARGO_PKG_VERSION"),
         )?);
         let session = HostSessionRuntime::new();
         let host_session_generation =
@@ -136,6 +137,7 @@ mod tests {
             &storage,
             db.as_ref(),
             "wss://pipeline.vrchat.cloud".to_string(),
+            env!("CARGO_PKG_VERSION"),
         )?);
         let session = HostSessionRuntime::new();
         let host_session_generation =

@@ -47,6 +47,7 @@ async fn main() -> ExitCode {
         realtime_origin: "http://localhost:9000".into(),
         launched_from_autostart: false,
         app_data_dir: app_data_dir.clone(),
+        app_version: String::new(),
     }) {
         Ok(state) => state,
         Err(error) => {

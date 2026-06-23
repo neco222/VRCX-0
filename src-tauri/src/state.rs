@@ -48,6 +48,7 @@ impl AppState {
             realtime_origin: realtime_origin(),
             launched_from_autostart,
             app_data_dir,
+            app_version: env!("CARGO_PKG_VERSION").into(),
         })?;
         let mcp_controller = McpServerController::new(McpRuntime::from_host(&runtime));
         let ipc_sink: Arc<dyn IpcEventSink> = runtime.game_client_runtime.clone();

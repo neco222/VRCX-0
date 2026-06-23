@@ -132,6 +132,7 @@ pub struct RuntimeHostOptions {
     pub realtime_origin: String,
     pub launched_from_autostart: bool,
     pub app_data_dir: AppDataDirResolution,
+    pub app_version: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, specta::Type)]
@@ -211,6 +212,7 @@ impl RuntimeHostState {
             realtime_origin,
             launched_from_autostart,
             app_data_dir,
+            app_version,
         } = options;
         let paths = AppPaths::from_app_data(app_data_dir.current_dir.clone());
         cleanup_legacy_updater_files(&paths.app_data);
@@ -232,7 +234,7 @@ impl RuntimeHostState {
         let db = Arc::new(DatabaseService::new(&paths.db_file)?);
         let discord_rpc = Arc::new(DiscordRpc::new());
         let process_monitor = ProcessMonitor::new();
-        let web = Arc::new(WebClient::new(&storage, &db, realtime_origin)?);
+        let web = Arc::new(WebClient::new(&storage, &db, realtime_origin, &app_version)?);
         let image_fetcher = web.image_fetcher()?;
         let image_cache = Arc::new(ImageCache::new(paths.image_cache.clone(), image_fetcher)?);
         let host_file_access = HostFileAccess::new();

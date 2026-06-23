@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use cookie_store::{CookieStore, RawCookie};
-use reqwest::header::{HeaderName, HeaderValue, CONTENT_TYPE, REFERER};
+use reqwest::header::{HeaderName, HeaderValue, CONTENT_TYPE, REFERER, USER_AGENT};
 use reqwest::multipart::{Form, Part};
 use reqwest::{Client, Method, Proxy};
 
@@ -24,6 +24,15 @@ use WebClientError as Error;
 pub use crate::cookies::{
     deserialize_cookie_store, deserialize_legacy_cookie_entries, serialize_cookie_store,
 };
+
+pub(crate) fn build_vrcx_user_agent(app_version: &str) -> String {
+    let app_version = app_version.trim();
+    if app_version.is_empty() {
+        "VRCX-0".into()
+    } else {
+        format!("VRCX-0/{app_version}")
+    }
+}
 
 #[derive(Clone, Debug, Default)]
 pub enum WebUploadMode {
@@ -55,6 +64,7 @@ pub struct WebExecuteRequest {
     pub headers: Vec<(String, String)>,
     pub body: Option<String>,
     pub upload: WebUploadMode,
+    pub user_agent: Option<String>,
 }
 
 impl WebExecuteRequest {
@@ -65,6 +75,7 @@ impl WebExecuteRequest {
             headers: Vec::new(),
             body: None,
             upload: WebUploadMode::None,
+            user_agent: None,
         }
     }
 }
@@ -187,12 +198,18 @@ pub struct WebClient {
     client: Client,
     jar: Arc<CookieJar>,
     proxy_url: Option<String>,
+    user_agent: String,
 }
 
 impl WebClient {
-    pub fn new(proxy_url: Option<String>, cookies_b64: Option<&str>) -> Result<Self> {
+    pub fn new(
+        proxy_url: Option<String>,
+        cookies_b64: Option<&str>,
+        app_version: &str,
+    ) -> Result<Self> {
         let cookie_store = CookieStore::default();
         let jar = Arc::new(CookieJar::new(cookie_store));
+        let user_agent = build_vrcx_user_agent(app_version);
 
         let mut builder = Client::builder()
             .cookie_provider(jar.clone())
@@ -217,6 +234,7 @@ impl WebClient {
             client,
             jar,
             proxy_url: proxy_url.clone(),
+            user_agent,
         };
 
         if let Some(cookies_b64) = cookies_b64 {
@@ -262,6 +280,10 @@ impl WebClient {
 
     pub fn proxy_url(&self) -> Option<&str> {
         self.proxy_url.as_deref()
+    }
+
+    pub fn user_agent(&self) -> &str {
+        &self.user_agent
     }
 
     pub fn clear_cookies(&self) {
@@ -367,12 +389,18 @@ impl WebClient {
             .map_err(|e| Error::Custom(format!("bad method: {e}")))?;
 
         let mut builder = self.client.request(method.clone(), &request.url);
+        if let Some(user_agent) = request.user_agent.as_deref() {
+            builder = builder.header(USER_AGENT, user_agent);
+        }
 
         let mut content_type_override: Option<String> = None;
         for (key, val_str) in &request.headers {
             let key_lower = key.to_lowercase();
             if key_lower == "content-type" {
                 content_type_override = Some(val_str.to_string());
+                continue;
+            }
+            if request.user_agent.is_some() && key_lower == "user-agent" {
                 continue;
             }
             if key_lower == "referer" {
@@ -415,6 +443,9 @@ impl WebClient {
             .put(&request.url)
             .header(CONTENT_TYPE, file_mime)
             .body(bytes.clone());
+        if let Some(user_agent) = request.user_agent.as_deref() {
+            builder = builder.header(USER_AGENT, user_agent);
+        }
 
         if let Some(md5) = file_md5 {
             if let Ok(md5_bytes) = B64.decode(md5) {
@@ -425,6 +456,9 @@ impl WebClient {
         for (key, val_str) in &request.headers {
             let key_lower = key.to_lowercase();
             if key_lower == "content-type" {
+                continue;
+            }
+            if request.user_agent.is_some() && key_lower == "user-agent" {
                 continue;
             }
             if let (Ok(name), Ok(value)) = (
@@ -462,8 +496,11 @@ impl WebClient {
             form = form.text("data", post_data.to_string());
         }
 
-        self.client
-            .post(&request.url)
+        let mut builder = self.client.post(&request.url);
+        if let Some(user_agent) = request.user_agent.as_deref() {
+            builder = builder.header(USER_AGENT, user_agent);
+        }
+        builder
             .multipart(form)
             .build()
             .map_err(|e| Error::Custom(format!("build legacy upload: {e}")))
@@ -500,8 +537,11 @@ impl WebClient {
             }
         }
 
-        self.client
-            .post(&request.url)
+        let mut builder = self.client.post(&request.url);
+        if let Some(user_agent) = request.user_agent.as_deref() {
+            builder = builder.header(USER_AGENT, user_agent);
+        }
+        builder
             .multipart(form)
             .build()
             .map_err(|e| Error::Custom(format!("build image upload: {e}")))
@@ -532,8 +572,11 @@ impl WebClient {
             }
         }
 
-        self.client
-            .post(&request.url)
+        let mut builder = self.client.post(&request.url);
+        if let Some(user_agent) = request.user_agent.as_deref() {
+            builder = builder.header(USER_AGENT, user_agent);
+        }
+        builder
             .multipart(form)
             .build()
             .map_err(|e| Error::Custom(format!("build print upload: {e}")))
@@ -568,7 +611,7 @@ mod tests {
             "Domain": ".vrchat.com",
             "Path": "/"
         }]));
-        let web = WebClient::new(None, None)?;
+        let web = WebClient::new(None, None, env!("CARGO_PKG_VERSION"))?;
 
         assert!(validate_vrchat_cookies_b64(&payload).is_err());
         assert!(web.set_cookies(&payload).is_err());
@@ -609,7 +652,7 @@ mod tests {
             {"Name": "auth", "Value": "b", "Domain": "api.vrchat.cloud", "Path": "/"},
             {"Name": "twoFactorAuth", "Value": "t", "Domain": ".vrchat.cloud", "Path": "/"}
         ]));
-        let web = WebClient::new(None, Some(&payload))?;
+        let web = WebClient::new(None, Some(&payload), env!("CARGO_PKG_VERSION"))?;
 
         web.clear_auth_cookies();
 

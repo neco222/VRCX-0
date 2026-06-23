@@ -456,7 +456,12 @@ mod tests {
         let dir = TestDir::new(name);
         let db = Arc::new(DatabaseService::new(&dir.path.join("VRCX-0.sqlite3"))?);
         let storage = StorageService::new(&dir.path.join("VRCX-0.json"))?;
-        let web = Arc::new(WebClient::new(&storage, &db, "https://app.example".into())?);
+        let web = Arc::new(WebClient::new(
+            &storage,
+            &db,
+            "https://app.example".into(),
+            env!("CARGO_PKG_VERSION"),
+        )?);
         let image_fetcher = web.image_fetcher()?;
         let image_cache = Arc::new(ImageCache::new(dir.path.join("ImageCache"), image_fetcher)?);
         let world_cache = Arc::new(crate::world_cache::WorldCache::new(
