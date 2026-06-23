@@ -58,12 +58,25 @@ pub fn authorize_mcp_request(
 pub fn client_config_snippets(port: u16, token: &str) -> ClientConfigSnippets {
     let url = format!("http://127.0.0.1:{port}/mcp");
     let auth_header = format!("Authorization: Bearer {token}");
+    // On Windows `npx` is the `npx.cmd` shim; launching it as `command: "npx"` makes the
+    // client wrap it in `cmd /C <resolved npx.cmd path>`, whose quote-stripping mangles a
+    // Node install path containing spaces (e.g. `C:\Program Files\nodejs`). Spawning `cmd`
+    // with the bare `npx` lets cmd resolve it via PATHEXT, so no spaced path is embedded.
+    let mcp_remote_command = if cfg!(windows) {
+        format!(
+            "\"command\": \"cmd\",\n      \"args\": [\"/c\", \"npx\", \"-y\", \"mcp-remote\", \"{url}\", \"--header\", \"{auth_header}\"]"
+        )
+    } else {
+        format!(
+            "\"command\": \"npx\",\n      \"args\": [\"-y\", \"mcp-remote\", \"{url}\", \"--header\", \"{auth_header}\"]"
+        )
+    };
     ClientConfigSnippets {
         claude_code_command: format!(
             "claude mcp add --transport http vrcx-0 {url} --header \"{auth_header}\""
         ),
         mcp_remote_json: format!(
-            "{{\n  \"mcpServers\": {{\n    \"vrcx-0\": {{\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"mcp-remote\", \"{url}\", \"--header\", \"{auth_header}\"]\n    }}\n  }}\n}}"
+            "{{\n  \"mcpServers\": {{\n    \"vrcx-0\": {{\n      {mcp_remote_command}\n    }}\n  }}\n}}"
         ),
         generic_json: format!(
             "{{\n  \"mcpServers\": {{\n    \"vrcx-0\": {{\n      \"url\": \"{url}\",\n      \"headers\": {{\n        \"Authorization\": \"Bearer {token}\"\n      }}\n    }}\n  }}\n}}"
@@ -153,5 +166,13 @@ mod tests {
         assert!(snippets
             .mcp_remote_json
             .contains("http://127.0.0.1:7654/mcp"));
+
+        if cfg!(windows) {
+            assert!(snippets.mcp_remote_json.contains("\"command\": \"cmd\""));
+            assert!(snippets.mcp_remote_json.contains("\"/c\""));
+            assert!(snippets.mcp_remote_json.contains("\"npx\""));
+        } else {
+            assert!(snippets.mcp_remote_json.contains("\"command\": \"npx\""));
+        }
     }
 }
