@@ -35,10 +35,10 @@ function MessageBubbleImpl({ message }: MessageBubbleProps) {
             {(message.text || message.streaming) && (
                 <div
                     className={cn(
-                        'max-w-[85%] rounded-2xl px-3 py-2 text-sm',
+                        'rounded-2xl px-3 py-2 text-sm',
                         isUser
-                            ? 'bg-secondary text-secondary-foreground'
-                            : 'bg-card/50 text-foreground'
+                            ? 'bg-secondary text-secondary-foreground max-w-[85%]'
+                            : 'bg-card/50 text-foreground max-w-full'
                     )}
                 >
                     {renderPlain ? (

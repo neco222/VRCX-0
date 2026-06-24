@@ -90,9 +90,13 @@ export function AssistantDialog() {
             <DialogContent
                 className="flex h-[84vh] w-[min(1360px,96vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none"
                 showCloseButton={false}
+                style={{ fontFamily: 'var(--vrcx-app-font-family, inherit)' }}
             >
                 <DialogHeader className="border-border/40 flex-row items-center justify-between space-y-0 border-b py-3 pr-3 pl-4">
-                    <DialogTitle className="text-sm">
+                    <DialogTitle
+                        className="text-sm"
+                        style={{ fontFamily: 'inherit' }}
+                    >
                         {t('assistant.title')}
                     </DialogTitle>
                     <div className="flex items-center gap-1.5">

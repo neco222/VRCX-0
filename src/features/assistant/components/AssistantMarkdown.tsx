@@ -57,7 +57,24 @@ const markdownComponents: Components = {
         <blockquote className="border-border/60 text-muted-foreground my-1 border-l-2 pl-2">
             {children}
         </blockquote>
-    )
+    ),
+    table: ({ children }) => (
+        <div className="my-2 max-w-full overflow-x-auto">
+            <table className="w-full border-collapse text-sm">{children}</table>
+        </div>
+    ),
+    thead: ({ children }) => (
+        <thead className="border-border/50 border-b">{children}</thead>
+    ),
+    tr: ({ children }) => (
+        <tr className="border-border/25 border-b last:border-0">{children}</tr>
+    ),
+    th: ({ children }) => (
+        <th className="px-3 py-1.5 text-left font-medium whitespace-nowrap">
+            {children}
+        </th>
+    ),
+    td: ({ children }) => <td className="px-3 py-1.5 align-top">{children}</td>
 };
 
 interface AssistantMarkdownProps {
