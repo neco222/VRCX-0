@@ -7,6 +7,7 @@ mod config;
 mod diagnostics;
 mod error;
 mod event_bus;
+mod favorite_transfer;
 mod game_client;
 mod game_log;
 pub mod groups;
@@ -70,6 +71,12 @@ pub use config::validate_config_writes;
 pub use diagnostics::{RuntimeDiagnostics, RuntimeDiagnosticsSnapshot};
 pub use error::Error;
 pub use event_bus::{RuntimeEventBus, RuntimeEventSink};
+pub use favorite_transfer::{
+    favorite_transfer_plan_for_item, transfer_favorites, FavoriteTransferDeps,
+    FavoriteTransferInput, FavoriteTransferItem, FavoriteTransferItemResult,
+    FavoriteTransferItemStatus, FavoriteTransferLocation, FavoriteTransferResult,
+    FavoriteTransferSource, FavoriteTransferStage, FavoriteTransferTarget,
+};
 pub use game_client::{
     GameClientActions, GameClientCacheActions, GameClientLocationSource, GameClientRuntime,
     GameClientRuntimeDeps, GameClientWindowActions, NoopGameClientCacheActions,

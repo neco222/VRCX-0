@@ -1030,12 +1030,16 @@
                 "boop_sent": "Boop sent",
                 "avatar_selected": "Avatar selected",
                 "copied_selected_favorite_ids": "Copied selected favorite ids",
-                "selected_favorites_removed": "Selected favorites removed"
+                "selected_favorites_removed": "Selected favorites removed",
+                "selected_favorites_moved": "Selected favorites moved",
+                "selected_favorites_copied": "Selected favorites copied"
             },
             "action": {
                 "remove_favorite": "Remove favorite",
                 "export_favorite": "Export favorite",
-                "edit_mode": "Edit mode"
+                "edit_mode": "Edit mode",
+                "move": "Move",
+                "move_to": "Move to"
             },
             "empty": {
                 "no_favorite_groups_loaded": "No favorite groups loaded",
@@ -2670,7 +2674,8 @@
                 "failed_to_send_boop": "Failed to send boop",
                 "failed_to_select_avatar": "Failed to select avatar",
                 "failed_to_create_local_favorite_group": "Failed to create local favorite group",
-                "failed_to_copy_selected_favorites": "Failed to copy selected favorites"
+                "failed_to_copy_selected_favorites": "Failed to copy selected favorites",
+                "failed_to_move_selected_favorites": "Failed to move selected favorites"
             },
             "modal": {
                 "remove_local_favorite": "Remove local favorite?",
@@ -2722,7 +2727,8 @@
                 "local_group_value_already_exists": "Local group {value} already exists",
                 "removed_value_value_failed": "Removed {value}; {value2} failed",
                 "search_results_singular": "{count} result",
-                "search_results_plural": "{count} results"
+                "search_results_plural": "{count} results",
+                "transferred_value_value_failed": "Transferred {value}; {value2} failed"
             }
         },
         "friends": {

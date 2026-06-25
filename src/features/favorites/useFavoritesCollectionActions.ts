@@ -71,7 +71,9 @@ export function useFavoritesCollectionActions({
         (state: any) => state.deleteLocalFavoriteGroup
     );
 
-    const refreshFavorites = async () => {
+    const refreshFavorites = async ({
+        silent = false
+    }: { silent?: boolean } = {}) => {
         if (!currentUserId || !currentUserSnapshot || refreshing) {
             return;
         }
@@ -91,7 +93,9 @@ export function useFavoritesCollectionActions({
                 );
                 setAvatarHistory(Array.isArray(rows) ? rows : []);
             }
-            toast.success(t('view.favorite.success.favorites_refreshed'));
+            if (!silent) {
+                toast.success(t('view.favorite.success.favorites_refreshed'));
+            }
         } catch (error) {
             toast.error(
                 error instanceof Error

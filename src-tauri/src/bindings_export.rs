@@ -97,6 +97,7 @@ pub fn builder() -> Builder<tauri::Wry> {
             commands::application::overlay_activity::app__overlay_activity_definitions_get,
             commands::application::overlay_activity::app__overlay_activity_filters_reload,
             commands::application::overlay_activity::app__overlay_activity_snapshot_get,
+            commands::application::favorite_transfer::app__favorites_transfer,
             commands::application::vr_overlay::app__vr_overlay_status_get,
             commands::application::vr_overlay::app__vr_overlay_enabled_set,
             commands::application::vr_overlay::app__vr_overlay_config_reload,

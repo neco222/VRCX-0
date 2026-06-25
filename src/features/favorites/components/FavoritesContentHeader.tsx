@@ -1,8 +1,37 @@
-import { CopyIcon, Trash2Icon } from 'lucide-react';
+import { CopyIcon, MoveRightIcon, Trash2Icon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/ui/shadcn/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuGroup,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger
+} from '@/ui/shadcn/dropdown-menu';
 import { Switch } from '@/ui/shadcn/switch';
+
+import type { FavoriteGroup } from '../favoritesTypes';
+
+type FavoritesContentHeaderProps = {
+    title: string;
+    subtitle: string;
+    editMode: boolean;
+    editModeDisabled: boolean;
+    editModeVisible: boolean;
+    isAllSelected: boolean;
+    hasSelection: boolean;
+    moveTargets: FavoriteGroup[];
+    showCopyButton: boolean;
+    onEditModeChange(value: boolean): void;
+    onToggleSelectAll(): void;
+    onClearSelection(): void;
+    onCopySelection(): void;
+    onMoveSelection(target: FavoriteGroup): void;
+    onBulkRemove(): void;
+};
 
 function FavoritesContentHeader({
     title,
@@ -12,14 +41,25 @@ function FavoritesContentHeader({
     editModeVisible,
     isAllSelected,
     hasSelection,
+    moveTargets,
     showCopyButton,
     onEditModeChange,
     onToggleSelectAll,
     onClearSelection,
     onCopySelection,
+    onMoveSelection,
     onBulkRemove
-}: any) {
+}: FavoritesContentHeaderProps) {
     const { t } = useTranslation();
+    const remoteMoveTargets = moveTargets.filter(
+        (target) => target.source === 'remote'
+    );
+    const localMoveTargets = moveTargets.filter(
+        (target) => target.source === 'local'
+    );
+    const hasMoveTargets = moveTargets.length > 0;
+    const showMoveSeparator =
+        remoteMoveTargets.length > 0 && localMoveTargets.length > 0;
 
     return (
         <>
@@ -75,6 +115,51 @@ function FavoritesContentHeader({
                                 {t('common.actions.copy')}
                             </Button>
                         ) : null}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={!hasSelection || !hasMoveTargets}
+                                >
+                                    <MoveRightIcon data-icon="inline-start" />
+                                    {t('view.favorite.action.move')}
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-64">
+                                <DropdownMenuLabel>
+                                    {t('view.favorite.action.move_to')}
+                                </DropdownMenuLabel>
+                                <DropdownMenuGroup>
+                                    {remoteMoveTargets.map((target) => (
+                                        <DropdownMenuItem
+                                            key={`remote:${target.key}`}
+                                            onSelect={() =>
+                                                onMoveSelection(target)
+                                            }
+                                        >
+                                            {target.label}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuGroup>
+                                {showMoveSeparator ? (
+                                    <DropdownMenuSeparator />
+                                ) : null}
+                                <DropdownMenuGroup>
+                                    {localMoveTargets.map((target) => (
+                                        <DropdownMenuItem
+                                            key={`local:${target.key}`}
+                                            onSelect={() =>
+                                                onMoveSelection(target)
+                                            }
+                                        >
+                                            {target.label}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <Button
                             type="button"
                             size="sm"

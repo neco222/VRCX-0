@@ -1030,12 +1030,16 @@
                 "boop_sent": "戳一戳已发送",
                 "avatar_selected": "模型已选择",
                 "copied_selected_favorite_ids": "已复制所选收藏 ID",
-                "selected_favorites_removed": "已移除所选收藏"
+                "selected_favorites_removed": "已移除所选收藏",
+                "selected_favorites_moved": "已移动所选收藏",
+                "selected_favorites_copied": "已复制所选收藏"
             },
             "action": {
                 "remove_favorite": "移除收藏",
                 "export_favorite": "导出收藏",
-                "edit_mode": "编辑模式"
+                "edit_mode": "编辑模式",
+                "move": "移动",
+                "move_to": "移动到"
             },
             "empty": {
                 "no_favorite_groups_loaded": "未加载到收藏分组",
@@ -1850,7 +1854,7 @@
                     "not_refreshed": "未刷新",
                     "purge_avatar_history_description": "确认后再删除旧的模型变动记录。",
                     "purge_avatar_history": "清理模型记录",
-                    "refresh":"刷新数据库状态",
+                    "refresh": "刷新数据库状态",
                     "refresh_sqlite_tables": "刷新 SQLite 表",
                     "migrate_legacy_vrcx": "迁移旧版 VRCX 数据"
                 },
@@ -2670,7 +2674,8 @@
                 "failed_to_send_boop": "发送戳一戳失败",
                 "failed_to_select_avatar": "切换模型失败",
                 "failed_to_create_local_favorite_group": "创建本地收藏分组失败",
-                "failed_to_copy_selected_favorites": "复制所选收藏失败"
+                "failed_to_copy_selected_favorites": "复制所选收藏失败",
+                "failed_to_move_selected_favorites": "移动所选收藏失败"
             },
             "modal": {
                 "remove_local_favorite": "移除本地收藏？",
@@ -2722,7 +2727,8 @@
                 "local_group_value_already_exists": "本地分组 {value} 已存在",
                 "removed_value_value_failed": "已移除 {value}；{value2} 个失败",
                 "search_results_singular": "{count} 条结果",
-                "search_results_plural": "{count} 条结果"
+                "search_results_plural": "{count} 条结果",
+                "transferred_value_value_failed": "已处理 {value} 个；{value2} 个失败"
             }
         },
         "friends": {

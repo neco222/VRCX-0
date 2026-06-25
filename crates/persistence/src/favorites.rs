@@ -11,6 +11,12 @@ use crate::Error;
 const LOCAL_GROUP_CONFIG_UPSERT_SQL: &str =
     "INSERT OR REPLACE INTO configs (key, value) VALUES (@key, @value)";
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FavoriteMoveResult {
+    pub removed: i64,
+    pub added: i64,
+}
+
 pub fn favorite_list(db: &DatabaseService, kind: String) -> Result<Vec<Value>, Error> {
     ensure_global_store_tables(db)?;
     let (table, column, _) = normalize_kind(&kind)?;
@@ -69,6 +75,52 @@ pub fn favorite_remove(
             .set("group_name", normalize_text(group_name))
             .build(),
     )
+}
+
+pub fn favorite_move(
+    db: &DatabaseService,
+    kind: String,
+    entity_id: String,
+    source_group_name: String,
+    target_group_name: String,
+) -> Result<FavoriteMoveResult, Error> {
+    ensure_global_store_tables(db)?;
+    let (table, column, entity_param) = normalize_kind(&kind)?;
+    let normalized_entity_id = normalize_text(entity_id);
+    let normalized_source_group_name = normalize_text(source_group_name);
+    let normalized_target_group_name = normalize_text(target_group_name);
+    if normalized_entity_id.is_empty() {
+        return Err(Error::Custom("favorite_move requires entity id".into()));
+    }
+    if normalized_source_group_name.is_empty() {
+        return Err(Error::Custom(
+            "favorite_move requires source group name".into(),
+        ));
+    }
+
+    db.write_transaction(|tx| {
+        let removed = tx.execute_non_query(
+            &format!("DELETE FROM {table} WHERE {column} = @entity_id AND group_name = @group_name"),
+            &ParamsBuilder::new()
+                .set("entity_id", normalized_entity_id.clone())
+                .set("group_name", normalized_source_group_name)
+                .build(),
+        )?;
+        if normalized_target_group_name.is_empty() {
+            return Err(Error::Custom(
+                "favorite_move requires target group name".into(),
+            ));
+        }
+        let added = tx.execute_non_query(
+            &format!("INSERT OR REPLACE INTO {table} ({column}, group_name, created_at) VALUES ({entity_param}, @group_name, @created_at)"),
+            &ParamsBuilder::new()
+                .set(entity_param, normalized_entity_id)
+                .set("group_name", normalized_target_group_name)
+                .set("created_at", now_iso())
+                .build(),
+        )?;
+        Ok(FavoriteMoveResult { removed, added })
+    })
 }
 
 pub fn favorite_group_rename(

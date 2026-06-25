@@ -26,6 +26,8 @@ export function useFavoritesActions({
     localGroups,
     newLocalGroupName,
     refreshRemoteDetails,
+    remoteGroups,
+    selectedGroup,
     selectedContentItems,
     selectedGroupKey,
     selectedSource,
@@ -52,6 +54,8 @@ export function useFavoritesActions({
     localGroups: FavoriteGroup[];
     newLocalGroupName: string;
     refreshRemoteDetails(): void;
+    remoteGroups: FavoriteGroup[];
+    selectedGroup: FavoriteGroup | null;
     selectedContentItems: FavoriteItem[];
     selectedGroupKey: string;
     selectedSource: FavoriteSource;
@@ -110,10 +114,18 @@ export function useFavoritesActions({
         setSelectedSource
     });
     const bulkActions = useFavoritesBulkActions({
+        currentEndpoint,
         handleRemoveLocalFavorite: collectionActions.handleRemoveLocalFavorite,
         handleRemoveRemoteFavorite:
             collectionActions.handleRemoveRemoteFavorite,
+        kind,
+        localGroups,
+        refreshFavorites: collectionActions.refreshFavorites,
+        remoteGroups,
+        selectedGroup,
         selectedContentItems,
+        selectedGroupKey,
+        selectedSource,
         setEditMode,
         setSelectedKeys
     });

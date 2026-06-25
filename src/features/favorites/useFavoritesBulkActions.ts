@@ -1,17 +1,39 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
+import favoriteTransferRepository from '@/repositories/favoriteTransferRepository';
 import { useModalStore } from '@/state/modalStore';
 
-import type { FavoriteItem } from './favoritesTypes';
+import type {
+    FavoriteGroup,
+    FavoriteItem,
+    FavoriteKind,
+    FavoriteSource
+} from './favoritesTypes';
+import {
+    buildFavoriteTransferFailureDescription,
+    buildFavoriteTransferInput,
+    buildFavoriteTransferSuccessfulKeys,
+    buildFavoriteTransferTargets
+} from './favoriteTransfer';
 
 export function useFavoritesBulkActions({
+    currentEndpoint,
     handleRemoveLocalFavorite,
     handleRemoveRemoteFavorite,
+    kind,
+    localGroups,
+    refreshFavorites,
+    remoteGroups,
+    selectedGroup,
     selectedContentItems,
+    selectedGroupKey,
+    selectedSource,
     setEditMode,
     setSelectedKeys
 }: {
+    currentEndpoint: string;
     handleRemoveLocalFavorite(
         item: FavoriteItem,
         options?: { silent?: boolean }
@@ -20,12 +42,29 @@ export function useFavoritesBulkActions({
         item: FavoriteItem,
         options?: { silent?: boolean }
     ): Promise<boolean>;
+    kind: FavoriteKind;
+    localGroups: FavoriteGroup[];
+    refreshFavorites(options?: { silent?: boolean }): Promise<void>;
+    remoteGroups: FavoriteGroup[];
+    selectedGroup: FavoriteGroup | null;
     selectedContentItems: FavoriteItem[];
+    selectedGroupKey: string;
+    selectedSource: FavoriteSource;
     setEditMode(value: boolean): void;
     setSelectedKeys(value: string[] | ((current: string[]) => string[])): void;
 }) {
     const { t } = useTranslation();
     const confirm = useModalStore((state: any) => state.confirm);
+    const moveTargets = useMemo(
+        () =>
+            buildFavoriteTransferTargets({
+                remoteGroups,
+                localGroups,
+                selectedSource,
+                selectedGroupKey
+            }),
+        [localGroups, remoteGroups, selectedGroupKey, selectedSource]
+    );
 
     async function bulkRemoveSelection() {
         if (!selectedContentItems.length) {
@@ -86,7 +125,68 @@ export function useFavoritesBulkActions({
         );
     }
 
+    async function bulkMoveSelection(targetGroup: FavoriteGroup) {
+        if (!selectedContentItems.length || !selectedGroup) {
+            return;
+        }
+        try {
+            const result = await favoriteTransferRepository.transferFavorites(
+                buildFavoriteTransferInput({
+                    endpoint: currentEndpoint,
+                    kind,
+                    sourceGroup: selectedGroup,
+                    targetGroup,
+                    selectedItems: selectedContentItems
+                })
+            );
+            const successfulKeys = buildFavoriteTransferSuccessfulKeys(
+                result.items
+            );
+            if (result.succeeded > 0) {
+                await refreshFavorites({ silent: true });
+                setSelectedKeys((current) =>
+                    current.filter((key) => !successfulKeys.has(key))
+                );
+            }
+            if (result.failed === 0) {
+                const successMessage =
+                    selectedGroup.source === 'local' &&
+                    targetGroup.source === 'remote'
+                        ? t('view.favorite.success.selected_favorites_copied')
+                        : t('view.favorite.success.selected_favorites_moved');
+                setEditMode(false);
+                toast.success(successMessage);
+                return;
+            }
+            const fallbackMessage = t(
+                'view.favorites.toast.failed_to_move_selected_favorites'
+            );
+            const description = buildFavoriteTransferFailureDescription({
+                results: result.items,
+                selectedItems: selectedContentItems,
+                fallbackMessage
+            });
+            toast.error(
+                t('view.favorites.dynamic.transferred_value_value_failed', {
+                    value: result.succeeded,
+                    value2: result.failed
+                }),
+                description ? { description } : undefined
+            );
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : t(
+                          'view.favorites.toast.failed_to_move_selected_favorites'
+                      )
+            );
+        }
+    }
+
     return {
-        bulkRemoveSelection
+        bulkMoveSelection,
+        bulkRemoveSelection,
+        moveTargets
     };
 }

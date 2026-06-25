@@ -267,6 +267,51 @@ mod tests {
     }
 
     #[test]
+    fn request_legacy_migration_writes_pending_flag() -> Result<(), Error> {
+        let dir = TestDir::new("legacy-request-flag");
+        let paths = dir.app_paths();
+
+        request_legacy_migration(&paths)?;
+
+        assert_eq!(
+            std::fs::read(paths.app_data.join("pending_vrcx_migration"))?,
+            b"1"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn pending_legacy_migration_without_source_clears_flag_without_replacing_targets(
+    ) -> Result<(), Error> {
+        let dir = TestDir::new("legacy-pending-no-source");
+        let paths = dir.app_paths();
+        let migration_flag = paths.app_data.join("pending_vrcx_migration");
+
+        write_file(&paths.db_file, b"existing-db")?;
+        write_file(&paths.config_file, b"existing-config")?;
+        write_file(&migration_flag, b"1")?;
+
+        consume_pending_legacy_migration_with_discovery(&paths, || {
+            (
+                None,
+                LegacyVrcxMigrationStatus {
+                    detected: true,
+                    available: false,
+                    version: None,
+                    db_path: None,
+                    config_path: None,
+                    reason: Some("Legacy source unavailable.".into()),
+                },
+            )
+        })?;
+
+        assert_eq!(std::fs::read(&paths.db_file)?, b"existing-db");
+        assert_eq!(std::fs::read(&paths.config_file)?, b"existing-config");
+        assert!(!migration_flag.exists());
+        Ok(())
+    }
+
+    #[test]
     fn cleans_legacy_updater_artifacts_from_app_data() -> Result<(), Error> {
         let dir = TestDir::new("updater-cleanup");
 

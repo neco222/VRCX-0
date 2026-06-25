@@ -194,6 +194,9 @@ export function FavoritesContentPanel({
         selection.setSelectedKeys([])
     );
     const handleCopySelection = useStableEvent(favoriteCommands.copySelection);
+    const handleMoveSelection = useStableEvent(
+        favoriteCommands.bulkMoveSelection
+    );
     const handleBulkRemoveSelection = useStableEvent(
         favoriteCommands.bulkRemoveSelection
     );
@@ -242,11 +245,13 @@ export function FavoritesContentPanel({
                 }
                 isAllSelected={selection.isAllSelected}
                 hasSelection={selection.selectedKeysSet.size > 0}
+                moveTargets={favoriteCommands.moveTargets}
                 showCopyButton={filters.selectedSource !== 'local'}
                 onEditModeChange={handleEditModeChange}
                 onToggleSelectAll={selection.toggleSelectAll}
                 onClearSelection={handleClearSelection}
                 onCopySelection={handleCopySelection}
+                onMoveSelection={handleMoveSelection}
                 onBulkRemove={handleBulkRemoveSelection}
             />
             <div

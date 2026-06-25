@@ -1026,12 +1026,16 @@
                 "boop_sent": "戳一戳已傳送",
                 "avatar_selected": "角色已選擇",
                 "copied_selected_favorite_ids": "已複製所選收藏 ID",
-                "selected_favorites_removed": "已移除所選收藏"
+                "selected_favorites_removed": "已移除所選收藏",
+                "selected_favorites_moved": "已移動所選收藏",
+                "selected_favorites_copied": "已複製所選收藏"
             },
             "action": {
                 "remove_favorite": "移除收藏",
                 "export_favorite": "匯出收藏",
-                "edit_mode": "編輯模式"
+                "edit_mode": "編輯模式",
+                "move": "移動",
+                "move_to": "移動到"
             },
             "empty": {
                 "no_favorite_groups_loaded": "未載入到收藏分組",
@@ -1846,6 +1850,7 @@
                     "not_refreshed": "未重新整理",
                     "purge_avatar_history_description": "開啟確認彈窗後再刪除舊的角色變動紀錄。",
                     "purge_avatar_history": "清理角色紀錄",
+                    "refresh": "重新整理資料庫狀態",
                     "refresh_sqlite_tables": "重新整理表大小",
                     "migrate_legacy_vrcx": "遷移舊版 VRCX 資料"
                 },
@@ -2665,7 +2670,8 @@
                 "failed_to_send_boop": "傳送戳一戳失敗",
                 "failed_to_select_avatar": "切換角色失敗",
                 "failed_to_create_local_favorite_group": "建立本機收藏分組失敗",
-                "failed_to_copy_selected_favorites": "複製所選收藏失敗"
+                "failed_to_copy_selected_favorites": "複製所選收藏失敗",
+                "failed_to_move_selected_favorites": "移動所選收藏失敗"
             },
             "modal": {
                 "remove_local_favorite": "移除本機收藏？",
@@ -2717,7 +2723,8 @@
                 "local_group_value_already_exists": "本機分組 {value} 已存在",
                 "removed_value_value_failed": "已移除 {value}；{value2} 個失敗",
                 "search_results_singular": "{count} 條結果",
-                "search_results_plural": "{count} 條結果"
+                "search_results_plural": "{count} 條結果",
+                "transferred_value_value_failed": "已處理 {value} 個；{value2} 個失敗"
             }
         },
         "friends": {
@@ -4542,6 +4549,7 @@
             "col_resolution": "解析度",
             "col_match": "匹配",
             "col_author": "作者",
+            "source": "來源",
             "back_to_results": "返回 {count} 個結果",
             "result_count": "{count} 個結果",
             "gallery": "圖庫",

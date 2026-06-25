@@ -339,6 +339,11 @@ export const commands = {
     async appOverlayActivitySnapshotGet(): Promise<OverlayActivitySnapshot> {
         return await TAURI_INVOKE('app__overlay_activity_snapshot_get');
     },
+    async appFavoritesTransfer(
+        input: FavoriteTransferInput
+    ): Promise<FavoriteTransferResult> {
+        return await TAURI_INVOKE('app__favorites_transfer', { input });
+    },
     async appVrOverlayStatusGet(): Promise<VrOverlayRuntimeSnapshot> {
         return await TAURI_INVOKE('app__vr_overlay_status_get');
     },
@@ -2992,6 +2997,51 @@ export type ExternalApiVrcStatusInput = { path?: string };
 export type ExternalApiYoutubeVideoInput = {
     videoId?: string;
     apiKey?: string;
+};
+export type FavoriteTransferInput = {
+    endpoint?: string;
+    kind?: string;
+    source: FavoriteTransferSource;
+    target: FavoriteTransferTarget;
+    items?: FavoriteTransferItem[];
+};
+export type FavoriteTransferItem = {
+    key?: string;
+    entityId?: string;
+    entity?: RawJson | null;
+};
+export type FavoriteTransferItemResult = {
+    key: string;
+    entityId: string;
+    status: FavoriteTransferItemStatus;
+    stage: FavoriteTransferStage;
+    message: string;
+    remoteFavorite: RawJson | null;
+    localAffected: number;
+};
+export type FavoriteTransferItemStatus = 'moved' | 'copied' | 'failed';
+export type FavoriteTransferLocation = 'remote' | 'local';
+export type FavoriteTransferResult = {
+    total: number;
+    succeeded: number;
+    failed: number;
+    localChanged: boolean;
+    items: FavoriteTransferItemResult[];
+};
+export type FavoriteTransferSource = {
+    location: FavoriteTransferLocation;
+    group?: string;
+};
+export type FavoriteTransferStage =
+    | 'validate'
+    | 'deleteRemote'
+    | 'addRemote'
+    | 'addLocal'
+    | 'moveLocal';
+export type FavoriteTransferTarget = {
+    location: FavoriteTransferLocation;
+    group?: string;
+    favoriteType?: string;
 };
 export type FeedCursorInput = {
     createdAt: string;

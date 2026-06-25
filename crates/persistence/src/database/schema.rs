@@ -395,4 +395,63 @@ mod schema_version_tests {
             VRCX0_SCHEMA_VERSION
         );
     }
+
+    #[test]
+    fn column_add_and_drop_helpers_are_idempotent() {
+        let db = test_db("schema-version-column-idempotent");
+        db.execute_non_query(
+            "CREATE TABLE sample_table (id TEXT PRIMARY KEY)",
+            &Default::default(),
+        )
+        .unwrap();
+
+        assert!(
+            add_column_if_missing(&db, "sample_table", "display_name", "TEXT NOT NULL DEFAULT ''")
+                .unwrap()
+        );
+        assert!(
+            !add_column_if_missing(
+                &db,
+                "sample_table",
+                "display_name",
+                "TEXT NOT NULL DEFAULT ''"
+            )
+            .unwrap()
+        );
+        assert!(table_column_names(&db, "sample_table")
+            .unwrap()
+            .contains("display_name"));
+
+        assert!(drop_column_if_exists(&db, "sample_table", "display_name").unwrap());
+        assert!(!drop_column_if_exists(&db, "sample_table", "display_name").unwrap());
+        assert!(!table_column_names(&db, "sample_table")
+            .unwrap()
+            .contains("display_name"));
+    }
+
+    #[test]
+    fn column_helpers_reject_invalid_identifiers() {
+        let db = test_db("schema-version-invalid-identifiers");
+        db.execute_non_query(
+            "CREATE TABLE sample_table (id TEXT PRIMARY KEY)",
+            &Default::default(),
+        )
+        .unwrap();
+
+        let table_error =
+            add_column_if_missing(&db, "sample-table", "display_name", "TEXT").unwrap_err();
+        let column_error =
+            drop_column_if_exists(&db, "sample_table", "display-name").unwrap_err();
+
+        assert!(
+            table_error
+                .to_string()
+                .contains("Table name contains invalid characters")
+        );
+        assert!(
+            column_error
+                .to_string()
+                .contains("Column name contains invalid characters")
+        );
+    }
 }
