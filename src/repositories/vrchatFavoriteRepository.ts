@@ -397,8 +397,8 @@ async function saveFavoriteGroup({
         ownerId: normalizedOwnerId,
         type: normalizedType,
         group: normalizedGroup,
-        displayName: payload.displayName as string | undefined,
-        visibility: payload.visibility as string | undefined
+        displayName: typeof displayName === 'string' ? displayName : null,
+        visibility: typeof visibility === 'string' ? visibility : null
     });
     return unwrapVrchatFavoriteResponse(
         response,

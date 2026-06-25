@@ -175,7 +175,7 @@ export function getDashboardInstanceWidgetColumns(
     const columns = source.filter(
         (column, index, values): column is string =>
             typeof column === 'string' &&
-            column &&
+            column.length > 0 &&
             values.indexOf(column) === index
     );
 

@@ -2,6 +2,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const REALTIME_TRANSPORT_TEST_TIMEOUT_MS = 15_000;
 
+type RealtimeStartResolution = {
+    generation: number;
+    clientRunId: number;
+    sessionGeneration: number;
+};
+
+function createDeferredStart(): {
+    promise: Promise<RealtimeStartResolution>;
+    resolve: (value: RealtimeStartResolution) => void;
+} {
+    let resolve: (value: RealtimeStartResolution) => void = () => {};
+    const promise = new Promise<RealtimeStartResolution>((res) => {
+        resolve = res;
+    });
+    return { promise, resolve };
+}
+
 const runtimeState = vi.hoisted(() => {
     const capabilities: Record<string, boolean> = {
         runtimeRealtimeTransport: true,
@@ -356,17 +373,9 @@ describe('realtime transport runtime routing', () => {
     });
 
     it('replays typed runtime projections emitted before start returns', async () => {
-        let resolveStart:
-            | ((value: {
-                  generation: number;
-                  clientRunId: number;
-                  sessionGeneration: number;
-              }) => void)
-            | null = null;
+        const deferredStart = createDeferredStart();
         runtimeState.commands.appStartRealtimeTransport.mockReturnValue(
-            new Promise((resolve: any) => {
-                resolveStart = resolve;
-            })
+            deferredStart.promise
         );
         await prepareReadySession();
         const { startRealtimeTransport } =
@@ -398,7 +407,7 @@ describe('realtime transport runtime routing', () => {
 
         const clientRunId =
             runtimeState.commands.appStartRealtimeTransport.mock.calls[0][3];
-        resolveStart?.({
+        deferredStart.resolve({
             generation: 1,
             clientRunId,
             sessionGeneration: 1
@@ -476,17 +485,9 @@ describe('realtime transport runtime routing', () => {
     });
 
     it('stops runtime realtime transport while runtime start is still pending', async () => {
-        let resolveStart:
-            | ((value: {
-                  generation: number;
-                  clientRunId: number;
-                  sessionGeneration: number;
-              }) => void)
-            | null = null;
+        const deferredStart = createDeferredStart();
         runtimeState.commands.appStartRealtimeTransport.mockReturnValue(
-            new Promise((resolve: any) => {
-                resolveStart = resolve;
-            })
+            deferredStart.promise
         );
         await prepareReadySession();
         const { startRealtimeTransport, stopRealtimeTransport } =
@@ -511,7 +512,7 @@ describe('realtime transport runtime routing', () => {
 
         const clientRunId =
             runtimeState.commands.appStartRealtimeTransport.mock.calls[0][3];
-        resolveStart?.({
+        deferredStart.resolve({
             generation: 1,
             clientRunId,
             sessionGeneration: 1

@@ -3,6 +3,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
+import type {
+    SavedAuthSnapshot,
+    SavedCredentialRecord
+} from '@/repositories/authRepository';
 import {
     executeManualLogin,
     executeSavedCredentialLogin
@@ -51,9 +55,10 @@ export function useLoginPageState() {
     );
     const sessionPhase = useSessionStore((state: any) => state.sessionPhase);
     const databaseReady = useSessionStore((state: any) => state.databaseReady);
-    const [snapshot, setSnapshot] = useState(null);
+    const [snapshot, setSnapshot] = useState<SavedAuthSnapshot | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteTarget, setDeleteTarget] =
+        useState<SavedCredentialRecord | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isProxyDialogOpen, setIsProxyDialogOpen] = useState(false);
@@ -190,15 +195,14 @@ export function useLoginPageState() {
     }
 
     async function handleDeleteSavedAccount() {
-        if (!deleteTarget?.user?.id) {
+        const deleteUserId = deleteTarget?.user?.id;
+        if (!deleteUserId || typeof deleteUserId !== 'string') {
             return;
         }
 
         setIsDeleting(true);
         try {
-            const nextSnapshot = await deleteSavedAuthSnapshot(
-                deleteTarget.user.id
-            );
+            const nextSnapshot = await deleteSavedAuthSnapshot(deleteUserId);
             applySnapshot(nextSnapshot);
             toast.success(t('message.auth.account_removed'));
         } catch (error) {
@@ -315,7 +319,9 @@ export function useLoginPageState() {
         }
     }
 
-    const savedAccounts = snapshot?.savedCredentialsList || [];
+    const savedAccounts = Array.isArray(snapshot?.savedCredentialsList)
+        ? snapshot.savedCredentialsList
+        : [];
     const hasSavedAccounts = !isLoading && savedAccounts.length > 0;
     const showLegacyMigrationAction = shouldShowLegacyMigrationAction(
         isLoading,

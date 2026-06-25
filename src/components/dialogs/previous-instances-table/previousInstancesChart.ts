@@ -75,11 +75,12 @@ export function buildInfoChartOption({
     });
 
     for (const entry of sortedRows) {
-        if (!groupedByUser.has(entry.userId)) {
-            groupedByUser.set(entry.userId, []);
+        let entries = groupedByUser.get(entry.userId);
+        if (!entries) {
+            entries = [];
+            groupedByUser.set(entry.userId, entries);
             firstEntries.push(entry);
         }
-        const entries = groupedByUser.get(entry.userId);
         const previous = entries[entries.length - 1];
         const offset = Math.max(
             0,

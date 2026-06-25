@@ -83,7 +83,7 @@ export function cloneLayout(source: any) {
             }
             return null;
         })
-        .filter(Boolean);
+        .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 }
 
 export function createFolderId() {

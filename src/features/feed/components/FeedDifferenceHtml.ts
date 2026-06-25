@@ -34,18 +34,21 @@ function formatDifferenceHtml(
 
         for (let i = oldStart; i < oldEnd; i += 1) {
             const word = oldWords[i];
-            if (!lookup.has(word)) {
-                lookup.set(word, []);
+            let positions = lookup.get(word);
+            if (!positions) {
+                positions = [];
+                lookup.set(word, positions);
             }
-            lookup.get(word).push(i);
+            positions.push(i);
         }
 
         for (let j = newStart; j < newEnd; j += 1) {
             const word = newWords[j];
-            if (!lookup.has(word)) {
+            const positions = lookup.get(word);
+            if (!positions) {
                 continue;
             }
-            for (const i of lookup.get(word)) {
+            for (const i of positions) {
                 let size = 0;
                 while (
                     i + size < oldEnd &&

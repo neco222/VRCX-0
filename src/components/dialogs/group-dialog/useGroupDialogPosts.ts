@@ -13,7 +13,7 @@ export function useGroupDialogPosts({
     setRemoteStatus,
     t
 }: any) {
-    const [postEditor, setPostEditor] = useState(null);
+    const [postEditor, setPostEditor] = useState<any>(null);
     const [postEditorSubmitting, setPostEditorSubmitting] = useState(false);
 
     function createGroupPost() {

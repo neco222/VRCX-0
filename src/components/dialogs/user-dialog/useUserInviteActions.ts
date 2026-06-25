@@ -31,7 +31,11 @@ export function useUserInviteActions({
     setActionStatus
 }: any) {
     const { t } = useTranslation();
-    const [inviteMessageRequest, setInviteMessageRequest] = useState(null);
+    const [inviteMessageRequest, setInviteMessageRequest] = useState<{
+        kind: string;
+        messageType: string;
+        context: any;
+    } | null>(null);
 
     useLayoutEffect(() => {
         setInviteMessageRequest(null);

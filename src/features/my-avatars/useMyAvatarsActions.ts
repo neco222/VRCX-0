@@ -191,16 +191,22 @@ export function useMyAvatarsActions({
         }
     }
 
-    function applyAvatarUpdate(nextAvatar: MyAvatarRow | null | undefined) {
-        if (!nextAvatar?.id) {
+    function applyAvatarUpdate(nextAvatar: unknown) {
+        if (
+            !nextAvatar ||
+            typeof nextAvatar !== 'object' ||
+            !('id' in nextAvatar) ||
+            !nextAvatar.id
+        ) {
             return;
         }
+        const nextAvatarRow = nextAvatar as MyAvatarRow;
         setAvatars((currentAvatars: any) =>
             currentAvatars.map((entry: any) =>
-                entry.id === nextAvatar.id
+                entry.id === nextAvatarRow.id
                     ? {
                           ...entry,
-                          ...nextAvatar,
+                          ...nextAvatarRow,
                           $tags: entry.$tags || [],
                           $timeSpent: entry.$timeSpent || 0
                       }
@@ -477,7 +483,12 @@ export function useMyAvatarsActions({
         const avatar = imageUploadAvatarRef.current;
         const avatarId = avatarIdFromValue(avatar);
         const authTarget = imageUploadAuthTargetRef.current;
-        if (!avatarId || !authTarget || !isRuntimeAuthTarget(authTarget)) {
+        if (
+            !avatar ||
+            !avatarId ||
+            !authTarget ||
+            !isRuntimeAuthTarget(authTarget)
+        ) {
             return;
         }
         const validation = validateImageUploadFile(file);
@@ -499,6 +510,7 @@ export function useMyAvatarsActions({
         const authTarget = request?.authTarget;
         if (
             !blob ||
+            !avatar ||
             !avatarId ||
             !authTarget ||
             !isRuntimeAuthTarget(authTarget)

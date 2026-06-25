@@ -306,7 +306,7 @@ export async function fetchWithEntityPolicy<TData = any>({
         !force &&
         Boolean(queryState?.dataUpdatedAt) &&
         staleTime > 0 &&
-        Date.now() - queryState.dataUpdatedAt < staleTime;
+        Date.now() - (queryState?.dataUpdatedAt ?? 0) < staleTime;
 
     const data = await queryClient.fetchQuery<TData>({
         queryKey,

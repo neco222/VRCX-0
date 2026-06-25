@@ -35,7 +35,7 @@ describe('recentActionService', () => {
 
     afterEach(() => {
         vi.useRealTimers();
-        delete globalThis.window;
+        Reflect.deleteProperty(globalThis, 'window');
     });
 
     it('records only tracked actions and respects the configured cooldown', async () => {

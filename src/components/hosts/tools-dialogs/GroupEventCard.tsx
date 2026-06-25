@@ -160,7 +160,7 @@ export function GroupEventCard({
     const groupId = getEventGroupId(event);
     const [popoverOpen, setPopoverOpen] = useState(false);
     const [bannerError, setBannerError] = useState(false);
-    const closeTimerRef = useRef(null);
+    const closeTimerRef = useRef<number | null>(null);
     const bannerUrl = bannerError ? '' : getEventBannerUrl(event, groupProfile);
     const title =
         event.title || t('dialog.group_calendar.event_card.untitled_event');

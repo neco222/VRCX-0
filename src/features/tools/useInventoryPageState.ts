@@ -348,7 +348,7 @@ export function useInventoryPageState() {
             return;
         }
         const { target, settings, authTarget } = request;
-        setUploadingTarget(target);
+        setUploadingTarget(target ?? '');
         try {
             const base64Body = await readFileAsBase64(blob);
             if (!isCurrentAuthTarget(authTarget)) {

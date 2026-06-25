@@ -85,7 +85,9 @@ export function ScreenshotMetadataPage() {
         sortedSearchRows,
         toggleSearchSort
     } = useScreenshotMetadataSearch();
-    const [metadata, setMetadata] = useState(null);
+    const [metadata, setMetadata] = useState<ReturnType<
+        typeof normalizeScreenshotMetadata
+    > | null>(null);
     const [metadataError, setMetadataError] = useState('');
     const [imageUrl, setImageUrl] = useState('');
     const [isMetadataLoading, setIsMetadataLoading] = useState(false);

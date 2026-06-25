@@ -289,7 +289,7 @@ export function resolveScreenshotMetadataDate(
     }
 
     const fileNameTimestamp = parseVrchatScreenshotDateFromFileName(fileName);
-    if (Number.isFinite(fileNameTimestamp)) {
+    if (fileNameTimestamp !== null && Number.isFinite(fileNameTimestamp)) {
         return new Date(fileNameTimestamp);
     }
 

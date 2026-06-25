@@ -36,18 +36,19 @@ function readActions(): Record<string, number> {
         cachedActions = {};
         return cachedActions;
     }
+    let next: Record<string, number> = {};
     try {
         const parsed = JSON.parse(
             window.localStorage.getItem(STORAGE_KEY) || '{}'
         );
-        cachedActions =
-            parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-                ? parsed
-                : {};
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            next = parsed;
+        }
     } catch {
-        cachedActions = {};
+        next = {};
     }
-    return cachedActions;
+    cachedActions = next;
+    return next;
 }
 
 function writeActions(actions: Record<string, number>): void {

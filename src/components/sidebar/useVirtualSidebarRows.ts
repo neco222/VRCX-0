@@ -32,9 +32,11 @@ export function useVirtualSidebarRows<T extends VirtualSidebarRow>(
         height: 0
     });
     const [measureVersion, setMeasureVersion] = useState(0);
-    const overscan = Number.isFinite(options.overscan)
-        ? options.overscan
-        : DEFAULT_OVERSCAN;
+    const overscan =
+        typeof options.overscan === 'number' &&
+        Number.isFinite(options.overscan)
+            ? options.overscan
+            : DEFAULT_OVERSCAN;
 
     const rowMetrics = useMemo(() => {
         let totalSize = 0;
@@ -110,7 +112,9 @@ export function useVirtualSidebarRows<T extends VirtualSidebarRow>(
     );
 
     useEffect(() => {
-        const liveKeys = new Set(rows.map((row, index) => row?.key ?? index));
+        const liveKeys = new Set<unknown>(
+            rows.map((row, index) => row?.key ?? index)
+        );
         let changed = false;
 
         for (const key of measuredSizesRef.current.keys()) {

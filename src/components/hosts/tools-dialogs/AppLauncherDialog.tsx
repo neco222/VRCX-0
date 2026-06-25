@@ -55,7 +55,7 @@ function createDefaultEntry(
         kind,
         scope: 'all',
         target: '',
-        args: kind === 'localApp' ? '' : undefined,
+        args: '',
         launchDelaySeconds: 0,
         runPolicy: 'always',
         stopPolicy: 'keepRunning',
@@ -70,7 +70,7 @@ function normalizeEntry(entry: AppLauncherEntry): AppLauncherEntry {
         ...entry,
         name: entry.name.trim(),
         target: entry.target.trim(),
-        args: entry.kind === 'localApp' ? (entry.args ?? '') : undefined,
+        args: entry.kind === 'localApp' ? (entry.args ?? '') : '',
         launchDelaySeconds: normalizeLaunchDelaySeconds(
             entry.launchDelaySeconds
         ),
@@ -106,11 +106,9 @@ function applyPickedTarget(
         kind: picked.kind,
         target: picked.target,
         args:
-            picked.kind === 'localApp'
-                ? entry.kind === 'localApp'
-                    ? (entry.args ?? '')
-                    : ''
-                : undefined,
+            picked.kind === 'localApp' && entry.kind === 'localApp'
+                ? (entry.args ?? '')
+                : '',
         stopPolicy:
             picked.kind === 'steamApp' ? 'keepRunning' : entry.stopPolicy,
         processName: picked.processName ?? '',

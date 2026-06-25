@@ -62,6 +62,9 @@ describe('discordPresence utilities', () => {
     it('returns copy-on-read RPC world config objects', () => {
         const worldId = 'wrld_266523e8-9161-40da-acd0-6bd82e075833';
         const config = getRpcWorldConfig(worldId);
+        if (!config) {
+            throw new Error('expected RPC world config');
+        }
 
         expect(config).toMatchObject({
             activityType: ActivityType.Watching,
@@ -73,7 +76,11 @@ describe('discordPresence utilities', () => {
 
         config.bigIcon = 'mutated';
 
-        expect(getRpcWorldConfig(worldId).bigIcon).toBe('popcorn_palace');
+        const freshConfig = getRpcWorldConfig(worldId);
+        if (!freshConfig) {
+            throw new Error('expected RPC world config');
+        }
+        expect(freshConfig.bigIcon).toBe('popcorn_palace');
         expect(getRpcWorldConfig('wrld_unknown')).toBeNull();
         expect(isPopcornPalaceWorld('wrld_unknown')).toBe(false);
     });

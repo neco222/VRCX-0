@@ -349,7 +349,7 @@ export function useGroupDialogState({ groupId, seedData = null }: any) {
         const result = await confirm({
             title: t('dialog.group.modal.leave_group'),
             description: t('dialog.group.dynamic.leave_value', {
-                value: group.name || group.id
+                value: group?.name || group?.id
             }),
             destructive: true,
             confirmText: t('dialog.group.modal.leave'),
@@ -520,7 +520,7 @@ export function useGroupDialogState({ groupId, seedData = null }: any) {
             title: enabled
                 ? t('dialog.group.modal.block_group')
                 : t('dialog.group.modal.unblock_group'),
-            description: group.name || group.id,
+            description: group?.name || group?.id,
             confirmText: enabled
                 ? t('dialog.group.actions.block')
                 : t('dialog.group.actions.unblock'),

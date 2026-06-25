@@ -77,7 +77,7 @@ describe('screenshotMetadataValues', () => {
             author: { id: 'usr_author', displayName: 'Author' },
             players: [{ id: 'usr_ava', displayName: 'Ava' }]
         });
-        expect(metadata.dateTime.toISOString()).toBe(
+        expect(metadata.dateTime!.toISOString()).toBe(
             '2026-04-16T01:02:03.000Z'
         );
     });
@@ -95,9 +95,9 @@ describe('screenshotMetadataValues', () => {
             'VRChat_2026-04-15_22-10-05.123_1920x1080.png'
         );
         expect(metadata.dateTime).toBeInstanceOf(Date);
-        expect(metadata.dateTime.getFullYear()).toBe(2026);
-        expect(metadata.dateTime.getMonth()).toBe(3);
-        expect(metadata.dateTime.getDate()).toBe(15);
+        expect(metadata.dateTime!.getFullYear()).toBe(2026);
+        expect(metadata.dateTime!.getMonth()).toBe(3);
+        expect(metadata.dateTime!.getDate()).toBe(15);
     });
 
     it('builds search rows with visible match text for player name and id searches', () => {

@@ -34,8 +34,8 @@ export function ImageCropDialog({
 }: any) {
     const { t } = useTranslation();
 
-    const canvasRef = useRef(null);
-    const [imageBitmap, setImageBitmap] = useState(null);
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const [imageBitmap, setImageBitmap] = useState<ImageBitmap | null>(null);
     const [zoom, setZoom] = useState(1);
     const [offsetX, setOffsetX] = useState(0);
     const [offsetY, setOffsetY] = useState(0);

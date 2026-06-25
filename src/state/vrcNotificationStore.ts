@@ -113,6 +113,9 @@ function isNotificationExpired(notification?: NotificationRow | null): boolean {
 }
 
 function isUnseenNotification(notification?: NotificationRow | null): boolean {
+    if (!notification) {
+        return false;
+    }
     const version = Number(notification?.version ?? 1);
     const type = String(notification?.type || '');
     const isTransientV1Unseen =

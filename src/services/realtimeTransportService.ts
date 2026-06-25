@@ -594,7 +594,7 @@ async function connectRealtimeTransport({
     preserveMetrics
 }: ConnectRealtimeTransportOptions) {
     const context = activeContext;
-    if (!isCurrentTransportTarget(context)) {
+    if (!context || !isCurrentTransportTarget(context)) {
         return stopRealtimeTransport();
     }
 

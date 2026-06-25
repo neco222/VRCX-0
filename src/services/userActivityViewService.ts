@@ -586,7 +586,7 @@ async function loadActivityView({
                 viewKind:
                     activityPersistenceRepository.ACTIVITY_VIEW_KIND.ACTIVITY
             });
-        if (persisted?.builtFromCursor === currentCursor) {
+        if (persisted && persisted.builtFromCursor === currentCursor) {
             view = activityViewCache({
                 ...recordOrEmpty(persisted.summary),
                 rawBuckets: persisted.rawBuckets,

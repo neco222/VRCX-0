@@ -1,3 +1,4 @@
+import type { EChartsType } from 'echarts/core';
 import { ImageIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -133,11 +134,13 @@ export function HeatmapChart({
     renderDelay = 0,
     onContextMenu
 }: any) {
-    const [chartElement, setChartElement] = useState(null);
-    const chartInstanceRef = useRef(null);
-    const chartThemeRef = useRef(null);
-    const resizeObserverRef = useRef(null);
-    const renderTimerRef = useRef(null);
+    const [chartElement, setChartElement] = useState<HTMLDivElement | null>(
+        null
+    );
+    const chartInstanceRef = useRef<EChartsType | null>(null);
+    const chartThemeRef = useRef<string | null>(null);
+    const resizeObserverRef = useRef<ResizeObserver | null>(null);
+    const renderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(
         () => () => {
@@ -171,15 +174,24 @@ export function HeatmapChart({
             if (!chart || chartThemeRef.current !== themeName) {
                 resizeObserverRef.current?.disconnect();
                 chart?.dispose();
-                chart = echarts.init(chartElement, themeName || undefined, {
-                    height: 240
-                });
-                chartInstanceRef.current = chart;
+                const nextChart = echarts.init(
+                    chartElement,
+                    themeName || undefined,
+                    {
+                        height: 240
+                    }
+                );
+                chart = nextChart;
+                chartInstanceRef.current = nextChart;
                 chartThemeRef.current = themeName;
                 resizeObserverRef.current = new ResizeObserver(() => {
-                    chart.resize();
+                    nextChart.resize();
                 });
                 resizeObserverRef.current.observe(chartElement);
+            }
+
+            if (!chart) {
+                return;
             }
 
             chartElement.style.height = '240px';

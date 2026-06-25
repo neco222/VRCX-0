@@ -27,7 +27,7 @@ export type NavDefinition = {
     labelKey?: string;
     titleIsCustom?: boolean;
     isDashboard?: boolean;
-    routeName?: string;
+    routeName?: string | null;
     routeParams?: Record<string, string>;
     path?: string;
 };
@@ -436,7 +436,7 @@ export function buildMenuItems(
 
         if (entry.type === 'folder') {
             const children = (entry.items || [])
-                .map((item) => {
+                .map((item): NavMenuItem | null => {
                     const key = getFolderItemKey(item);
                     const definition = definitionMap.get(key);
                     if (!definition) {
@@ -455,7 +455,7 @@ export function buildMenuItems(
                         )
                     };
                 })
-                .filter(Boolean);
+                .filter((child): child is NavMenuItem => child !== null);
             if (children.length) {
                 items.push({
                     index: entry.id,

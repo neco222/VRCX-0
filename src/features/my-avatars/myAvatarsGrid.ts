@@ -7,6 +7,7 @@ import {
     MY_AVATARS_DEFAULT_GRID_DENSITY,
     sanitizeMyAvatarsGridDensity
 } from './myAvatarsState';
+import type { MyAvatarsGridDensityConfig } from './myAvatarsTypes';
 
 const MY_AVATARS_GRID_DENSITY_CONFIGS = Object.freeze({
     standard: Object.freeze({
@@ -61,7 +62,9 @@ const MY_AVATARS_GRID_DENSITY_CONFIGS = Object.freeze({
 
 type MyAvatarsGridDensityKey = keyof typeof MY_AVATARS_GRID_DENSITY_CONFIGS;
 
-export function getMyAvatarsGridDensityConfig(value: any) {
+export function getMyAvatarsGridDensityConfig(
+    value: any
+): MyAvatarsGridDensityConfig {
     const densityKey = sanitizeMyAvatarsGridDensity(
         value
     ) as MyAvatarsGridDensityKey;
@@ -129,6 +132,7 @@ export function getMyAvatarsGridMetrics({
     );
 
     return {
+        densityConfig: getMyAvatarsGridDensityConfig(gridDensity),
         gridGap,
         gridMinWidth,
         gridColumnCount,

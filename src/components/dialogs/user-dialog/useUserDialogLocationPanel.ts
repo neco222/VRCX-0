@@ -139,6 +139,9 @@ async function enrichLocationUsersWithProfiles({
         async () => {
             while (queue.length && shouldContinue()) {
                 const target = queue.shift();
+                if (!target) {
+                    break;
+                }
                 try {
                     const profile = await userProfileRepository.getUserProfile({
                         userId: target.userId,

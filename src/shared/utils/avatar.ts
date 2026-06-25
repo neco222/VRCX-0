@@ -27,7 +27,9 @@ function storeAvatarImage(
     const fileId = args.params.fileId;
     let avatarName = '';
     const imageName = args.json.name;
-    const avatarNameRegex = /Avatar - (.*) - Image -/gi.exec(imageName);
+    const avatarNameRegex = imageName
+        ? /Avatar - (.*) - Image -/gi.exec(imageName)
+        : null;
     if (avatarNameRegex) {
         avatarName = replaceBioSymbols(avatarNameRegex[1]);
     }

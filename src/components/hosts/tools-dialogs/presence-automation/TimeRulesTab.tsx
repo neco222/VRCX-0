@@ -114,7 +114,7 @@ function actionSummary(rule: any, t: any) {
 
 export function TimeRulesTab({ rules, disabled, onRulesChange }: any) {
     const { t } = useTranslation();
-    const [selectedRuleId, setSelectedRuleId] = useState(null);
+    const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!rules.length) {

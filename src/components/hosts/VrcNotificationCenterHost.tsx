@@ -104,7 +104,10 @@ export function VrcNotificationCenterHost() {
     const markAllSeen = useVrcNotificationStore(
         (state: any) => state.markAllSeen
     );
-    const [inviteResponseRequest, setInviteResponseRequest] = useState(null);
+    const [inviteResponseRequest, setInviteResponseRequest] = useState<{
+        notification: any;
+        messageType: any;
+    } | null>(null);
     const [boopReplyRequest, setBoopReplyRequest] = useState<any>(null);
     const groupInstanceRows =
         groupInstancesUserId === currentUserId &&

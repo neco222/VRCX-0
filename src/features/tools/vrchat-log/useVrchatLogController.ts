@@ -235,11 +235,9 @@ export function useVrchatLogController() {
             fileName: selectedFileName,
             offset,
             limit,
-            query: searchQuery.trim() || undefined,
+            query: searchQuery.trim() || null,
             levels,
-            categories: selectedCategories.length
-                ? selectedCategories
-                : undefined
+            categories: selectedCategories.length ? selectedCategories : null
         }),
         [levels, searchQuery, selectedCategories, selectedFileName]
     );
@@ -557,11 +555,11 @@ export function useVrchatLogController() {
                         afterLineNumber: lastLineNumberRef.current,
                         fileSize: lastFileSizeRef.current,
                         limit: TAIL_LIMIT,
-                        query: searchQuery.trim() || undefined,
+                        query: searchQuery.trim() || null,
                         levels,
                         categories: selectedCategories.length
                             ? selectedCategories
-                            : undefined
+                            : null
                     });
                     if (!active || response.fileName !== selectedFileName) {
                         return;

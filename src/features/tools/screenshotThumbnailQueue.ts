@@ -21,6 +21,9 @@ const inFlightByPath = new Map<string, ThumbnailTask>();
 function runNextThumbnailRequest() {
     while (activeRequests < MAX_ACTIVE_THUMBNAIL_REQUESTS && queue.length) {
         const task = queue.shift();
+        if (!task) {
+            continue;
+        }
         if (task.cancelled) {
             if (inFlightByPath.get(task.path) === task) {
                 inFlightByPath.delete(task.path);
@@ -52,7 +55,7 @@ export function requestScreenshotThumbnail(path: any) {
     }
 
     const existing = inFlightByPath.get(filePath);
-    if (existing) {
+    if (existing && existing.promise) {
         existing.subscribers += 1;
         return {
             promise: existing.promise,

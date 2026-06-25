@@ -118,8 +118,8 @@ export function resolveRemoteFavoriteGroupLabel(
             type && tag ? `${type}:${tag}` : ''
         ].filter(Boolean)
     );
-    const group = (Array.isArray(groups) ? groups : EMPTY_GROUPS).find(
-        (item) => candidates.has(normalizeEntityId(item?.key))
+    const group = (Array.isArray(groups) ? groups : EMPTY_GROUPS).find((item) =>
+        candidates.has(normalizeEntityId(item?.key))
     );
 
     return groupDisplayLabel(group) || groupKey || tag || 'Current group';
@@ -181,8 +181,7 @@ export function FavoriteActionMenu({
         [localFavorites, localGroups, normalizedEntityId]
     );
     const remoteFavorite = useFavoriteStore(
-        (state) =>
-            state.remoteFavoritesByObjectId[normalizedEntityId] || null
+        (state) => state.remoteFavoritesByObjectId[normalizedEntityId] || null
     );
     const remoteFavoriteGroupLabel = useMemo(
         () => resolveRemoteFavoriteGroupLabel(remoteFavorite, groups),
@@ -463,9 +462,7 @@ export function FavoriteActionMenu({
                                 <DropdownMenuCheckboxItem
                                     key={groupName}
                                     checked={isLocalFavorite}
-                                    onSelect={(event) =>
-                                        event.preventDefault()
-                                    }
+                                    onSelect={(event) => event.preventDefault()}
                                     onCheckedChange={() => {
                                         if (isLocalFavorite) {
                                             removeLocalFavoriteFromGroup(

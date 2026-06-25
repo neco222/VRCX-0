@@ -455,7 +455,7 @@ export async function handleGameRunningUpdate(payload: unknown = {}) {
             : payloadStartedAt || runtimeStore.gameState.lastGameStartedAt;
     const newSessionPatch =
         gameRunningChanged && nextGameRunning
-            ? buildNewGameSessionPatch(gameStartedAt)
+            ? buildNewGameSessionPatch(gameStartedAt ?? now)
             : {};
     const stoppedSessionPatch =
         gameRunningChanged && previousGameRunning === true && !nextGameRunning

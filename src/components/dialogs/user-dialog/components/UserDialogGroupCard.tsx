@@ -25,7 +25,7 @@ export function UserGroupCard({ group, currentEndpoint }: any) {
     const { t } = useTranslation();
 
     const groupId = groupIdForRow(group);
-    const [profile, setProfile] = useState(null);
+    const [profile, setProfile] = useState<any>(null);
 
     useEffect(() => {
         let active = true;
