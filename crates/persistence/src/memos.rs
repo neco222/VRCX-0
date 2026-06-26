@@ -2,7 +2,7 @@
 
 use serde::Serialize;
 
-use crate::common::{normalize_text, now_iso, row_string, ParamsBuilder};
+use crate::common::{normalize_text, now_iso, row_i64, row_string, ParamsBuilder};
 use crate::database::schema::{ensure_global_store_tables, ensure_user_store_tables};
 use crate::database::DatabaseService;
 use crate::realtime::normalize_user_table_prefix;
@@ -78,6 +78,44 @@ pub fn memo_list_users(db: &DatabaseService) -> Result<Vec<UserMemoOutput>, Erro
             "SELECT user_id, edited_at, memo FROM memos",
             &Default::default(),
         )?
+        .into_iter()
+        .map(|row| UserMemoOutput {
+            user_id: row_string(&row, 0),
+            edited_at: row_string(&row, 1),
+            memo: row_string(&row, 2),
+        })
+        .collect())
+}
+
+pub fn memo_count_users(db: &DatabaseService) -> Result<usize, Error> {
+    ensure_global_store_tables(db)?;
+    Ok(db
+        .execute("SELECT COUNT(*) FROM memos", &Default::default())?
+        .first()
+        .map(|row| usize::try_from(row_i64(row, 0).max(0)).unwrap_or(0))
+        .unwrap_or(0))
+}
+
+pub fn memo_list_users_page(
+    db: &DatabaseService,
+    limit: i64,
+    cursor: Option<(&str, &str)>,
+) -> Result<Vec<UserMemoOutput>, Error> {
+    ensure_global_store_tables(db)?;
+    let mut sql = String::from("SELECT user_id, edited_at, memo FROM memos WHERE 1 = 1");
+    let mut params = ParamsBuilder::new().set("limit", limit.max(1));
+    if let Some((edited_at, user_id)) = cursor {
+        sql.push_str(
+            " AND (edited_at < @cursor_edited_at OR (edited_at = @cursor_edited_at AND user_id > @cursor_user_id))",
+        );
+        params = params
+            .set("cursor_edited_at", edited_at)
+            .set("cursor_user_id", user_id);
+    }
+    sql.push_str(" ORDER BY edited_at DESC, user_id ASC LIMIT @limit");
+
+    Ok(db
+        .execute(&sql, &params.build())?
         .into_iter()
         .map(|row| UserMemoOutput {
             user_id: row_string(&row, 0),
@@ -221,4 +259,72 @@ pub(crate) fn save_memo(
         edited_at,
         memo: next_memo,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use super::*;
+
+    static TEST_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    struct TestDir {
+        path: PathBuf,
+    }
+
+    impl TestDir {
+        fn new(name: &str) -> Self {
+            let id = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
+            let path = std::env::temp_dir()
+                .join(format!("vrcx0-memos-{name}-{}-{id}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&path);
+            std::fs::create_dir_all(&path).unwrap();
+            Self { path }
+        }
+    }
+
+    impl Drop for TestDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+
+    fn test_db(name: &str) -> (TestDir, DatabaseService) {
+        let dir = TestDir::new(name);
+        let db = DatabaseService::new(&dir.path.join("VRCX-0.sqlite3")).unwrap();
+        (dir, db)
+    }
+
+    #[test]
+    fn memo_list_users_page_returns_ordered_cursor_page() {
+        let (_dir, db) = test_db("page");
+        ensure_global_store_tables(&db).unwrap();
+        db.execute_non_query(
+            "INSERT INTO memos (user_id, edited_at, memo)
+             VALUES
+                ('usr_a', '2026-06-01T10:00:00Z', 'A'),
+                ('usr_b', '2026-06-03T10:00:00Z', 'B'),
+                ('usr_c', '2026-06-02T10:00:00Z', 'C')",
+            &Default::default(),
+        )
+        .unwrap();
+
+        assert_eq!(memo_count_users(&db).unwrap(), 3);
+
+        let first = memo_list_users_page(&db, 2, None).unwrap();
+        assert_eq!(first.len(), 2);
+        assert_eq!(first[0].user_id, "usr_b");
+        assert_eq!(first[1].user_id, "usr_c");
+
+        let second = memo_list_users_page(
+            &db,
+            2,
+            Some((first[1].edited_at.as_str(), first[1].user_id.as_str())),
+        )
+        .unwrap();
+        assert_eq!(second.len(), 1);
+        assert_eq!(second[0].user_id, "usr_a");
+    }
 }

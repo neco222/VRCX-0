@@ -16,7 +16,9 @@ use super::common::{
 
 #[tool_router(router = activity_tool_router, vis = "pub(crate)")]
 impl VrcxMcpServer {
-    #[tool(description = "Return observed co-presence summary facts for friends in a time window.")]
+    #[tool(
+        description = "Return ranked observed co-presence summary facts for friends in a time window. Results are already ranked and limited; pass a small `limit` to widen or narrow the ranking. Output includes totalRows/returnedRows/truncated."
+    )]
     async fn get_copresence_summary(
         &self,
         Parameters(input): Parameters<CopresenceSummaryParams>,
@@ -28,6 +30,7 @@ impl VrcxMcpServer {
                 time_window: input.time_window.into(),
                 group_by: input.group_by.into(),
                 min_minutes: input.min_minutes,
+                limit: input.limit,
                 owner_user_id: Some(owner_user_id),
                 friends_only: input.friends_only,
             },
@@ -222,19 +225,19 @@ impl VrcxMcpServer {
             },
         )?;
 
-        let mut top_companions = social_aggregates::get_copresence_summary(
+        let top_companions = social_aggregates::get_copresence_summary(
             db,
             social_aggregates::CopresenceSummaryInput {
                 time_window: time_window.clone(),
                 group_by: social_aggregates::CopresenceGroupBy::Friend,
                 min_minutes: None,
+                limit: Some(5),
                 owner_user_id: Some(owner_user_id.clone()),
                 friends_only: true,
             },
         )
         .map_err(map_persistence_error)?
         .rows;
-        top_companions.truncate(5);
 
         let new_friends = social_aggregates::get_friend_log(
             db,
@@ -244,6 +247,7 @@ impl VrcxMcpServer {
                 types: vec!["Friend".into()],
                 time_window: time_window.clone(),
                 limit: Some(50),
+                cursor: None,
             },
         )
         .map_err(map_persistence_error)?
@@ -369,11 +373,16 @@ impl From<ActivityBucketParam> for social_aggregates::ActivityBucket {
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct CopresenceSummaryParams {
+    /// Time window to search. Omit for all history when the user explicitly asks "ever" or "so far".
     #[serde(default)]
     time_window: TimeWindowParams,
     #[serde(default)]
     group_by: CopresenceGroupByParam,
+    /// Minimum co-presence minutes to include after aggregation.
     min_minutes: Option<i64>,
+    /// Maximum ranked rows to return for a top/most ranking.
+    limit: Option<i64>,
+    /// Restrict results to current friends.
     #[serde(default)]
     friends_only: bool,
 }

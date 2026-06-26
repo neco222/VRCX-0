@@ -34,6 +34,8 @@ pub struct CopresenceSummaryInput {
     #[serde(default)]
     pub min_minutes: Option<i64>,
     #[serde(default)]
+    pub limit: Option<i64>,
+    #[serde(default)]
     pub owner_user_id: Option<String>,
     #[serde(default)]
     pub friends_only: bool,
@@ -43,6 +45,9 @@ pub struct CopresenceSummaryInput {
 #[serde(rename_all = "camelCase")]
 pub struct CopresenceSummaryOutput {
     pub rows: Vec<CopresenceSummaryRow>,
+    pub total_rows: usize,
+    pub returned_rows: usize,
+    pub truncated: bool,
     pub caveats: Vec<String>,
 }
 
@@ -128,6 +133,10 @@ pub struct SocialGraphInput {
     #[serde(default)]
     pub user_id: Option<String>,
     pub depth: u8,
+    #[serde(default)]
+    pub max_nodes: Option<i64>,
+    #[serde(default)]
+    pub max_edges: Option<i64>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
@@ -135,6 +144,9 @@ pub struct SocialGraphInput {
 pub struct SocialGraphOutput {
     pub nodes: Vec<SocialGraphNode>,
     pub edges: Vec<SocialGraphEdge>,
+    pub total_nodes: usize,
+    pub total_edges: usize,
+    pub truncated: bool,
     pub fetched_friends: usize,
     pub opted_out_friends: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -247,12 +259,19 @@ pub struct FriendLogInput {
     pub time_window: TimeWindow,
     #[serde(default)]
     pub limit: Option<i64>,
+    #[serde(default)]
+    pub cursor: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct FriendLogOutput {
     pub rows: Vec<FriendLogRow>,
+    pub total_rows: usize,
+    pub returned_rows: usize,
+    pub truncated: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_cursor: Option<String>,
     pub caveats: Vec<String>,
 }
 

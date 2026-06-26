@@ -38,6 +38,8 @@ impl VrcxMcpServer {
                 owner_user_id,
                 user_id: input.user_id,
                 depth: input.depth.unwrap_or(1),
+                max_nodes: input.max_nodes,
+                max_edges: input.max_edges,
             },
         ))
     }
@@ -165,6 +167,8 @@ struct RefreshMutualGraphParams {
 struct SocialGraphParams {
     user_id: Option<String>,
     depth: Option<u8>,
+    max_nodes: Option<i64>,
+    max_edges: Option<i64>,
 }
 
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]

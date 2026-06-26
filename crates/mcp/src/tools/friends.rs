@@ -83,26 +83,65 @@ impl VrcxMcpServer {
                 types: input.types.unwrap_or_default(),
                 time_window: input.time_window.unwrap_or_default().into(),
                 limit: input.limit,
+                cursor: input.cursor,
             },
         )
         .map_err(map_persistence_error)
     }
 
     fn get_friend_note_output(&self, input: FriendNoteParams) -> Result<FriendNoteOutput, String> {
-        let rows = match normalize_optional_text(input.user_id) {
-            Some(user_id) => memos::memo_get_user(self.runtime.db.as_ref(), user_id)
+        if let Some(user_id) = normalize_optional_text(input.user_id) {
+            let rows = memos::memo_get_user(self.runtime.db.as_ref(), user_id)
                 .map_err(map_persistence_error)?
                 .into_iter()
                 .map(FriendNoteRow::from)
-                .collect(),
-            None => memos::memo_list_users(self.runtime.db.as_ref())
-                .map_err(map_persistence_error)?
-                .into_iter()
-                .map(FriendNoteRow::from)
-                .collect(),
-        };
+                .collect::<Vec<_>>();
+            return Ok(FriendNoteOutput {
+                total_rows: rows.len(),
+                returned_rows: rows.len(),
+                rows,
+                truncated: false,
+                next_cursor: None,
+                caveats: friend_note_caveats(),
+            });
+        }
+
+        let limit = clamped_friend_note_limit(input.limit);
+        let cursor = input
+            .cursor
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(parse_friend_note_cursor)
+            .transpose()?;
+        let cursor_ref = cursor
+            .as_ref()
+            .map(|(edited_at, user_id)| (edited_at.as_str(), user_id.as_str()));
+        let mut rows = memos::memo_list_users_page(
+            self.runtime.db.as_ref(),
+            i64::try_from(limit + 1).unwrap_or(101),
+            cursor_ref,
+        )
+        .map_err(map_persistence_error)?
+        .into_iter()
+        .map(FriendNoteRow::from)
+        .collect::<Vec<_>>();
+        let total_rows =
+            memos::memo_count_users(self.runtime.db.as_ref()).map_err(map_persistence_error)?;
+        let truncated = rows.len() > limit;
+        if truncated {
+            rows.truncate(limit);
+        }
+        let next_cursor = truncated
+            .then(|| rows.last().map(friend_note_cursor))
+            .flatten();
+        let returned_rows = rows.len();
         Ok(FriendNoteOutput {
             rows,
+            total_rows,
+            returned_rows,
+            truncated,
+            next_cursor,
             caveats: friend_note_caveats(),
         })
     }
@@ -193,6 +232,7 @@ impl VrcxMcpServer {
                 time_window: time_window.clone(),
                 group_by: social_aggregates::CopresenceGroupBy::Friend,
                 min_minutes: None,
+                limit: Some(100),
                 owner_user_id: Some(owner_user_id.clone()),
                 friends_only: false,
             },
@@ -264,6 +304,7 @@ impl VrcxMcpServer {
                 types: None,
                 time_window: Some(time_window),
                 limit: Some(100),
+                cursor: None,
             },
         )?;
         let friended_at = social_aggregates::get_friend_log_first_created_at(
@@ -383,12 +424,15 @@ struct FriendLogParams {
     types: Option<Vec<String>>,
     time_window: Option<TimeWindowParams>,
     limit: Option<i64>,
+    cursor: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct FriendNoteParams {
     user_id: Option<String>,
+    limit: Option<i64>,
+    cursor: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
@@ -417,6 +461,11 @@ struct FriendChangesParams {
 #[serde(rename_all = "camelCase")]
 struct FriendNoteOutput {
     rows: Vec<FriendNoteRow>,
+    total_rows: usize,
+    returned_rows: usize,
+    truncated: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    next_cursor: Option<String>,
     caveats: Vec<String>,
 }
 
@@ -529,11 +578,55 @@ fn normalize_optional_text(value: Option<String>) -> Option<String> {
 fn friend_note_caveats() -> Vec<String> {
     vec!["Notes are your private local memos; reading them sends their text to the AI.".into()]
 }
+
+fn clamped_friend_note_limit(limit: Option<i64>) -> usize {
+    limit
+        .and_then(|value| usize::try_from(value).ok())
+        .unwrap_or(25)
+        .clamp(1, 100)
+}
+
+fn friend_note_cursor(row: &FriendNoteRow) -> String {
+    format!("{}|{}", row.edited_at, row.user_id)
+}
+
+fn parse_friend_note_cursor(value: &str) -> Result<(String, String), String> {
+    let Some((edited_at, user_id)) = value.rsplit_once('|') else {
+        return Err("invalid friend note cursor".into());
+    };
+    if edited_at.trim().is_empty() || user_id.trim().is_empty() {
+        return Err("invalid friend note cursor".into());
+    }
+    Ok((edited_at.to_string(), user_id.to_string()))
+}
 fn friend_change_kind_name(kind: &social_aggregates::FriendChangeKind) -> &'static str {
     match kind {
         social_aggregates::FriendChangeKind::Status => "status",
         social_aggregates::FriendChangeKind::Avatar => "avatar",
         social_aggregates::FriendChangeKind::Bio => "bio",
+    }
+}
+
+#[cfg(test)]
+mod friend_note_tests {
+    use super::*;
+
+    fn note(user_id: &str, edited_at: &str) -> FriendNoteRow {
+        FriendNoteRow {
+            user_id: user_id.into(),
+            memo: "memo".into(),
+            edited_at: edited_at.into(),
+        }
+    }
+
+    #[test]
+    fn friend_note_cursor_round_trips() {
+        let cursor = friend_note_cursor(&note("usr_a", "2026-06-01T10:00:00Z"));
+
+        assert_eq!(
+            parse_friend_note_cursor(&cursor).unwrap(),
+            ("2026-06-01T10:00:00Z".into(), "usr_a".into())
+        );
     }
 }
 
