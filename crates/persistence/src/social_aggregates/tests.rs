@@ -112,6 +112,7 @@ fn copresence_summary_groups_minutes_days_instances_and_access_type() {
             },
             group_by: CopresenceGroupBy::Friend,
             min_minutes: Some(2),
+            limit: None,
             owner_user_id: None,
             friends_only: false,
         },
@@ -119,6 +120,9 @@ fn copresence_summary_groups_minutes_days_instances_and_access_type() {
     .unwrap();
 
     assert_eq!(output.rows.len(), 1);
+    assert_eq!(output.total_rows, 1);
+    assert_eq!(output.returned_rows, 1);
+    assert!(!output.truncated);
     let row = &output.rows[0];
     assert_eq!(row.user_id, "usr_alice");
     assert_eq!(row.display_name, "Alice");
@@ -132,6 +136,103 @@ fn copresence_summary_groups_minutes_days_instances_and_access_type() {
         .caveats
         .iter()
         .any(|caveat| caveat.contains("relative sorting")));
+}
+
+#[test]
+fn copresence_summary_applies_limit_after_ranking() {
+    let (_dir, db) = test_db("copresence-limit");
+    create_game_log_tables(&db);
+    for (display_name, user_id, millis) in [
+        ("Alice", "usr_alice", 600_000),
+        ("Bob", "usr_bob", 1_800_000),
+        ("Carol", "usr_carol", 1_200_000),
+    ] {
+        db.execute_non_query(
+            "INSERT INTO gamelog_join_leave (created_at, type, display_name, location, user_id, time)
+                 VALUES ('2026-06-01T10:00:00Z', 'OnPlayerLeft', @display_name, 'wrld_a:1', @user_id, @time)",
+            &crate::common::ParamsBuilder::new()
+                .set("display_name", display_name)
+                .set("user_id", user_id)
+                .set("time", millis)
+                .build(),
+        )
+        .unwrap();
+    }
+
+    let output = get_copresence_summary(
+        &db,
+        CopresenceSummaryInput {
+            time_window: TimeWindow::all(),
+            group_by: CopresenceGroupBy::Friend,
+            min_minutes: None,
+            limit: Some(2),
+            owner_user_id: None,
+            friends_only: false,
+        },
+    )
+    .unwrap();
+
+    assert_eq!(output.total_rows, 3);
+    assert_eq!(output.returned_rows, 2);
+    assert!(output.truncated);
+    let names = output
+        .rows
+        .iter()
+        .map(|row| row.display_name.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(names, ["Bob", "Carol"]);
+}
+
+#[test]
+fn copresence_friend_world_keeps_tied_worlds_separate() {
+    let (_dir, db) = test_db("copresence-world-tie");
+    create_game_log_tables(&db);
+    // Same friend, two worlds with identical total time, each split across two
+    // access buckets. The streaming fold must keep each world's rows contiguous.
+    for (created_at, location, millis) in [
+        ("2026-06-01T10:00:00Z", "wrld_a:1", 300_000),
+        ("2026-06-01T11:00:00Z", "wrld_a:1~friends(usr_x)", 300_000),
+        ("2026-06-01T12:00:00Z", "wrld_b:1", 300_000),
+        ("2026-06-01T13:00:00Z", "wrld_b:1~friends(usr_x)", 300_000),
+    ] {
+        db.execute_non_query(
+            "INSERT INTO gamelog_join_leave (created_at, type, display_name, location, user_id, time)
+                 VALUES (@created_at, 'OnPlayerLeft', 'Alice', @location, 'usr_alice', @time)",
+            &crate::common::ParamsBuilder::new()
+                .set("created_at", created_at)
+                .set("location", location)
+                .set("time", millis)
+                .build(),
+        )
+        .unwrap();
+    }
+
+    let output = get_copresence_summary(
+        &db,
+        CopresenceSummaryInput {
+            time_window: TimeWindow::all(),
+            group_by: CopresenceGroupBy::FriendWorld,
+            min_minutes: None,
+            limit: None,
+            owner_user_id: None,
+            friends_only: false,
+        },
+    )
+    .unwrap();
+
+    assert_eq!(output.total_rows, 2);
+    assert_eq!(output.rows.len(), 2);
+    let world_ids = output
+        .rows
+        .iter()
+        .map(|row| row.world_id.as_deref())
+        .collect::<Vec<_>>();
+    assert_eq!(world_ids, [Some("wrld_a"), Some("wrld_b")]);
+    for row in &output.rows {
+        assert_eq!(row.total_minutes, 10);
+        assert_eq!(row.minutes_by_access.get("public"), Some(&5));
+        assert_eq!(row.minutes_by_access.get("friends"), Some(&5));
+    }
 }
 
 #[test]
@@ -202,11 +303,16 @@ fn friend_log_applies_filters_limit_and_rejects_unknown_types() {
                 to: Some("2026-06-03T23:59:59Z".into()),
             },
             limit: Some(1),
+            cursor: None,
         },
     )
     .unwrap();
 
     assert_eq!(output.rows.len(), 1);
+    assert_eq!(output.total_rows, 2);
+    assert_eq!(output.returned_rows, 1);
+    assert!(output.truncated);
+    assert!(output.next_cursor.is_some());
     assert_eq!(output.rows[0].kind, "TrustLevel");
     assert_eq!(output.rows[0].user_id, "usr_alice");
     assert_eq!(
@@ -226,10 +332,67 @@ fn friend_log_applies_filters_limit_and_rejects_unknown_types() {
             types: vec!["Block".into()],
             time_window: TimeWindow::all(),
             limit: None,
+            cursor: None,
         },
     )
     .expect_err("unknown type should be rejected");
     assert!(matches!(error, crate::Error::InvalidData(message) if message.contains("Block")));
+}
+
+#[test]
+fn friend_log_cursor_returns_the_next_page() {
+    let (_dir, db) = test_db("friend-log-cursor");
+    ensure_realtime_tables(&db, "usrself").unwrap();
+    db.execute_non_query(
+        "INSERT INTO usrself_friend_log_history
+            (created_at, type, user_id, display_name, previous_display_name, trust_level, previous_trust_level, friend_number)
+         VALUES
+            ('2026-06-03T10:00:00Z', 'Friend', 'usr_carol', 'Carol', '', 'Known', '', 3),
+            ('2026-06-02T10:00:00Z', 'Friend', 'usr_bob', 'Bob', '', 'Known', '', 2),
+            ('2026-06-01T10:00:00Z', 'Friend', 'usr_alice', 'Alice', '', 'Known', '', 1)",
+        &Default::default(),
+    )
+    .unwrap();
+
+    let first = get_friend_log(
+        &db,
+        FriendLogInput {
+            owner_user_id: "usr_self".into(),
+            target_user_id: None,
+            types: vec!["Friend".into()],
+            time_window: TimeWindow::all(),
+            limit: Some(1),
+            cursor: None,
+        },
+    )
+    .unwrap();
+    assert_eq!(first.rows[0].user_id, "usr_carol");
+    assert_eq!(first.total_rows, 3);
+    assert!(first.truncated);
+
+    let second = get_friend_log(
+        &db,
+        FriendLogInput {
+            owner_user_id: "usr_self".into(),
+            target_user_id: None,
+            types: vec!["Friend".into()],
+            time_window: TimeWindow::all(),
+            limit: Some(2),
+            cursor: first.next_cursor,
+        },
+    )
+    .unwrap();
+
+    let user_ids = second
+        .rows
+        .iter()
+        .map(|row| row.user_id.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(user_ids, ["usr_bob", "usr_alice"]);
+    assert_eq!(second.total_rows, 3);
+    assert_eq!(second.returned_rows, 2);
+    assert!(!second.truncated);
+    assert!(second.next_cursor.is_none());
 }
 
 #[test]
@@ -318,12 +481,17 @@ fn social_graph_uses_mutual_graph_edges_without_implying_coplay() {
             owner_user_id: "usr_self".into(),
             user_id: None,
             depth: 1,
+            max_nodes: None,
+            max_edges: None,
         },
     )
     .unwrap();
 
     assert_eq!(output.nodes.len(), 2);
     assert_eq!(output.edges.len(), 1);
+    assert_eq!(output.total_nodes, 2);
+    assert_eq!(output.total_edges, 1);
+    assert!(!output.truncated);
     let alice = output
         .nodes
         .iter()
@@ -348,6 +516,82 @@ fn social_graph_uses_mutual_graph_edges_without_implying_coplay() {
         .caveats
         .iter()
         .any(|caveat| caveat.contains("refresh_mutual_graph")));
+}
+
+#[test]
+fn social_graph_applies_node_and_edge_caps_with_total_counts() {
+    let (_dir, db) = test_db("social-graph-caps");
+    ensure_realtime_tables(&db, "usrself").unwrap();
+    db.execute_non_query(
+        "CREATE TABLE usrself_mutual_graph_friends (friend_id TEXT PRIMARY KEY)",
+        &Default::default(),
+    )
+    .unwrap();
+    db.execute_non_query(
+        "CREATE TABLE usrself_mutual_graph_links (friend_id TEXT NOT NULL, mutual_id TEXT NOT NULL, PRIMARY KEY(friend_id, mutual_id))",
+        &Default::default(),
+    )
+    .unwrap();
+    db.execute_non_query(
+        "CREATE TABLE usrself_mutual_graph_meta (friend_id TEXT PRIMARY KEY, last_fetched_at TEXT, opted_out INTEGER DEFAULT 0)",
+        &Default::default(),
+    )
+    .unwrap();
+    db.execute_non_query(
+        "INSERT INTO usrself_mutual_graph_friends (friend_id)
+             VALUES ('usr_a'), ('usr_b'), ('usr_c'), ('usr_d')",
+        &Default::default(),
+    )
+    .unwrap();
+    db.execute_non_query(
+        "INSERT INTO usrself_mutual_graph_links (friend_id, mutual_id)
+             VALUES
+                ('usr_a', 'usr_b'),
+                ('usr_a', 'usr_c'),
+                ('usr_a', 'usr_d'),
+                ('usr_b', 'usr_c'),
+                ('usr_b', 'usr_d'),
+                ('usr_c', 'usr_d')",
+        &Default::default(),
+    )
+    .unwrap();
+    db.execute_non_query(
+        "INSERT INTO usrself_friend_log_current (user_id, display_name, trust_level, friend_number)
+             VALUES
+                ('usr_a', 'Alice', 'Trusted', 1),
+                ('usr_b', 'Bob', 'Known', 2),
+                ('usr_c', 'Carol', 'Known', 3),
+                ('usr_d', 'Delta', 'Known', 4)",
+        &Default::default(),
+    )
+    .unwrap();
+
+    let output = get_social_graph(
+        &db,
+        SocialGraphInput {
+            owner_user_id: "usr_self".into(),
+            user_id: Some("usr_d".into()),
+            depth: 1,
+            max_nodes: Some(3),
+            max_edges: Some(2),
+        },
+    )
+    .unwrap();
+
+    assert_eq!(output.total_nodes, 4);
+    assert_eq!(output.total_edges, 3);
+    assert_eq!(output.nodes.len(), 3);
+    assert_eq!(output.edges.len(), 2);
+    assert!(output.truncated);
+    assert_eq!(output.nodes[0].user_id, "usr_d");
+    assert!(output.edges.iter().all(|edge| output
+        .nodes
+        .iter()
+        .any(|node| node.user_id == edge.source_user_id)
+        && output
+            .nodes
+            .iter()
+            .any(|node| node.user_id == edge.target_user_id)));
 }
 
 #[test]

@@ -1714,6 +1714,7 @@
                 "system": "시스템",
                 "interface": "인터페이스",
                 "social": "소셜",
+                "ai": "AI",
                 "vr": "VR",
                 "media": "미디어",
                 "integrations": "통합"
@@ -5020,10 +5021,15 @@
             },
             "action": {
                 "close_instance": "인스턴스 닫기",
-                "launch_instance": "인스턴스 시작"
+                "launch_instance": "인스턴스 시작",
+                "open_in_game": "게임 내에서 열기"
             },
             "success": {
-                "instance_refreshed": "인스턴스가 새로 고쳐졌습니다."
+                "instance_refreshed": "인스턴스가 새로 고쳐졌습니다.",
+                "vrchat_launch_request_sent": "VRChat에서 열었습니다."
+            },
+            "error": {
+                "unable_to_open_this_instance_in_vrchat": "VRChat에서 이 인스턴스를 열 수 없습니다."
             }
         },
         "avatar_owner_edit_dialogs": {
@@ -5910,7 +5916,8 @@
             "toast": {
                 "failed_to_send_self_invite": "본인 초대를 보내지 못했습니다.",
                 "failed_to_refresh_instance": "인스턴스를 새로고침하지 못했습니다.",
-                "failed_to_close_instance": "인스턴스를 닫지 못했습니다."
+                "failed_to_close_instance": "인스턴스를 닫지 못했습니다.",
+                "failed_to_launch_instance": "인스턴스를 시작하지 못했습니다."
             },
             "modal": {
                 "close_instance": "인스턴스를 닫으시겠어요?"

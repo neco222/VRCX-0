@@ -1741,6 +1741,7 @@
                 "system": "系統",
                 "interface": "介面",
                 "social": "社交",
+                "ai": "AI",
                 "vr": "VR",
                 "media": "媒體",
                 "integrations": "整合"
@@ -5101,10 +5102,15 @@
             },
             "action": {
                 "close_instance": "關閉房間",
-                "launch_instance": "啟動房間"
+                "launch_instance": "啟動房間",
+                "open_in_game": "遊戲內開啟"
             },
             "success": {
-                "instance_refreshed": "房間已重新整理"
+                "instance_refreshed": "房間已重新整理",
+                "vrchat_launch_request_sent": "已在 VRChat 中開啟"
+            },
+            "error": {
+                "unable_to_open_this_instance_in_vrchat": "無法在 VRChat 中開啟這個房間"
             }
         },
         "avatar_owner_edit_dialogs": {
@@ -6002,7 +6008,8 @@
             "toast": {
                 "failed_to_send_self_invite": "傳送自我邀請失敗",
                 "failed_to_refresh_instance": "重新整理房間失敗",
-                "failed_to_close_instance": "關閉房間失敗"
+                "failed_to_close_instance": "關閉房間失敗",
+                "failed_to_launch_instance": "啟動房間失敗"
             },
             "modal": {
                 "close_instance": "關閉房間？"

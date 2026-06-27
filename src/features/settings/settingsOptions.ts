@@ -96,6 +96,7 @@ export const settingsTabs = [
     ['notifications', 'view.settings.category.notifications'],
     ['vr', 'view.settings.category.vr'],
     ['media', 'view.settings.category.media'],
+    ['ai', 'view.settings.category.ai'],
     ['integrations', 'view.settings.category.integrations'],
     ['advanced', 'view.settings.category.advanced']
 ];

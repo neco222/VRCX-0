@@ -9,7 +9,10 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
 use tauri::Emitter;
 use tauri::Manager;
 use tauri::WindowEvent;
-use vrcx_0_application::{BackendRuntimeMode, BackendRuntimePhase};
+use vrcx_0_application::{
+    recommended_tokio_max_blocking_threads, recommended_tokio_worker_threads, BackendRuntimeMode,
+    BackendRuntimePhase,
+};
 use vrcx_0_persistence::config::{self as config_store, ConfigWriteEntry};
 
 fn stop_background_mode_and_show_window(app: &tauri::AppHandle, state: &AppState) {
@@ -89,7 +92,27 @@ fn start_background_mode_from_shell(app: tauri::AppHandle) {
     });
 }
 
+fn install_adaptive_tauri_async_runtime() -> tokio::runtime::Runtime {
+    let worker_threads = recommended_tokio_worker_threads();
+    let max_blocking_threads = recommended_tokio_max_blocking_threads();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(worker_threads)
+        .max_blocking_threads(max_blocking_threads)
+        .thread_name("vrcx-0-async")
+        .enable_all()
+        .build()
+        .expect("failed to build tauri async runtime");
+    tauri::async_runtime::set(runtime.handle().clone());
+    runtime
+}
+
 pub fn run() {
+    let Some(_single_instance_guard) =
+        crate::single_instance_gate::try_acquire_or_notify_existing()
+    else {
+        return;
+    };
+
     let app_data_dir = match vrcx_0_host::app_paths::resolve_app_data_dir() {
         Ok(resolution) => {
             bootstrap::init_error_logging(Some(resolution.current_dir.clone()));
@@ -102,6 +125,7 @@ pub fn run() {
     };
 
     bootstrap::init_tls_crypto_provider();
+    let _async_runtime = install_adaptive_tauri_async_runtime();
     bootstrap::apply_linux_webkit_workaround();
 
     let protocol_paths = std::sync::Arc::new(vrcx_0_host::app_paths::AppPaths::from_app_data(
@@ -200,9 +224,10 @@ pub fn run() {
 
                 if state.storage.get("VRCX_CloseToTray").as_deref() == Some("true") {
                     api.prevent_close();
-                    hide_window_to_tray(window);
                     if auto_background_mode_on_tray_enabled(&state) {
                         start_background_mode_from_shell(window.app_handle().clone());
+                    } else {
+                        hide_window_to_tray(window);
                     }
                 } else {
                     commands::host::window::stop_runtime_services(window.app_handle());

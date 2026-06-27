@@ -16,7 +16,8 @@ use vrcx_0_host::vr_overlay::{
 };
 use vrcx_0_persistence::config::ConfigRepository;
 use vrcx_0_vr_overlay::{
-    build_wrist_scene, OverlayRenderer, OverlaySize, OverlaySurfaceId, RgbaFrame, TinySkiaRenderer,
+    build_wrist_scene, new_shared_overlay_font_system, OverlayRenderer, OverlaySize,
+    OverlaySurfaceId, RgbaFrame, TextMeasurer, TinySkiaRenderer,
 };
 
 use crate::RuntimeHostContext;
@@ -33,6 +34,8 @@ use super::{
 trait VrOverlayFrameProducer: Send {
     fn next_frame(&mut self, input: VrOverlayFrameInput) -> Result<RgbaFrame, String>;
 }
+
+type VrOverlayFrameProducerFactory = Box<dyn Fn() -> Box<dyn VrOverlayFrameProducer> + Send + Sync>;
 
 pub const VR_OVERLAY_ENABLED_CONFIG_KEY: &str = "wristOverlayEnabled";
 pub const VR_OVERLAY_BACKEND_CONFIG_KEY: &str = "wristOverlayBackend";
@@ -132,6 +135,7 @@ pub struct VrOverlayRuntimeSnapshot {
 
 pub struct VrOverlayRuntime {
     enabled: AtomicBool,
+    game_running: AtomicBool,
     vr_mode: AtomicBool,
     steamvr_running: AtomicBool,
     refresh_loop_started: AtomicBool,
@@ -140,7 +144,8 @@ pub struct VrOverlayRuntime {
     config: Mutex<VrOverlayRuntimeConfig>,
     devices: Mutex<Vec<VrDeviceSnapshot>>,
     manager: Mutex<VrOverlayManager<HostVrOverlayService>>,
-    frame_producer: Mutex<Box<dyn VrOverlayFrameProducer>>,
+    frame_producer_factory: VrOverlayFrameProducerFactory,
+    frame_producer: Mutex<Option<Box<dyn VrOverlayFrameProducer>>>,
 }
 
 #[derive(Clone)]
@@ -163,11 +168,16 @@ impl OverlayActivitySink for VrOverlayActivitySink {
 impl VrOverlayRuntime {
     pub fn new(context: Arc<RuntimeHostContext>) -> Self {
         let config = load_runtime_config(context.config());
-        Self::new_with_frame_producer(
+        let producer_context = Arc::clone(&context);
+        Self::new_with_frame_producer_factory(
             HostVrOverlayService::backend_available(),
             Some(context.clone()),
             config,
-            Box::new(RuntimeWristFrameProducer::new(context)),
+            Box::new(move || {
+                Box::new(RuntimeWristFrameProducer::new(Arc::clone(
+                    &producer_context,
+                )))
+            }),
         )
     }
 
@@ -176,19 +186,45 @@ impl VrOverlayRuntime {
     }
 
     pub fn new_for_test_with_backend_available(backend_available: bool) -> Self {
-        Self::new_with_frame_producer(
+        Self::new_with_frame_producer_factory(
             backend_available,
             None,
             VrOverlayRuntimeConfig::default(),
-            Box::<StaticWristFrameProducer>::default(),
+            Box::new(|| Box::<StaticWristFrameProducer>::default()),
         )
     }
 
-    fn new_with_frame_producer(
+    #[cfg(test)]
+    fn new_for_test_with_frame_producer_factory(
+        backend_available: bool,
+        frame_producer_factory: VrOverlayFrameProducerFactory,
+    ) -> Self {
+        Self::new_for_test_with_config_and_frame_producer_factory(
+            backend_available,
+            VrOverlayRuntimeConfig::default(),
+            frame_producer_factory,
+        )
+    }
+
+    #[cfg(test)]
+    fn new_for_test_with_config_and_frame_producer_factory(
+        backend_available: bool,
+        config: VrOverlayRuntimeConfig,
+        frame_producer_factory: VrOverlayFrameProducerFactory,
+    ) -> Self {
+        Self::new_with_frame_producer_factory(
+            backend_available,
+            None,
+            config,
+            frame_producer_factory,
+        )
+    }
+
+    fn new_with_frame_producer_factory(
         backend_available: bool,
         context: Option<Arc<RuntimeHostContext>>,
         config: VrOverlayRuntimeConfig,
-        frame_producer: Box<dyn VrOverlayFrameProducer>,
+        frame_producer_factory: VrOverlayFrameProducerFactory,
     ) -> Self {
         let service = if context.is_some() {
             HostVrOverlayService::new_with_preference(wrist_surface_configs(config), config.backend)
@@ -197,6 +233,7 @@ impl VrOverlayRuntime {
         };
         Self {
             enabled: AtomicBool::new(false),
+            game_running: AtomicBool::new(false),
             vr_mode: AtomicBool::new(false),
             steamvr_running: AtomicBool::new(false),
             refresh_loop_started: AtomicBool::new(false),
@@ -205,7 +242,8 @@ impl VrOverlayRuntime {
             manager: Mutex::new(VrOverlayManager::new(service)),
             config: Mutex::new(config),
             devices: Mutex::new(Vec::new()),
-            frame_producer: Mutex::new(frame_producer),
+            frame_producer_factory,
+            frame_producer: Mutex::new(None),
         }
     }
 
@@ -215,6 +253,9 @@ impl VrOverlayRuntime {
         }
         self.enabled.store(enabled, Ordering::Release);
         self.reconcile_current_with_device_refresh(true);
+        if !enabled {
+            self.release_frame_producer();
+        }
     }
 
     pub fn start_refresh_loop(self: &Arc<Self>, tasks: TaskSupervisor) {
@@ -252,6 +293,7 @@ impl VrOverlayRuntime {
         if let Ok(mut manager) = self.manager.lock() {
             manager.reconcile(VrOverlayEligibility::default());
         }
+        self.release_frame_producer();
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -286,6 +328,7 @@ impl VrOverlayRuntime {
         if !game_running {
             self.vr_mode.store(false, Ordering::Release);
         }
+        self.game_running.store(game_running, Ordering::Release);
         self.steamvr_running
             .store(steamvr_running, Ordering::Release);
         self.reconcile_current_with_device_refresh(true);
@@ -327,6 +370,7 @@ impl VrOverlayRuntime {
             let eligibility = VrOverlayEligibility {
                 enabled: self.enabled.load(Ordering::Acquire),
                 backend_available: self.backend_available,
+                game_running: self.game_running.load(Ordering::Acquire),
                 vr_mode: self.vr_mode.load(Ordering::Acquire),
                 steamvr_running: self.steamvr_running.load(Ordering::Acquire),
                 start_mode: config.start_mode,
@@ -339,6 +383,8 @@ impl VrOverlayRuntime {
                     config.render.show_devices,
                 );
                 self.push_wrist_frame(&mut manager, config);
+            } else {
+                self.release_frame_producer();
             }
         }
     }
@@ -422,8 +468,10 @@ impl VrOverlayRuntime {
             .frame_producer
             .lock()
             .map_err(|_| "wrist frame producer lock poisoned".to_string())
-            .and_then(|mut producer| producer.next_frame(VrOverlayFrameInput { config, devices }))
-        {
+            .and_then(|mut producer| {
+                let producer = producer.get_or_insert_with(|| (self.frame_producer_factory)());
+                producer.next_frame(VrOverlayFrameInput { config, devices })
+            }) {
             Ok(frame) => frame,
             Err(error) => {
                 tracing::warn!(error = %error, "failed to render wrist overlay frame");
@@ -433,6 +481,15 @@ impl VrOverlayRuntime {
 
         if let Err(error) = manager.update_frame(frame) {
             tracing::warn!(error = %error, "failed to update wrist overlay frame");
+        }
+    }
+
+    fn release_frame_producer(&self) {
+        if let Ok(mut producer) = self.frame_producer.lock() {
+            producer.take();
+        }
+        if let Ok(mut devices) = self.devices.lock() {
+            devices.clear();
         }
     }
 }
@@ -463,14 +520,17 @@ impl GameLogEventSink for VrOverlayRuntime {
 
 struct RuntimeWristFrameProducer {
     context: Arc<RuntimeHostContext>,
+    text: TextMeasurer,
     renderer: TinySkiaRenderer,
 }
 
 impl RuntimeWristFrameProducer {
     fn new(context: Arc<RuntimeHostContext>) -> Self {
+        let font_system = new_shared_overlay_font_system();
         Self {
             context,
-            renderer: TinySkiaRenderer::new(),
+            text: TextMeasurer::with_font_system(Arc::clone(&font_system)),
+            renderer: TinySkiaRenderer::with_font_system(font_system),
         }
     }
 }
@@ -480,7 +540,7 @@ impl VrOverlayFrameProducer for RuntimeWristFrameProducer {
         let frame_input = build_wrist_frame_input(&self.context, input.config, input.devices);
         let model = build_wrist_surface_model(frame_input);
         self.renderer
-            .render(&build_wrist_scene(&model))
+            .render(&build_wrist_scene(&model, &mut self.text))
             .map_err(|error| error.to_string())
     }
 }
@@ -690,6 +750,7 @@ fn is_real_instance_location(location: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[test]
     fn locale_is_render_only_config() {
@@ -745,11 +806,115 @@ mod tests {
     }
 
     #[test]
+    fn frame_producer_is_created_only_while_runtime_can_render_and_released_when_ineligible() {
+        let created = Arc::new(AtomicUsize::new(0));
+        let dropped = Arc::new(AtomicUsize::new(0));
+        let runtime = VrOverlayRuntime::new_for_test_with_frame_producer_factory(
+            true,
+            counting_frame_producer_factory(Arc::clone(&created), Arc::clone(&dropped)),
+        );
+
+        assert_eq!(created.load(Ordering::SeqCst), 0);
+
+        runtime.set_enabled(true);
+        assert_eq!(created.load(Ordering::SeqCst), 0);
+
+        record_process_status(&runtime, true, true, true);
+        assert_eq!(created.load(Ordering::SeqCst), 0);
+
+        runtime.set_vr_mode(true);
+        assert!(runtime.is_running());
+        assert_eq!(created.load(Ordering::SeqCst), 1);
+
+        runtime.reconcile_current();
+        assert_eq!(created.load(Ordering::SeqCst), 1);
+
+        runtime.set_enabled(false);
+        assert!(!runtime.is_running());
+        assert_eq!(dropped.load(Ordering::SeqCst), 1);
+
+        runtime.set_enabled(true);
+        assert!(runtime.is_running());
+        assert_eq!(created.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn steamvr_start_mode_releases_frame_producer_when_steamvr_stops_not_when_game_stops() {
+        let created = Arc::new(AtomicUsize::new(0));
+        let dropped = Arc::new(AtomicUsize::new(0));
+        let config = VrOverlayRuntimeConfig {
+            start_mode: WristOverlayStartMode::SteamVr,
+            ..VrOverlayRuntimeConfig::default()
+        };
+        let runtime = VrOverlayRuntime::new_for_test_with_config_and_frame_producer_factory(
+            true,
+            config,
+            counting_frame_producer_factory(Arc::clone(&created), Arc::clone(&dropped)),
+        );
+
+        runtime.set_enabled(true);
+        record_process_status(&runtime, true, true, true);
+        assert!(runtime.is_running());
+        assert_eq!(created.load(Ordering::SeqCst), 1);
+
+        record_process_status(&runtime, false, true, true);
+        assert!(runtime.is_running());
+        assert_eq!(dropped.load(Ordering::SeqCst), 0);
+
+        record_process_status(&runtime, false, false, false);
+        assert!(!runtime.is_running());
+        assert_eq!(dropped.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
     fn format_local_time_respects_hour12_setting() {
         assert_eq!(format_local_time(0, 5, false), "00:05");
         assert_eq!(format_local_time(23, 7, false), "23:07");
         assert_eq!(format_local_time(0, 5, true), "12:05 AM");
         assert_eq!(format_local_time(12, 30, true), "12:30 PM");
         assert_eq!(format_local_time(23, 7, true), "11:07 PM");
+    }
+
+    fn counting_frame_producer_factory(
+        created: Arc<AtomicUsize>,
+        dropped: Arc<AtomicUsize>,
+    ) -> Box<dyn Fn() -> Box<dyn VrOverlayFrameProducer> + Send + Sync> {
+        Box::new(move || {
+            created.fetch_add(1, Ordering::SeqCst);
+            Box::new(CountingFrameProducer {
+                dropped: Arc::clone(&dropped),
+            })
+        })
+    }
+
+    fn record_process_status(
+        runtime: &VrOverlayRuntime,
+        is_game_running: bool,
+        is_steamvr_running: bool,
+        game_changed: bool,
+    ) {
+        runtime
+            .on_game_process_event(GameProcessEvent {
+                is_game_running,
+                is_steamvr_running,
+                game_changed,
+            })
+            .expect("record process status");
+    }
+
+    struct CountingFrameProducer {
+        dropped: Arc<AtomicUsize>,
+    }
+
+    impl VrOverlayFrameProducer for CountingFrameProducer {
+        fn next_frame(&mut self, _input: VrOverlayFrameInput) -> Result<RgbaFrame, String> {
+            Ok(RgbaFrame::new(OverlaySize::new(16, 8), vec![0; 16 * 8 * 4]))
+        }
+    }
+
+    impl Drop for CountingFrameProducer {
+        fn drop(&mut self) {
+            self.dropped.fetch_add(1, Ordering::SeqCst);
+        }
     }
 }

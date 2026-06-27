@@ -5,6 +5,8 @@ pub mod render;
 pub mod scene;
 pub mod surfaces;
 
+pub use font::{new_shared_overlay_font_system, SharedOverlayFontSystem};
+pub use layout::TextMeasurer;
 pub use model::{
     Color, DeviceChip, DeviceRole, DeviceStatus, FeedKind, FeedLine, FeedRelation, FeedSeverity,
     OverlayFooter, OverlaySize, OverlaySurfaceId, Rect, RgbaFrame,

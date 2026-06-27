@@ -24,6 +24,7 @@ Read before answering:
 - Missing data means unobserved, not false.
 - Facts about ME are reliable even inside private instances; facts about a THIRD PARTY (who someone else is with) are blind in private instances. Say so.
 - Each result carries a `caveats` array; reflect the relevant ones instead of presenting figures as exact.
+- For top/most/ranked asks, the tools already rank and limit the rows; read the top rows and answer from the aggregate instead of looping to enumerate everyone. Pass a small `limit` only to widen or narrow the ranking.
 
 Map fuzzy requests to tools, then read each tool's own description for details (compose freely):
 - Closest to / who I play with most -> get_copresence_summary

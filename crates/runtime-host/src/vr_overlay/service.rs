@@ -291,6 +291,7 @@ impl VrOverlayServiceControl for HostVrOverlayService {
         if let Some(actor) = self.actor.take() {
             let _ = actor.send(OverlayServiceCommand::Stop);
         }
+        self.last_frame = None;
         self.active_backend = None;
         self.frame_dirty = true;
     }

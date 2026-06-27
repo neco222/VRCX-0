@@ -170,7 +170,7 @@ impl RuntimeHostState {
                 self.web.as_ref(),
                 LogoutRecordInput {
                     user_or_user_id: Value::String(user_id.trim().to_string()),
-                    clear_last_user_logged_in: Some(true),
+                    clear_last_user_logged_in: Some(false),
                     cookies: Some(Value::Null),
                 },
             ) {

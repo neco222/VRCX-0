@@ -7,6 +7,7 @@ mod error;
 mod localization;
 #[cfg(target_os = "macos")]
 mod macos_menu;
+mod single_instance_gate;
 mod state;
 
 pub use app::run;

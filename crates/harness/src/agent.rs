@@ -1,6 +1,7 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
-use serde_json::Value;
+use serde_json::{Map, Value};
 use tokio_util::sync::CancellationToken;
 use vrcx_0_integrations::llm::{ChatMessage, LlmClient, ToolDefinition};
 use vrcx_0_mcp::{InProcessMcpTools, ToolCallOutcome};
@@ -12,27 +13,38 @@ use crate::session::{ActiveTurn, Message, Role, SessionStore, TurnStatus};
 const MAX_TOOL_ROUNDS: usize = 6;
 const HISTORY_LIMIT: usize = 16;
 const SUMMARY_LIMIT: usize = 240;
+const TOOL_CONTENT_CHAR_BUDGET: usize = 64_000;
+const TOOL_RESULT_ARRAY_LIMIT: usize = 100;
+const TOOL_RESULT_STRING_LIMIT: usize = 4_000;
+const FINAL_ANSWER_PROMPT: &str = "\
+Stop calling tools now and write the final answer using only the tool results already \
+in this conversation. If the data is incomplete, say so briefly and answer with the \
+best supported facts.";
 
 pub const SYSTEM_PROMPT: &str = "\
-You are the VRCX-0 social assistant. You answer questions about the signed-in user's \
+You are the VRCX-0 social assistant. Answer questions about the signed-in user's \
 VRChat social life using the provided tools, which return observed facts from local \
 history and the live session (centered on \"me\").
 
-Guidance:
-- Prefer calling a tool over guessing. Compose tools for broad questions.
-- Missing data means unobserved, not false. Facts about ME are reliable even inside \
-private instances; facts about a THIRD PARTY are blind in private instances — say so.
-- \"Me\" (the signed-in user) is NOT a friend. Never count my own data as a friend or \
-include myself in friend lists, counts, or rankings.
-- Each tool result carries caveats; reflect the relevant ones instead of presenting \
-figures as exact.
-- Stay focused on VRChat social topics. Be concise and refer to people by name.
-- Format replies in Markdown (headings, bold, bullet lists, and tables where they \
-help) and use tasteful emoji to keep the tone warm and friendly.
-- For comparative or ranked numbers (activity by weekday/hour, top friends, time \
-spent), use a Markdown table with a column for the value. Do NOT draw bar charts or \
-graphs out of block/box characters (▇ █ ▁ ─ ━ etc.) or other ASCII art — they \
-misalign in proportional fonts and many glyphs render as missing-character boxes.";
+Rules:
+- Call a tool instead of guessing; compose several tools for broad questions.
+- Missing data means unobserved, not false. Facts about ME hold even inside private \
+instances; facts about a THIRD PARTY are blind in private instances — say so.
+- \"Me\" (the signed-in user) is NOT a friend. Never include myself in friend lists, \
+counts, or rankings.
+- Each tool result carries a `caveats` array; reflect the relevant ones instead of \
+presenting figures as exact.
+- For most/top/closest/ranked questions, the tools already rank and limit the rows. \
+Read the top rows and answer — do NOT keep calling tools to enumerate everyone. \
+Mention coverage or truncation when it matters.
+
+Style:
+- Stay on VRChat social topics. Be concise and refer to people by name.
+- Reply in Markdown. Put any comparative or ranked numbers (activity by weekday or \
+hour, top friends, time spent) in a table with a column for the value.
+- Never draw charts or bars from block, box, or ASCII characters (▇ █ ▁ ─ ━ etc.); \
+they misalign in proportional fonts and render as missing-character boxes.
+- Use tasteful emoji to keep the tone warm and friendly.";
 
 pub(crate) struct TurnContext {
     pub tools: Arc<InProcessMcpTools>,
@@ -50,6 +62,9 @@ pub(crate) async fn run_turn(ctx: TurnContext) {
     let mut working = build_context(&ctx);
     let mut collected: Vec<Entity> = Vec::new();
     let mut final_answer = String::new();
+    let mut used_tools = false;
+    let user_text = latest_user_message(&ctx).unwrap_or_default();
+    let mut dispatched_tools = HashSet::new();
 
     for _round in 0..MAX_TOOL_ROUNDS {
         if ctx.cancel.is_cancelled() {
@@ -82,14 +97,29 @@ pub(crate) async fn run_turn(ctx: TurnContext) {
 
         working.push(turn.clone().into_message());
         for call in &turn.tool_calls {
+            used_tools = true;
             ctx.emitter
                 .tool_call(&call.id, &call.function.name, &call.function.arguments);
-            let arguments = parse_arguments(&call.function.arguments);
-            let outcome = ctx
-                .tools
-                .call_tool(call.function.name.clone(), arguments)
-                .await;
-            let resolved = resolve_tool_outcome(outcome);
+            let arguments = normalize_tool_arguments(
+                &call.function.name,
+                parse_arguments(&call.function.arguments),
+                &user_text,
+            );
+            let signature = tool_call_signature(&call.function.name, arguments.as_ref());
+            let resolved = if dispatched_tools.insert(signature) {
+                let outcome = ctx
+                    .tools
+                    .call_tool(call.function.name.clone(), arguments)
+                    .await;
+                resolve_tool_outcome(outcome)
+            } else {
+                tracing::warn!(
+                    tool = %call.function.name,
+                    args = %call.function.arguments,
+                    "assistant: skipped duplicate tool call in one turn"
+                );
+                duplicate_tool_call_result(&call.function.name)
+            };
             if !resolved.ok {
                 tracing::error!(
                     tool = %call.function.name,
@@ -102,6 +132,27 @@ pub(crate) async fn run_turn(ctx: TurnContext) {
             ctx.emitter
                 .tool_result(&call.id, resolved.ok, &resolved.summary, &resolved.entities);
             working.push(ChatMessage::tool(call.id.clone(), resolved.content));
+        }
+    }
+
+    if final_answer.trim().is_empty() && used_tools {
+        working.push(ChatMessage::user(FINAL_ANSWER_PROMPT));
+        let turn = {
+            let emitter = &ctx.emitter;
+            let stream = ctx.client.stream_chat(&working, &[], |delta| {
+                emitter.delta(delta);
+            });
+            tokio::pin!(stream);
+            tokio::select! {
+                result = &mut stream => result,
+                _ = ctx.cancel.cancelled() => return finish_cancelled(&ctx),
+            }
+        };
+        match turn {
+            Ok(turn) => {
+                final_answer = turn.content;
+            }
+            Err(error) => return finish_error(&ctx, "llm", &error.to_string()),
         }
     }
 
@@ -161,6 +212,15 @@ fn build_context(ctx: &TurnContext) -> Vec<ChatMessage> {
         }
     }
     working
+}
+
+fn latest_user_message(ctx: &TurnContext) -> Option<String> {
+    ctx.sessions
+        .history(&ctx.session_id)
+        .into_iter()
+        .rev()
+        .find(|message| matches!(message.role, Role::User))
+        .map(|message| message.content)
 }
 
 // Keep the most recent HISTORY_LIMIT messages as a FIFO window, but never start
@@ -224,12 +284,7 @@ fn resolve_tool_outcome(outcome: Result<ToolCallOutcome, vrcx_0_mcp::McpError>) 
                         .map(|value| extract_entities(&value))
                 })
                 .unwrap_or_default();
-            let content = result
-                .structured
-                .as_ref()
-                .map(|value| value.to_string())
-                .filter(|value| value != "null")
-                .unwrap_or_else(|| result.text.clone());
+            let content = tool_content(&result);
             let summary = truncate(if result.text.is_empty() {
                 &content
             } else {
@@ -251,6 +306,173 @@ fn resolve_tool_outcome(outcome: Result<ToolCallOutcome, vrcx_0_mcp::McpError>) 
                 entities: Vec::new(),
             }
         }
+    }
+}
+
+fn duplicate_tool_call_result(tool_name: &str) -> ResolvedTool {
+    ResolvedTool {
+        ok: true,
+        content: format!(
+            "VRCX-0 skipped a duplicate call to `{tool_name}` with the same arguments in this turn. Use the previous tool result and compose the answer now."
+        ),
+        summary: "Skipped duplicate tool call; use the previous result.".into(),
+        entities: Vec::new(),
+    }
+}
+
+fn normalize_tool_arguments(
+    tool_name: &str,
+    arguments: Option<Map<String, Value>>,
+    user_text: &str,
+) -> Option<Map<String, Value>> {
+    let mut arguments = arguments.unwrap_or_default();
+    match tool_name {
+        "get_copresence_summary" => {
+            ensure_limit(&mut arguments, ranked_limit_for_user_text(user_text));
+        }
+        "get_friend_changes" | "get_invite_history" | "search_worlds_visited" => {
+            ensure_limit(&mut arguments, 25);
+        }
+        "get_friend_log" => {
+            ensure_limit(&mut arguments, 100);
+        }
+        _ => {}
+    }
+    (!arguments.is_empty()).then_some(arguments)
+}
+
+fn ensure_limit(arguments: &mut Map<String, Value>, limit: i64) {
+    let has_valid_limit = arguments
+        .get("limit")
+        .and_then(Value::as_i64)
+        .is_some_and(|value| value > 0);
+    if !has_valid_limit {
+        arguments.insert("limit".into(), Value::from(limit));
+    }
+}
+
+fn ranked_limit_for_user_text(user_text: &str) -> i64 {
+    let normalized = user_text.to_lowercase();
+    let asks_single_winner = [
+        "一番",
+        "いちばん",
+        "最も",
+        "最多",
+        "誰",
+        "だれ",
+        "who",
+        "most",
+        "best",
+    ]
+    .iter()
+    .any(|needle| normalized.contains(needle));
+    let asks_list = [
+        "top ",
+        "top",
+        "ランキング",
+        "rank",
+        "list",
+        "一覧",
+        "人たち",
+        "people",
+    ]
+    .iter()
+    .any(|needle| normalized.contains(needle));
+
+    if asks_single_winner && !asks_list {
+        3
+    } else {
+        10
+    }
+}
+
+fn tool_call_signature(tool_name: &str, arguments: Option<&Map<String, Value>>) -> String {
+    let args = arguments
+        .map(|arguments| Value::Object(arguments.clone()).to_string())
+        .unwrap_or_else(|| "null".into());
+    format!("{tool_name}:{args}")
+}
+
+fn tool_content(result: &ToolCallOutcome) -> String {
+    match result.structured.as_ref() {
+        Some(value) if !value.is_null() => budget_json_tool_content(value),
+        _ => budget_text_tool_content(&result.text),
+    }
+}
+
+fn budget_json_tool_content(value: &Value) -> String {
+    let raw = value.to_string();
+    if within_tool_budget(&raw) {
+        return raw;
+    }
+
+    let light =
+        compact_json_value(value, TOOL_RESULT_ARRAY_LIMIT, TOOL_RESULT_STRING_LIMIT).to_string();
+    if within_tool_budget(&light) {
+        return light;
+    }
+
+    let aggressive = compact_json_value(
+        value,
+        TOOL_RESULT_ARRAY_LIMIT / 4,
+        TOOL_RESULT_STRING_LIMIT / 4,
+    )
+    .to_string();
+    if within_tool_budget(&aggressive) {
+        return aggressive;
+    }
+    budget_text_tool_content(&aggressive)
+}
+
+fn budget_text_tool_content(text: &str) -> String {
+    if within_tool_budget(text) {
+        return text.to_string();
+    }
+    let keep = TOOL_CONTENT_CHAR_BUDGET.saturating_sub(128);
+    let clipped: String = text.chars().take(keep).collect();
+    let omitted = text.chars().count().saturating_sub(clipped.chars().count());
+    format!("{clipped}\n\n[Tool result truncated by VRCX-0: omitted {omitted} characters.]")
+}
+
+fn within_tool_budget(text: &str) -> bool {
+    text.chars().count() <= TOOL_CONTENT_CHAR_BUDGET
+}
+
+fn compact_json_value(value: &Value, array_limit: usize, string_limit: usize) -> Value {
+    match value {
+        Value::Array(items) => {
+            let mut compacted = items
+                .iter()
+                .take(array_limit)
+                .map(|item| compact_json_value(item, array_limit, string_limit))
+                .collect::<Vec<_>>();
+            if items.len() > array_limit {
+                compacted.push(serde_json::json!({
+                    "__truncated": true,
+                    "originalCount": items.len(),
+                    "omittedCount": items.len() - array_limit,
+                }));
+            }
+            Value::Array(compacted)
+        }
+        Value::Object(map) => Value::Object(
+            map.iter()
+                .map(|(key, nested)| {
+                    (
+                        key.clone(),
+                        compact_json_value(nested, array_limit, string_limit),
+                    )
+                })
+                .collect(),
+        ),
+        Value::String(text) if text.chars().count() > string_limit => {
+            let clipped: String = text.chars().take(string_limit).collect();
+            Value::String(format!(
+                "{clipped}… [truncated {} characters]",
+                text.chars().count().saturating_sub(clipped.chars().count())
+            ))
+        }
+        _ => value.clone(),
     }
 }
 
@@ -343,5 +565,109 @@ mod tests {
         let start = context_window_start(&history);
         assert_eq!(start, 2);
         assert!(matches!(history[start].role, Role::User));
+    }
+
+    #[test]
+    fn large_structured_tool_results_are_compacted_for_llm_context() {
+        let rows = (0..150)
+            .map(|index| {
+                serde_json::json!({
+                    "userId": format!("usr_{index}"),
+                    "displayName": format!("Friend {index}"),
+                    "notes": "x".repeat(500),
+                })
+            })
+            .collect::<Vec<_>>();
+        let value = serde_json::json!({ "rows": rows, "caveats": ["local data"] });
+
+        let content = budget_json_tool_content(&value);
+        let parsed: Value = serde_json::from_str(&content).unwrap();
+        let compact_rows = parsed["rows"].as_array().unwrap();
+        let marker = compact_rows.last().unwrap();
+
+        assert!(within_tool_budget(&content));
+        assert!(compact_rows.len() <= TOOL_RESULT_ARRAY_LIMIT + 1);
+        assert_eq!(marker["__truncated"], true);
+        assert!(marker["omittedCount"].as_u64().unwrap() >= 50);
+        assert!(
+            compact_rows[0]["notes"].as_str().unwrap().chars().count()
+                <= TOOL_RESULT_STRING_LIMIT + 64
+        );
+    }
+
+    #[test]
+    fn huge_text_tool_results_get_a_truncation_notice() {
+        let text = "x".repeat(TOOL_CONTENT_CHAR_BUDGET + 1_000);
+
+        let content = budget_text_tool_content(&text);
+
+        assert!(within_tool_budget(&content));
+        assert!(content.contains("Tool result truncated by VRCX-0"));
+    }
+
+    #[test]
+    fn top_100_compact_aggregate_rows_fit_without_truncation() {
+        let rows = (0..100)
+            .map(|index| {
+                serde_json::json!({
+                    "userId": format!("usr_{index:032}"),
+                    "displayName": format!("Friend Name {index:03}"),
+                    "totalMinutes": 12345,
+                    "coDays": 365,
+                    "instances": 999,
+                    "lastSeenTogether": "2026-06-26T12:34:56Z",
+                    "minutesByAccess": {
+                        "public": 1111,
+                        "friends": 2222,
+                        "invite": 3333,
+                        "group": 4444,
+                    },
+                })
+            })
+            .collect::<Vec<_>>();
+        let value = serde_json::json!({
+            "rows": rows,
+            "caveats": ["Local observer-centered data; private instances are undercounted."],
+        });
+
+        let content = budget_json_tool_content(&value);
+        let parsed: Value = serde_json::from_str(&content).unwrap();
+
+        assert!(within_tool_budget(&content));
+        assert_eq!(parsed["rows"].as_array().unwrap().len(), 100);
+        assert!(parsed["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|row| row.get("__truncated").is_none()));
+    }
+
+    #[test]
+    fn copresence_top_question_gets_floor_limit_when_model_omits_it() {
+        let arguments = normalize_tool_arguments(
+            "get_copresence_summary",
+            Some(serde_json::Map::new()),
+            "今までで一番あっている人は誰かな",
+        )
+        .unwrap();
+
+        assert_eq!(arguments.get("limit").and_then(Value::as_i64), Some(3));
+    }
+
+    #[test]
+    fn tool_call_signature_includes_normalized_arguments() {
+        let first = normalize_tool_arguments("get_copresence_summary", None, "who have I met most")
+            .unwrap();
+        let second = normalize_tool_arguments(
+            "get_copresence_summary",
+            Some(serde_json::Map::new()),
+            "who have I met most",
+        )
+        .unwrap();
+
+        assert_eq!(
+            tool_call_signature("get_copresence_summary", Some(&first)),
+            tool_call_signature("get_copresence_summary", Some(&second))
+        );
     }
 }

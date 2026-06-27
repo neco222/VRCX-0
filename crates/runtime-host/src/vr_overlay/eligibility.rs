@@ -18,6 +18,7 @@ impl WristOverlayStartMode {
 pub struct VrOverlayEligibility {
     pub enabled: bool,
     pub backend_available: bool,
+    pub game_running: bool,
     pub vr_mode: bool,
     pub steamvr_running: bool,
     pub start_mode: WristOverlayStartMode,
@@ -28,6 +29,9 @@ impl VrOverlayEligibility {
         self.enabled
             && self.backend_available
             && self.steamvr_running
-            && (self.start_mode == WristOverlayStartMode::SteamVr || self.vr_mode)
+            && match self.start_mode {
+                WristOverlayStartMode::SteamVr => true,
+                WristOverlayStartMode::VrchatVrMode => self.game_running && self.vr_mode,
+            }
     }
 }

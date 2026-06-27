@@ -89,7 +89,7 @@ async function runRuntimeAuthRecovery(error: unknown): Promise<void> {
         if (shouldClearAutoLoginTarget) {
             applySavedAuthSnapshot(
                 await authRepository.recordLogout(failedUserId, {
-                    clearLastUserLoggedIn: true,
+                    clearLastUserLoggedIn: false,
                     cookies: null
                 })
             );

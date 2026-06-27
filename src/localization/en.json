@@ -1745,6 +1745,7 @@
                 "system": "System",
                 "interface": "Interface",
                 "social": "Social",
+                "ai": "AI",
                 "vr": "VR",
                 "media": "Media",
                 "integrations": "Integrations"
@@ -5108,10 +5109,15 @@
             },
             "action": {
                 "close_instance": "Close instance",
-                "launch_instance": "Launch instance"
+                "launch_instance": "Launch instance",
+                "open_in_game": "Open In-Game"
             },
             "success": {
-                "instance_refreshed": "Instance refreshed"
+                "instance_refreshed": "Instance refreshed",
+                "vrchat_launch_request_sent": "Opened in VRChat"
+            },
+            "error": {
+                "unable_to_open_this_instance_in_vrchat": "Unable to open this instance in VRChat"
             }
         },
         "avatar_owner_edit_dialogs": {
@@ -6009,7 +6015,8 @@
             "toast": {
                 "failed_to_send_self_invite": "Failed to send self invite",
                 "failed_to_refresh_instance": "Failed to refresh instance",
-                "failed_to_close_instance": "Failed to close instance"
+                "failed_to_close_instance": "Failed to close instance",
+                "failed_to_launch_instance": "Failed to launch instance"
             },
             "modal": {
                 "close_instance": "Close instance?"

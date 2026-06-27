@@ -1,5 +1,6 @@
 import {
     BellIcon,
+    BotIcon,
     ImageIcon,
     type LucideIcon,
     MonitorIcon,
@@ -19,6 +20,7 @@ import {
 } from '@/components/layout/PageScaffold';
 import { Tabs, TabsList, TabsTrigger } from '@/ui/shadcn/tabs';
 
+import { SettingsAiTab } from './components/settings-tabs/SettingsAiTab';
 import { SettingsIntegrationsTab } from './components/settings-tabs/SettingsIntegrationsTab';
 import { SettingsInterfaceTab } from './components/settings-tabs/SettingsInterfaceTab';
 import { SettingsMediaTab } from './components/settings-tabs/SettingsMediaTab';
@@ -34,6 +36,7 @@ const SETTINGS_TAB_ICONS: Record<string, LucideIcon> = {
     system: MonitorIcon,
     interface: PaletteIcon,
     social: UsersIcon,
+    ai: BotIcon,
     notifications: BellIcon,
     vr: RectangleGogglesIcon,
     media: ImageIcon,
@@ -95,6 +98,7 @@ export function SettingsPage() {
                     />
                     <SettingsVrSection vr={vr} />
                     <SettingsMediaTab media={media} />
+                    <SettingsAiTab />
                     <SettingsIntegrationsTab integrations={integrations} />
                     <SettingsAdvancedSection advanced={advanced} />
                 </div>

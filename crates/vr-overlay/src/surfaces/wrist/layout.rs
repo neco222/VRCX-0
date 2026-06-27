@@ -1,5 +1,5 @@
 use crate::{
-    layout::{ellipsize_to_width, text_width},
+    layout::{ellipsize_to_width, TextMeasurer},
     model::{
         Color, DeviceChip, DeviceRole, DeviceStatus, FeedLine, FeedRelation, OverlaySurfaceId, Rect,
     },
@@ -8,7 +8,7 @@ use crate::{
 
 use super::{model::WristSurfaceModel, style};
 
-pub fn build_wrist_scene(model: &WristSurfaceModel) -> OverlayScene {
+pub fn build_wrist_scene(model: &WristSurfaceModel, text: &mut TextMeasurer) -> OverlayScene {
     let mut scene = OverlayScene::new(OverlaySurfaceId::new("wrist"), model.size);
     let width = model.size.width as f32;
     let height = model.size.height as f32;
@@ -49,33 +49,33 @@ pub fn build_wrist_scene(model: &WristSurfaceModel) -> OverlayScene {
         color: style::PANEL_DIVIDER,
     });
 
-    push_device_bar(&mut scene, model);
-    push_feed_rows(&mut scene, model);
+    push_device_bar(&mut scene, model, text);
+    push_feed_rows(&mut scene, model, text);
     push_footer(&mut scene, model);
 
     scene
 }
 
-fn push_device_bar(scene: &mut OverlayScene, model: &WristSurfaceModel) {
+fn push_device_bar(scene: &mut OverlayScene, model: &WristSurfaceModel, text: &mut TextMeasurer) {
     let tokens = device_tokens(&model.devices, model.size.width as f32);
     let mut x = style::MARGIN;
     let y = 8.0;
     for token in tokens {
-        let chip_width = device_token_width(&token, model.show_battery_percent);
+        let chip_width = device_token_width(&token, model.show_battery_percent, text);
         if x + chip_width > model.size.width as f32 - style::MARGIN {
             break;
         }
-        let label_width = device_label_width(&token.label);
+        let label_width = device_label_width(&token.label, text);
         scene.push(DrawCommand::Text {
             origin_x: x,
             origin_y: y + 2.0,
             max_width: label_width,
-            text: ellipsize_to_width(&token.label, label_width, 14.0),
+            text: ellipsize_to_width(text, &token.label, label_width, 14.0),
             style: TextStyle::new(14.0, 18.0, token_label_color(&token)),
         });
         let mut next_x = x + label_width + 5.0;
         if let Some(percent_text) = token.percent_text(model.show_battery_percent) {
-            let percent_width = device_percent_width(&percent_text);
+            let percent_width = device_percent_width(&percent_text, text);
             scene.push(DrawCommand::Text {
                 origin_x: next_x,
                 origin_y: y + 2.0,
@@ -216,19 +216,19 @@ fn tracker_index(label: &str) -> u32 {
         .unwrap_or(u32::MAX)
 }
 
-fn device_label_width(label: &str) -> f32 {
-    (text_width(label, 14.0) + 6.0).clamp(12.0, 48.0)
+fn device_label_width(label: &str, text: &mut TextMeasurer) -> f32 {
+    (text.text_width(label, 14.0) + 6.0).clamp(12.0, 48.0)
 }
 
-fn device_percent_width(text: &str) -> f32 {
-    (text_width(text, 13.0) + 1.0).clamp(22.0, 34.0)
+fn device_percent_width(value: &str, text: &mut TextMeasurer) -> f32 {
+    (text.text_width(value, 13.0) + 1.0).clamp(22.0, 34.0)
 }
 
-fn device_token_width(token: &DeviceToken, show_percent: bool) -> f32 {
-    let label_width = device_label_width(&token.label);
+fn device_token_width(token: &DeviceToken, show_percent: bool, text: &mut TextMeasurer) -> f32 {
+    let label_width = device_label_width(&token.label, text);
     let percent_width = token
         .percent_text(show_percent)
-        .map(|text| device_percent_width(&text) + 5.0)
+        .map(|value| device_percent_width(&value, text) + 5.0)
         .unwrap_or_default();
     let battery_width = if token.draw_battery { 28.0 } else { 0.0 };
     label_width + percent_width + battery_width
@@ -268,7 +268,7 @@ fn battery_fill_ratio(status: DeviceStatus, battery_percent: Option<u8>) -> f32 
     }
 }
 
-fn push_feed_rows(scene: &mut OverlayScene, model: &WristSurfaceModel) {
+fn push_feed_rows(scene: &mut OverlayScene, model: &WristSurfaceModel, text: &mut TextMeasurer) {
     let top = style::TOP_BAR_HEIGHT + 6.0;
     let bottom = model.size.height as f32 - style::FOOTER_HEIGHT - 4.0;
     let max_rows = ((bottom - top) / style::FEED_ROW_HEIGHT).floor().max(0.0) as usize;
@@ -288,6 +288,7 @@ fn push_feed_rows(scene: &mut OverlayScene, model: &WristSurfaceModel) {
             style::MARGIN + 58.0,
             y + 1.0,
             available_width - 58.0,
+            text,
         );
         scene.push(DrawCommand::FillRect {
             rect: Rect::new(
@@ -301,22 +302,29 @@ fn push_feed_rows(scene: &mut OverlayScene, model: &WristSurfaceModel) {
     }
 }
 
-fn push_feed_detail(scene: &mut OverlayScene, row: &FeedLine, x: f32, y: f32, max_width: f32) {
+fn push_feed_detail(
+    scene: &mut OverlayScene,
+    row: &FeedLine,
+    x: f32,
+    y: f32,
+    max_width: f32,
+    text: &mut TextMeasurer,
+) {
     let actor = row.actor_text.trim();
     if actor.is_empty() || row.relation == FeedRelation::None {
         scene.push(DrawCommand::Text {
             origin_x: x,
             origin_y: y,
             max_width,
-            text: ellipsize_to_width(&row.detail, max_width, 17.0),
+            text: ellipsize_to_width(text, &row.detail, max_width, 17.0),
             style: TextStyle::new(17.0, 21.0, detail_color(row)),
         });
         return;
     }
 
     let actor_max_width = max_width.min(actor_display_width_limit(max_width));
-    let actor_text = ellipsize_to_width(actor, actor_max_width, 17.0);
-    let actor_width = text_width(&actor_text, 17.0).min(actor_max_width);
+    let actor_text = ellipsize_to_width(text, actor, actor_max_width, 17.0);
+    let actor_width = text.text_width(&actor_text, 17.0).min(actor_max_width);
     scene.push(DrawCommand::Text {
         origin_x: x,
         origin_y: y,
@@ -338,7 +346,7 @@ fn push_feed_detail(scene: &mut OverlayScene, row: &FeedLine, x: f32, y: f32, ma
         origin_x: rest_x,
         origin_y: y,
         max_width: rest_width,
-        text: ellipsize_to_width(&rest, rest_width, 17.0),
+        text: ellipsize_to_width(text, &rest, rest_width, 17.0),
         style: TextStyle::new(17.0, 21.0, detail_color(row)),
     });
 }

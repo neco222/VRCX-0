@@ -1,14 +1,15 @@
 use vrcx_0_vr_overlay::{
     build_wrist_scene, Color, DeviceChip, DeviceRole, DeviceStatus, DrawCommand, FeedKind,
     FeedLine, FeedRelation, FeedSeverity, OverlayFooter, OverlayRenderer, OverlayScene,
-    OverlaySize, OverlaySurfaceId, Rect, TextStyle, TinySkiaRenderer, WristSurfaceModel,
+    OverlaySize, OverlaySurfaceId, Rect, TextMeasurer, TextStyle, TinySkiaRenderer,
+    WristSurfaceModel,
 };
 
 #[test]
 fn wrist_surface_builds_scene_with_future_hit_region_boundary() {
     let model = sample_wrist_model();
 
-    let scene = build_wrist_scene(&model);
+    let scene = build_scene(&model);
 
     assert_eq!(scene.surface_id, OverlaySurfaceId::new("wrist"));
     assert_eq!(scene.size, OverlaySize::new(512, 512));
@@ -24,7 +25,7 @@ fn wrist_surface_builds_scene_with_future_hit_region_boundary() {
 
 #[test]
 fn tiny_skia_renderer_outputs_non_empty_rgba_frame() {
-    let scene = build_wrist_scene(&sample_wrist_model());
+    let scene = build_scene(&sample_wrist_model());
     let mut renderer = TinySkiaRenderer::new();
 
     let frame = renderer.render(&scene).expect("render wrist scene");
@@ -74,7 +75,7 @@ fn wrist_surface_aggregates_normal_trackers_and_expands_abnormal_trackers() {
         ));
     }
 
-    let scene = build_wrist_scene(&model);
+    let scene = build_scene(&model);
     let texts = scene_texts(&scene.commands);
 
     assert!(texts.iter().any(|text| text == "HMD"));
@@ -126,7 +127,7 @@ fn wrist_surface_shows_percent_for_each_specific_device_when_enabled() {
         ),
     ];
 
-    let scene = build_wrist_scene(&model);
+    let scene = build_scene(&model);
     let texts = scene_texts(&scene.commands);
 
     assert!(texts.iter().any(|text| text == "82%"));
@@ -174,7 +175,7 @@ fn wrist_surface_uses_extra_width_to_expand_more_tracker_statuses() {
         ));
     }
 
-    let scene = build_wrist_scene(&model);
+    let scene = build_scene(&model);
     let texts = scene_texts(&scene.commands);
 
     assert!(texts.iter().any(|text| text == "T3"));
@@ -206,7 +207,7 @@ fn wrist_surface_draws_actor_text_with_relation_hierarchy() {
         },
     ];
 
-    let scene = build_wrist_scene(&model);
+    let scene = build_scene(&model);
 
     let fav_color = text_color(&scene.commands, "Fav User").expect("favorite actor text");
     let friend_color = text_color(&scene.commands, "Friend User").expect("friend actor text");
@@ -227,7 +228,7 @@ fn wrist_surface_renders_one_pixel_surface_without_panicking() {
         right: String::new(),
     };
 
-    let scene = build_wrist_scene(&model);
+    let scene = build_scene(&model);
     let frame = render_scene(&scene);
 
     assert_eq!(frame.size, OverlaySize::new(1, 1));
@@ -264,7 +265,7 @@ fn wrist_surface_renders_empty_devices_and_unusual_text_without_panicking() {
         right: "right".to_string(),
     };
 
-    let scene = build_wrist_scene(&model);
+    let scene = build_scene(&model);
     let frame = render_scene(&scene);
 
     assert_eq!(frame.size, model.size);
@@ -314,7 +315,7 @@ fn wrist_surface_renders_large_device_sets_without_unbounded_scene_growth() {
         ));
     }
 
-    let scene = build_wrist_scene(&model);
+    let scene = build_scene(&model);
     let frame = render_scene(&scene);
 
     assert!(
@@ -432,6 +433,11 @@ fn sample_wrist_model() -> WristSurfaceModel {
 fn render_scene(scene: &OverlayScene) -> vrcx_0_vr_overlay::RgbaFrame {
     let mut renderer = TinySkiaRenderer::new();
     renderer.render(scene).expect("render overlay scene")
+}
+
+fn build_scene(model: &WristSurfaceModel) -> OverlayScene {
+    let mut measurer = TextMeasurer::new();
+    build_wrist_scene(model, &mut measurer)
 }
 
 fn device(

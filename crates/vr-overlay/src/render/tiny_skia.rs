@@ -1,7 +1,8 @@
-use cosmic_text::{Attrs, Buffer, Color as TextColor, FontSystem, Metrics, Shaping, SwashCache};
+use cosmic_text::{Attrs, Buffer, Color as TextColor, Metrics, Shaping, SwashCache};
 use tiny_skia::{FillRule, Paint, PathBuilder, Pixmap, Rect as SkiaRect, Stroke, Transform};
 
 use crate::{
+    font::{new_shared_overlay_font_system, SharedOverlayFontSystem},
     model::{Color, RgbaFrame},
     scene::{DrawCommand, OverlayScene, TextStyle},
     OverlayRenderer,
@@ -10,14 +11,16 @@ use crate::{
 use super::OverlayRenderError;
 
 pub struct TinySkiaRenderer {
-    font_system: FontSystem,
+    font_system: SharedOverlayFontSystem,
     cache: SwashCache,
 }
 
 impl TinySkiaRenderer {
     pub fn new() -> Self {
-        let mut font_system = FontSystem::new();
-        crate::font::configure_font_system(&mut font_system);
+        Self::with_font_system(new_shared_overlay_font_system())
+    }
+
+    pub fn with_font_system(font_system: SharedOverlayFontSystem) -> Self {
         Self {
             font_system,
             cache: SwashCache::new(),
@@ -125,8 +128,11 @@ impl TinySkiaRenderer {
         if text.is_empty() || max_width <= 0.0 {
             return;
         }
+        let Ok(mut font_system) = self.font_system.lock() else {
+            return;
+        };
         let metrics = Metrics::new(style.size, style.line_height);
-        let mut buffer = Buffer::new(&mut self.font_system, metrics);
+        let mut buffer = Buffer::new(&mut font_system, metrics);
         buffer.set_size(Some(max_width), Some(style.line_height));
         buffer.set_text(text, &Attrs::new(), Shaping::Advanced, None);
         let width = pixmap.width();
@@ -135,7 +141,7 @@ impl TinySkiaRenderer {
         let origin_y = origin_y.round() as i32;
         let data = pixmap.data_mut();
         buffer.draw(
-            &mut self.font_system,
+            &mut font_system,
             &mut self.cache,
             TextColor::rgba(style.color.r, style.color.g, style.color.b, style.color.a),
             |x, y, w, h, color| {

@@ -1,4 +1,8 @@
+use std::sync::{Arc, Mutex};
+
 use cosmic_text::FontSystem;
+
+pub type SharedOverlayFontSystem = Arc<Mutex<FontSystem>>;
 
 const PREFERRED_SANS_FAMILIES: &[&str] = &[
     "Microsoft YaHei UI",
@@ -32,4 +36,10 @@ pub(crate) fn configure_font_system(font_system: &mut FontSystem) {
     if let Some(family) = preferred_sans_family(font_system) {
         font_system.db_mut().set_sans_serif_family(family);
     }
+}
+
+pub fn new_shared_overlay_font_system() -> SharedOverlayFontSystem {
+    let mut font_system = FontSystem::new();
+    configure_font_system(&mut font_system);
+    Arc::new(Mutex::new(font_system))
 }

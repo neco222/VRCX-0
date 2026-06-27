@@ -45,7 +45,6 @@ function ActionButton({
             size="icon-xs"
             variant="outline"
             aria-label={label}
-            title={label}
             disabled={disabled || loading}
             onClick={onClick}
         >

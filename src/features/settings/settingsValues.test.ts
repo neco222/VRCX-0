@@ -25,7 +25,7 @@ import {
 } from './settingsValues';
 
 describe('settingsValues', () => {
-    it('places the VR settings tab between notifications and media', () => {
+    it('places AI settings before integrations', () => {
         expect(settingsTabs.map(([value]) => value)).toEqual([
             'system',
             'interface',
@@ -33,6 +33,7 @@ describe('settingsValues', () => {
             'notifications',
             'vr',
             'media',
+            'ai',
             'integrations',
             'advanced'
         ]);

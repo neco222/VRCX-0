@@ -1,8 +1,13 @@
 [package]
 name = "vrcx-0"
-version = "2.8.0"
+version = "2.9.1"
 edition = "2021"
 default-run = "vrcx-0"
+
+[[bin]]
+name = "export-bindings"
+path = "src/bin/export-bindings.rs"
+required-features = ["bindings-export"]
 
 [dependencies]
 tauri = { version = "2", features = ["tray-icon", "image-ico", "macos-proxy"] }
@@ -23,6 +28,7 @@ reqwest = { workspace = true, features = [
 tokio = { workspace = true, features = [
     "sync",
     "macros",
+    "rt-multi-thread",
     "time",
     "net",
     "io-util"
@@ -59,7 +65,10 @@ tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_Storage_FileSystem",
-    "Win32_System_Pipes"
+    "Win32_System_DataExchange",
+    "Win32_System_Pipes",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging"
 ] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
@@ -67,6 +76,7 @@ webkit2gtk-nvidia-quirk = "1"
 
 [features]
 default = ["steamvr-overlay", "openxr-overlay"]
+bindings-export = []
 devtools = ["tauri/devtools"]
 devkit = ["devtools"]
 steamvr-overlay = [

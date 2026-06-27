@@ -1741,6 +1741,7 @@
                 "system": "システム",
                 "interface": "インターフェイス",
                 "social": "ソーシャル",
+                "ai": "AI",
                 "vr": "VR",
                 "media": "メディア",
                 "integrations": "統合"
@@ -5100,10 +5101,15 @@
             },
             "action": {
                 "close_instance": "インスタンスを閉じる",
-                "launch_instance": "インスタンスを起動"
+                "launch_instance": "インスタンスを起動",
+                "open_in_game": "ゲーム内で開く"
             },
             "success": {
-                "instance_refreshed": "インスタンスを更新しました"
+                "instance_refreshed": "インスタンスを更新しました",
+                "vrchat_launch_request_sent": "VRChat で開きました"
+            },
+            "error": {
+                "unable_to_open_this_instance_in_vrchat": "このインスタンスを VRChat で開けませんでした"
             }
         },
         "avatar_owner_edit_dialogs": {
@@ -6001,7 +6007,8 @@
             "toast": {
                 "failed_to_send_self_invite": "自分への招待の送信に失敗しました",
                 "failed_to_refresh_instance": "インスタンスを更新できませんでした",
-                "failed_to_close_instance": "インスタンスを閉じられませんでした"
+                "failed_to_close_instance": "インスタンスを閉じられませんでした",
+                "failed_to_launch_instance": "インスタンスの起動に失敗しました"
             },
             "modal": {
                 "close_instance": "インスタンスを閉じますか？"
