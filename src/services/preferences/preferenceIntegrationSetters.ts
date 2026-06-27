@@ -1,6 +1,9 @@
 import { commands } from '@/platform/tauri/bindings';
 import configRepository from '@/repositories/configRepository';
-import type { DiscordPreferenceKey } from '@/state/preferencesStore';
+import {
+    normalizeTranslationApiType,
+    type DiscordPreferenceKey
+} from '@/state/preferencesStore';
 
 import { refreshDiscordPresence } from '../discordPresenceService';
 import {
@@ -46,7 +49,7 @@ export async function setTranslationApiConfigPreference({
     translationAPIPrompt
 }: TranslationApiConfigPreferenceInput) {
     const nextBioLanguage = normalizeBioLanguage(bioLanguage);
-    const nextType = translationAPIType === 'openai' ? 'openai' : 'google';
+    const nextType = normalizeTranslationApiType(translationAPIType);
     const nextKey = String(translationAPIKey ?? '').trim();
     const nextEndpoint =
         String(translationAPIEndpoint || DEFAULT_TRANSLATION_ENDPOINT).trim() ||

@@ -4585,6 +4585,7 @@
             "mode": "공급자",
             "mode_google": "구글 번역",
             "mode_openai": "OpenAI",
+            "mode_deepl": "DeepL Free API",
             "test": "테스트",
             "save": "저장",
             "msg_fill_endpoint_model": "끝점과 모델을 입력하세요.",
@@ -4597,6 +4598,9 @@
                 "endpoint": "API 끝점",
                 "api_key": "API 키(선택 사항)",
                 "prompt_optional_description": "OpenAI 호환 번역 APIs에 대한 선택적 시스템 프롬프트."
+            },
+            "deepl": {
+                "api_key": "DeepL API 키"
             },
             "fetch_models": "모델 가져오기",
             "fetching_models": "가져오는 중...",

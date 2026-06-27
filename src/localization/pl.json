@@ -1578,6 +1578,7 @@
             "mode": "Dostawca",
             "mode_google": "Google Translate",
             "mode_openai": "OpenAI",
+            "mode_deepl": "DeepL Free API",
             "test": "Testuj",
             "save": "Zapisz",
             "msg_fill_endpoint_model": "Wprowadź model i link",
@@ -1589,6 +1590,9 @@
                 "api_key": "Klucz API (Opcjonalnie)",
                 "model": "Nazwa modelu",
                 "prompt_optional": "Prompt (Opcjonalnie)"
+            },
+            "deepl": {
+                "api_key": "Klucz API DeepL"
             }
         },
         "notification_position": {

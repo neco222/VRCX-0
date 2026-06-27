@@ -527,6 +527,27 @@ describe('preferencesService characterization', () => {
         ]);
     });
 
+    it('persists DeepL as a translation API provider', async () => {
+        await expect(
+            setTranslationApiConfigPreference({
+                bioLanguage: 'en',
+                translationAPIType: 'deepl',
+                translationAPIKey: '  deepl-key  '
+            })
+        ).resolves.toMatchObject({
+            translationAPIType: 'deepl',
+            translationAPIKey: 'deepl-key'
+        });
+
+        expect(mocks.setMany).toHaveBeenCalledWith(
+            expect.arrayContaining([
+                ['translationAPIType', 'deepl'],
+                ['translationAPIKey', 'deepl-key']
+            ])
+        );
+        expect(usePreferencesStore.getState().translationAPIType).toBe('deepl');
+    });
+
     it('rejects invalid trust colors and unsupported Discord preference keys', async () => {
         await expect(
             setTrustColorPreference('basic', 'not-a-color')

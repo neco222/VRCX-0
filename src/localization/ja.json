@@ -4656,6 +4656,7 @@
             "mode": "翻訳サービスプロバイダ",
             "mode_google": "Google 翻訳",
             "mode_openai": "OpenAI",
+            "mode_deepl": "DeepL Free API",
             "test": "テスト",
             "save": "保存",
             "msg_fill_endpoint_model": "APIエンドポイントとモデル名を入力してください",
@@ -4668,6 +4669,9 @@
                 "model": "モデル名",
                 "prompt_optional": "プロンプト (オプション)",
                 "prompt_optional_description": "OpenAI 互換翻訳 API 用の任意のシステムプロンプトです。"
+            },
+            "deepl": {
+                "api_key": "DeepL API キー"
             },
             "fetch_models": "モデルを取得",
             "fetching_models": "取得中...",

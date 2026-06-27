@@ -287,6 +287,14 @@ describe('preferencesStore normalizers', () => {
         );
     });
 
+    it('keeps DeepL translation provider snapshots', () => {
+        expect(
+            normalizePreferenceSnapshot({
+                translationAPIType: 'deepl'
+            }).translationAPIType
+        ).toBe('deepl');
+    });
+
     it('falls back invalid wrist overlay trigger preferences to defaults', () => {
         expect(
             normalizePreferenceSnapshot({

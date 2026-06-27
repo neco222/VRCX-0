@@ -41,6 +41,19 @@ export function TranslationApiDialog({
     onSave: saveTranslationApiConfig
 }: any) {
     const { t } = useTranslation();
+    const translationProvider = translationDraft.translationAPIType;
+    const apiKeyLabel =
+        translationProvider === 'openai'
+            ? t('dialog.translation_api.openai.api_key')
+            : translationProvider === 'deepl'
+              ? t('dialog.translation_api.deepl.api_key')
+              : t('dialog.translation_api.description');
+    const apiKeyPlaceholder =
+        translationProvider === 'openai'
+            ? 'sk-...'
+            : translationProvider === 'deepl'
+              ? 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx'
+              : 'AIzaSy...';
 
     return (
         <Dialog
@@ -251,11 +264,7 @@ export function TranslationApiDialog({
                         </>
                     ) : null}
                     <Field
-                        label={
-                            translationDraft.translationAPIType === 'openai'
-                                ? t('dialog.translation_api.openai.api_key')
-                                : t('dialog.translation_api.description')
-                        }
+                        label={apiKeyLabel}
                         controlId="settings-translation-api-key"
                     >
                         <Input
@@ -263,11 +272,7 @@ export function TranslationApiDialog({
                             type="password"
                             name="translationApiKey"
                             value={translationDraft.translationAPIKey}
-                            placeholder={
-                                translationDraft.translationAPIType === 'openai'
-                                    ? 'sk-...'
-                                    : 'AIzaSy...'
-                            }
+                            placeholder={apiKeyPlaceholder}
                             onChange={(event: any) =>
                                 setTranslationDraftValue(
                                     'translationAPIKey',
@@ -292,7 +297,21 @@ export function TranslationApiDialog({
                             {t('dialog.translation_api.guide')}
                         </Button>
                     ) : null}
-                    {translationDraft.translationAPIType === 'openai' ? (
+                    {translationDraft.translationAPIType === 'deepl' ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                openExternalLink(
+                                    'https://www.deepl.com/pro-api'
+                                );
+                            }}
+                        >
+                            {t('dialog.translation_api.guide')}
+                        </Button>
+                    ) : null}
+                    {translationDraft.translationAPIType === 'openai' ||
+                    translationDraft.translationAPIType === 'deepl' ? (
                         <Button
                             type="button"
                             variant="outline"

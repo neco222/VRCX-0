@@ -37,7 +37,7 @@ const DEFAULT_TRANSLATION_MODEL = 'gpt-4o-mini';
 export type NotificationLayoutPreference = 'notification-center' | 'table';
 export type TableDensityPreference = 'standard' | 'compact';
 export type FeedTimeDisplayModePreference = 'exact' | 'relative';
-export type TranslationApiType = 'google' | 'openai';
+export type TranslationApiType = 'google' | 'openai' | 'deepl';
 export type DefaultLaunchModePreference = 'vr' | 'desktop';
 export type WristOverlayHandPreference = 'left' | 'right' | 'both';
 export type WristOverlaySizePreference = 'compact' | 'normal' | 'large';
@@ -140,6 +140,12 @@ export function normalizeFeedTimeDisplayMode(
     value: unknown
 ): FeedTimeDisplayModePreference {
     return value === 'exact' ? 'exact' : 'relative';
+}
+
+export function normalizeTranslationApiType(
+    value: unknown
+): TranslationApiType {
+    return value === 'openai' || value === 'deepl' ? value : 'google';
 }
 
 export function normalizeWristOverlayHand(
@@ -513,8 +519,9 @@ export function normalizePreferenceSnapshot(snapshot: unknown = {}) {
         youtubeAPI: normalizeBool(next.youtubeAPI),
         translationAPI: normalizeBool(next.translationAPI),
         bioLanguage: next.bioLanguage || 'en',
-        translationAPIType:
-            next.translationAPIType === 'openai' ? 'openai' : 'google',
+        translationAPIType: normalizeTranslationApiType(
+            next.translationAPIType
+        ),
         translationAPIEndpoint:
             next.translationAPIEndpoint || DEFAULT_TRANSLATION_ENDPOINT,
         translationAPIModel:

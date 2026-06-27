@@ -13,6 +13,7 @@ import {
     normalizeTableLimits,
     normalizeTablePageSize,
     normalizeTablePageSizes,
+    normalizeTranslationApiType,
     normalizeWristOverlayButton,
     normalizeWristOverlayHand,
     normalizeWristOverlaySize,
@@ -443,8 +444,7 @@ export async function loadPreferenceSnapshot() {
         youtubeAPI: Boolean(youtubeAPI),
         translationAPI: Boolean(translationAPI),
         bioLanguage: normalizeBioLanguage(bioLanguage),
-        translationAPIType:
-            translationAPIType === 'openai' ? 'openai' : 'google',
+        translationAPIType: normalizeTranslationApiType(translationAPIType),
         translationAPIEndpoint:
             translationAPIEndpoint || DEFAULT_TRANSLATION_ENDPOINT,
         translationAPIModel: translationAPIModel || DEFAULT_TRANSLATION_MODEL,

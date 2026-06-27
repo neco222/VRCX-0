@@ -4657,6 +4657,7 @@
             "mode": "服務提供者",
             "mode_google": "Google 翻譯",
             "mode_openai": "OpenAI",
+            "mode_deepl": "DeepL Free API",
             "test": "測試",
             "save": "儲存",
             "msg_fill_endpoint_model": "請填寫 API 端點與模型",
@@ -4669,6 +4670,9 @@
                 "model": "模型名稱",
                 "prompt_optional": "提示詞（選填）",
                 "prompt_optional_description": "OpenAI 兼容翻譯 API 的可選系統提示詞。"
+            },
+            "deepl": {
+                "api_key": "DeepL API 金鑰"
             },
             "fetch_models": "取得模型",
             "fetching_models": "正在取得…",

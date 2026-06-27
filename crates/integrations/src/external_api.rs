@@ -372,14 +372,9 @@ fn sanitize_headers(
                 "external API header is not allowed: {name}"
             )));
         }
-        if normalized == "authorization"
-            && !value
-                .trim_start()
-                .to_ascii_lowercase()
-                .starts_with("bearer ")
-        {
+        if normalized == "authorization" && !valid_translation_authorization(value) {
             return Err(ExternalApiError::Custom(
-                "translation authorization must use Bearer token syntax.".into(),
+                "translation authorization must use Bearer or DeepL-Auth-Key syntax.".into(),
             ));
         }
         if name.chars().any(|ch| ch.is_control())
@@ -394,6 +389,11 @@ fn sanitize_headers(
         }
     }
     Ok(sanitized)
+}
+
+fn valid_translation_authorization(value: &str) -> bool {
+    let normalized = value.trim_start().to_ascii_lowercase();
+    normalized.starts_with("bearer ") || normalized.starts_with("deepl-auth-key ")
 }
 
 fn request_body_text(
@@ -708,6 +708,30 @@ mod tests {
             .headers
             .iter()
             .any(|(name, value)| name == "Authorization" && value == "Bearer test-token"));
+    }
+
+    #[test]
+    fn translation_scope_allows_deepl_authorization_header() {
+        let policy = ExternalApiPolicy::with_allowed_origins(["https://api-free.deepl.com"]);
+        let request = ExternalHttpRequestInput {
+            url: Some("https://api-free.deepl.com/v2/translate".into()),
+            method: Some("POST".into()),
+            headers: Some(HashMap::from([(
+                "Authorization".to_string(),
+                "DeepL-Auth-Key test-token".to_string(),
+            )])),
+            body: Some(json!({ "text": ["hello"], "target_lang": "JA" })),
+            ..Default::default()
+        };
+
+        let request =
+            build_web_execute_request_with_policy(request, ExternalApiScope::Translation, &policy)
+                .expect("translation DeepL authorization header");
+
+        assert!(request
+            .headers
+            .iter()
+            .any(|(name, value)| name == "Authorization" && value == "DeepL-Auth-Key test-token"));
     }
 
     #[test]

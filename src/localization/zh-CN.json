@@ -4661,6 +4661,7 @@
             "mode": "提供商",
             "mode_google": "Google 翻译",
             "mode_openai": "OpenAI",
+            "mode_deepl": "DeepL Free API",
             "test": "测试",
             "save": "保存",
             "msg_fill_endpoint_model": "请填写端点和模型",
@@ -4673,6 +4674,9 @@
                 "model": "要使用的大语言模型名称",
                 "prompt_optional": "提示词（可选）",
                 "prompt_optional_description": "OpenAI 兼容翻译 API 的可选系统提示词。"
+            },
+            "deepl": {
+                "api_key": "DeepL API 密钥"
             },
             "fetch_models": "获取大语言模型列表",
             "fetching_models": "获取中...",

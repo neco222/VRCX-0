@@ -4,8 +4,10 @@ import externalApiRepository from '@/repositories/externalApiRepository';
 const DEFAULT_TRANSLATION_ENDPOINT =
     'https://api.openai.com/v1/chat/completions';
 const DEFAULT_TRANSLATION_MODEL = 'gpt-4o-mini';
+const DEEPL_FREE_TRANSLATION_ENDPOINT =
+    'https://api-free.deepl.com/v2/translate';
 
-type TranslationType = 'google' | 'openai';
+type TranslationType = 'google' | 'openai' | 'deepl';
 type TranslationConfig = {
     enabled: boolean;
     bioLanguage: string;
@@ -34,6 +36,30 @@ function parseWebJson(response: unknown): Record<string, unknown> {
     return {};
 }
 
+function normalizeTranslationType(value: unknown): TranslationType {
+    return value === 'openai' || value === 'deepl' ? value : 'google';
+}
+
+export function normalizeDeepLTargetLanguage(language: unknown): string {
+    const value = String(language || 'en')
+        .trim()
+        .replace(/_/g, '-')
+        .toLowerCase();
+    if (value === 'en' || value.startsWith('en-')) {
+        return 'EN-US';
+    }
+    if (value === 'pt' || value.startsWith('pt-')) {
+        return 'PT-BR';
+    }
+    if (value === 'zh-tw' || value === 'zh-hant') {
+        return 'ZH-HANT';
+    }
+    if (value === 'zh-cn' || value === 'zh-hans' || value === 'zh') {
+        return 'ZH-HANS';
+    }
+    return value.toUpperCase();
+}
+
 export async function getTranslationConfig(): Promise<TranslationConfig> {
     const [enabled, bioLanguage, type, key, endpoint, model, prompt] =
         await Promise.all([
@@ -55,7 +81,7 @@ export async function getTranslationConfig(): Promise<TranslationConfig> {
     return {
         enabled: Boolean(enabled),
         bioLanguage: String(bioLanguage || 'en'),
-        type: type === 'openai' ? 'openai' : 'google',
+        type: normalizeTranslationType(type),
         key: String(key || ''),
         endpoint: String(endpoint || DEFAULT_TRANSLATION_ENDPOINT),
         model: String(model || DEFAULT_TRANSLATION_MODEL),
@@ -108,6 +134,39 @@ export async function translateText(
             : {};
         return typeof firstTranslation.translatedText === 'string'
             ? firstTranslation.translatedText
+            : '';
+    }
+
+    if (config.type === 'deepl') {
+        if (!config.key) {
+            throw new Error('No Translation API key configured.');
+        }
+        const response = await externalApiRepository.executeTranslationRequest({
+            url: DEEPL_FREE_TRANSLATION_ENDPOINT,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `DeepL-Auth-Key ${config.key}`
+            },
+            body: JSON.stringify({
+                text: [text],
+                target_lang: normalizeDeepLTargetLanguage(target)
+            })
+        });
+
+        if (response.status !== 200) {
+            throw new Error(`Translation API error: ${response.status}`);
+        }
+
+        const json = parseWebJson(response);
+        const translations = Array.isArray(json.translations)
+            ? json.translations
+            : [];
+        const firstTranslation = isRecord(translations[0])
+            ? translations[0]
+            : {};
+        return typeof firstTranslation.text === 'string'
+            ? firstTranslation.text.trim()
             : '';
     }
 

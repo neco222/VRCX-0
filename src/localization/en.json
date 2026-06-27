@@ -4661,6 +4661,7 @@
             "mode": "Provider",
             "mode_google": "Google Translate",
             "mode_openai": "OpenAI",
+            "mode_deepl": "DeepL Free API",
             "test": "Test",
             "save": "Save",
             "msg_fill_endpoint_model": "Please fill endpoint and model",
@@ -4673,6 +4674,9 @@
                 "model": "Model Name",
                 "prompt_optional": "Prompt (Optional)",
                 "prompt_optional_description": "Optional system prompt for OpenAI-compatible translation APIs."
+            },
+            "deepl": {
+                "api_key": "DeepL API Key"
             },
             "fetch_models": "Fetch Models",
             "fetching_models": "Fetching...",

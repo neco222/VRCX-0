@@ -10,6 +10,8 @@ import {
     setTranslationApiConfigPreference,
     setYoutubeApiKeyPreference
 } from '@/services/preferencesService';
+import { normalizeDeepLTargetLanguage } from '@/services/translationService';
+import { normalizeTranslationApiType } from '@/state/preferencesStore';
 
 import {
     buildOpenAiModelsEndpoint,
@@ -99,10 +101,9 @@ export function useSettingsIntegrations({ commit }: any) {
     function openTranslationApiDialog() {
         setTranslationDraft({
             bioLanguage: integrationPrefs.bioLanguage || 'en',
-            translationAPIType:
-                integrationPrefs.translationAPIType === 'openai'
-                    ? 'openai'
-                    : 'google',
+            translationAPIType: normalizeTranslationApiType(
+                integrationPrefs.translationAPIType
+            ),
             translationAPIKey: integrationPrefs.translationAPIKey || '',
             translationAPIEndpoint:
                 integrationPrefs.translationAPIEndpoint ||
@@ -183,10 +184,9 @@ export function useSettingsIntegrations({ commit }: any) {
     }
 
     async function saveTranslationApiConfig() {
-        const nextType =
-            translationDraft.translationAPIType === 'openai'
-                ? 'openai'
-                : 'google';
+        const nextType = normalizeTranslationApiType(
+            translationDraft.translationAPIType
+        );
         const nextEndpoint =
             translationDraft.translationAPIEndpoint.trim() ||
             DEFAULT_TRANSLATION_ENDPOINT;
@@ -302,10 +302,9 @@ export function useSettingsIntegrations({ commit }: any) {
     }
 
     async function testTranslationApiConfig() {
-        const provider =
-            translationDraft.translationAPIType === 'openai'
-                ? 'openai'
-                : 'google';
+        const provider = normalizeTranslationApiType(
+            translationDraft.translationAPIType
+        );
         const apiKey = translationDraft.translationAPIKey.trim();
         setIntegrationStatus((current: any) => ({
             ...current,
@@ -326,6 +325,31 @@ export function useSettingsIntegrations({ commit }: any) {
                             q: 'Hello world',
                             target: translationDraft.bioLanguage || 'en',
                             format: 'text'
+                        })
+                    });
+                if (response.status !== 200) {
+                    throw new Error(
+                        t('dialog.translation_api.msg_test_failed')
+                    );
+                }
+            } else if (provider === 'deepl') {
+                if (!apiKey) {
+                    toast.warning(t('dialog.translation_api.deepl.api_key'));
+                    return;
+                }
+                const response =
+                    await externalApiRepository.executeTranslationRequest({
+                        url: 'https://api-free.deepl.com/v2/translate',
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `DeepL-Auth-Key ${apiKey}`
+                        },
+                        body: JSON.stringify({
+                            text: ['Hello world'],
+                            target_lang: normalizeDeepLTargetLanguage(
+                                translationDraft.bioLanguage || 'en'
+                            )
                         })
                     });
                 if (response.status !== 200) {
