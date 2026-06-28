@@ -1,5 +1,9 @@
 import configRepository from '@/repositories/configRepository';
 import externalApiRepository from '@/repositories/externalApiRepository';
+import {
+    normalizeTranslationApiType,
+    type TranslationApiType
+} from '@/state/preferencesStore';
 
 const DEFAULT_TRANSLATION_ENDPOINT =
     'https://api.openai.com/v1/chat/completions';
@@ -7,7 +11,7 @@ const DEFAULT_TRANSLATION_MODEL = 'gpt-4o-mini';
 const DEEPL_FREE_TRANSLATION_ENDPOINT =
     'https://api-free.deepl.com/v2/translate';
 
-type TranslationType = 'google' | 'openai' | 'deepl';
+type TranslationType = TranslationApiType;
 type TranslationConfig = {
     enabled: boolean;
     bioLanguage: string;
@@ -34,10 +38,6 @@ function parseWebJson(response: unknown): Record<string, unknown> {
         return isRecord(parsed) ? parsed : {};
     }
     return {};
-}
-
-function normalizeTranslationType(value: unknown): TranslationType {
-    return value === 'openai' || value === 'deepl' ? value : 'google';
 }
 
 export function normalizeDeepLTargetLanguage(language: unknown): string {
@@ -81,7 +81,7 @@ export async function getTranslationConfig(): Promise<TranslationConfig> {
     return {
         enabled: Boolean(enabled),
         bioLanguage: String(bioLanguage || 'en'),
-        type: normalizeTranslationType(type),
+        type: normalizeTranslationApiType(type),
         key: String(key || ''),
         endpoint: String(endpoint || DEFAULT_TRANSLATION_ENDPOINT),
         model: String(model || DEFAULT_TRANSLATION_MODEL),
