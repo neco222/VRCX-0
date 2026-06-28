@@ -44,16 +44,25 @@ pub(crate) fn favorite_local_caveats() -> Vec<String> {
 pub(crate) fn social_graph_caveats() -> Vec<String> {
     vec![
         "Social graph edges describe friend relationship data, not co-play or co-presence.".into(),
+        "Nodes include friends-of-friends; isFriend marks which nodes are the signed-in user's own friends versus second-degree mutuals.".into(),
         "Only mutual graph snapshots that VRCX-0 has fetched are represented.".into(),
         "Mutual data is fetched on demand and breaks when a friend opts out of Shared Connections; use refresh_mutual_graph to update.".into(),
     ]
 }
 
+pub(crate) fn friend_circles_caveats() -> Vec<String> {
+    vec![
+        "Friend circles use only mutual graph snapshots that VRCX-0 has fetched.".into(),
+        "Connected circles are graph components: members are connected through known friendship paths, not necessarily all pairwise friends.".into(),
+        "Friends who opt out of Shared Connections or have not been fetched can make circles look smaller or isolated.".into(),
+    ]
+}
+
 pub(crate) fn companions_caveats() -> Vec<String> {
     vec![
-        "Companion inference only covers visible instance locations in feed_gps.".into(),
-        "Private instances that are not visible to the owner cannot be separated by instance and are excluded.".into(),
-        "overlap_minutes is an approximation based on overlapping visible location events.".into(),
+        "Companions are inferred from the local game log: players observed in the same instances the signed-in user attended.".into(),
+        "Instances the signed-in user did not attend (including private rooms they were not in) are invisible, so a third party's full social circle is undercounted.".into(),
+        "overlap_minutes counts time both players' observed stays overlapped; co-presence is undercounted when game-log stay durations are missing.".into(),
     ]
 }
 
@@ -84,7 +93,6 @@ pub(crate) fn best_time_caveats() -> Vec<String> {
     vec![
         "Buckets count observed friend online events; being online does not imply an instance you can join.".into(),
         "distinctFriends reflects only friends this profile observed coming online in the window.".into(),
-        "Hour and weekday buckets are in UTC, not the local time zone; convert before presenting clock times.".into(),
     ]
 }
 

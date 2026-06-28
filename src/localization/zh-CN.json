@@ -129,7 +129,8 @@
         "footer": {
             "players": "{count} 名玩家",
             "instance_duration": "停留 {duration}"
-        }
+        },
+        "generic_instance_location": "某个房间"
     },
     "nativeShell": {
         "tray": {
@@ -147,6 +148,46 @@
             "authFailure": {
                 "title": "VRChat 登录已失效",
                 "body": "需要重新登录"
+            }
+        },
+        "menu": {
+            "app": {
+                "title": "VRCX-0",
+                "about": "关于 VRCX-0",
+                "settings": "设置...",
+                "checkUpdates": "检查更新",
+                "restart": "重启 VRCX-0",
+                "startBackgroundMode": "切换到后台模式",
+                "logout": "退出登录",
+                "quit": "退出 VRCX-0"
+            },
+            "view": {
+                "title": "视图",
+                "notificationCenter": "通知中心",
+                "quickSearch": "快速搜索",
+                "directAccess": "直接打开",
+                "toggleNav": "切换导航栏",
+                "toggleFriendsSidebar": "切换好友侧栏",
+                "customNav": "自定义导航栏",
+                "themes": "主题",
+                "zoomIn": "放大",
+                "zoomOut": "缩小",
+                "resetZoom": "重置缩放"
+            },
+            "tools": {
+                "title": "工具",
+                "allTools": "所有工具..."
+            },
+            "help": {
+                "title": "帮助",
+                "changelog": "更新日志",
+                "keyboardShortcuts": "键盘快捷键",
+                "reportIssue": "反馈问题",
+                "github": "在 GitHub 上查看",
+                "discord": "加入 Discord",
+                "qqGroup": "QQ群",
+                "openDevtools": "打开 DevTools",
+                "supportVrcx": "支持 VRCX-0"
             }
         }
     },
@@ -172,8 +213,8 @@
         "settings": "设置",
         "manage": "管理",
         "help_support": "帮助 & 支持",
-        "expand_menu": "展开菜单",
-        "collapse_menu": "折叠菜单",
+        "expand_nav": "展开导航栏",
+        "collapse_nav": "收起导航栏",
         "toggle_theme": "切换日/夜间模式"
     },
     "nav_menu": {
@@ -340,10 +381,8 @@
         "quick_search": "快速搜索",
         "keyboard_shortcuts": "键盘快捷键",
         "notification_center": "通知中心",
-        "expand_friends_sidebar": "显示好友侧栏",
-        "collapse_friends_sidebar": "隐藏好友侧栏",
-        "show_side_panel": "显示侧边面板",
-        "hide_side_panel": "隐藏侧边面板",
+        "show_friends_sidebar": "显示好友侧栏",
+        "hide_friends_sidebar": "隐藏好友侧栏",
         "zoom_in": "放大",
         "zoom_out": "缩小",
         "reset_zoom": "重置缩放",
@@ -492,7 +531,7 @@
             "cannot_invite_no_current_vrchat_location_is_available": "无法邀请：当前没有可用的 VRChat 位置",
             "cannot_invite_from_the_current_instance_type": "无法从当前房间类型发出邀请",
             "cannot_invite_current_location_is_not_a_concrete_instance": "无法邀请：当前位置不是具体房间",
-            "cannot_update_profile_no_current_user_session_is_available": "无法更新个人资料：当前没有可用的已登录会话"
+            "cannot_update_profile_no_current_user_session_is_available": "无法更新个人资料：当前没有已登录的账号"
         },
         "empty": {
             "no_authenticated_user_snapshot_is_available": "登录后才能刷新好友"
@@ -737,7 +776,7 @@
                 "enable_game_log_ingestion_in_settings_before_this_page_can_load_local_vrchat_activity": "请先在设置中启用游戏日志采集，才能在此页面加载本地 VRChat 活动"
             },
             "loading": {
-                "loading_the_game_log_snapshot": "正在加载游戏日志快照"
+                "loading_the_game_log_snapshot": "正在加载游戏日志"
             },
             "error": {
                 "game_log_failed_to_load": "游戏日志加载失败"
@@ -745,7 +784,7 @@
             "empty": {
                 "no_game_log_sessions_match_the_current_filters": "没有符合条件的会话",
                 "no_game_log_rows_match_the_current_filters": "没有符合条件的日志记录",
-                "no_authenticated_user_is_available_for_the_game_log_snapshot": "当前没有已登录用户，无法加载游戏日志快照。"
+                "no_authenticated_user_is_available_for_the_game_log_snapshot": "当前没有已登录用户，无法加载游戏日志。"
             },
             "description": {
                 "favorites_are_still_hydrating": "收藏仍在加载中。",
@@ -1074,7 +1113,7 @@
                 "TrustLevel": "等级变动"
             },
             "loading": {
-                "loading_the_friend_history_snapshot": "正在加载好友历史快照"
+                "loading_the_friend_history_snapshot": "正在加载好友历史"
             },
             "error": {
                 "friend_history_failed_to_load": "好友历史加载失败"
@@ -1105,10 +1144,10 @@
                 "unmuteChat": "取消屏蔽聊天气泡"
             },
             "loading": {
-                "loading_the_moderation_snapshot": "正在加载玩家管理记录快照"
+                "loading_the_moderation_snapshot": "正在加载玩家管理记录"
             },
             "error": {
-                "moderation_snapshot_failed_to_load": "玩家管理记录快照加载失败"
+                "moderation_snapshot_failed_to_load": "玩家管理记录加载失败"
             },
             "label": {
                 "showing": "显示",
@@ -1210,7 +1249,7 @@
                 "cannot_invite_no_current_vrchat_location_is_available": "无法邀请：当前没有可用的 VRChat 位置",
                 "cannot_invite_from_the_current_instance_type": "无法从当前房间类型发出邀请",
                 "cannot_invite_current_location_is_not_a_concrete_instance": "无法邀请：当前位置不是具体房间",
-                "cannot_send_invite_response_no_current_user_session_is_available": "无法发送邀请回应：当前没有可用的已登录会话"
+                "cannot_send_invite_response_no_current_user_session_is_available": "无法发送邀请回应：当前没有已登录的账号"
             },
             "empty": {
                 "no_custom_emoji_selected_the_default_boop_will_be_sent": "未选择自定义表情，将发送默认戳一戳"
@@ -1272,7 +1311,7 @@
                 "no_friends_match_the_current_filters": "没有符合当前筛选条件的好友"
             },
             "loading": {
-                "loading_the_friend_roster_snapshot": "正在加载好友列表快照",
+                "loading_the_friend_roster_snapshot": "正在加载好友列表",
                 "loading_friend_details": "正在加载好友详情",
                 "loading_mutual_friends_progress": "正在加载共同好友 {current} / {total}"
             },
@@ -1422,7 +1461,7 @@
                 "loading_chart": "正在加载图表",
                 "loading_instance_activity": "正在加载房间活动",
                 "loading_graph": "正在加载图谱",
-                "loading_mutual_graph_snapshot": "正在加载共同好友图谱快照"
+                "loading_mutual_graph_snapshot": "正在加载共同好友图谱"
             },
             "empty": {
                 "no_detail_rows": "没有详情行",
@@ -1450,7 +1489,7 @@
                 "mutual_friends_graph_refreshed": "共同好友图谱已刷新"
             },
             "description": {
-                "the_local_mutual_friends_snapshot_is_empty_use_start_fetch_to_build_the_graph_cache": "本地共同好友快照为空，请使用开始获取来构建图谱缓存"
+                "the_local_mutual_friends_snapshot_is_empty_use_start_fetch_to_build_the_graph_cache": "本地共同好友数据为空，请点击开始获取来构建图谱缓存"
             },
             "toast": {
                 "failed_to_fetch_mutual_friends_graph": "获取共同好友图谱失败",
@@ -2474,7 +2513,7 @@
                 "favorite_detail_cache": "收藏详情缓存"
             },
             "loading": {
-                "loading_settings_snapshot": "正在加载设置快照…",
+                "loading_settings_snapshot": "正在加载设置…",
                 "favorite_detail_pending": "待处理收藏详情"
             },
             "toast": {
@@ -2626,36 +2665,36 @@
             "auto_login": {
                 "skipped": "已跳过自动登录",
                 "preparing_login_for": "正在为 {name} 准备自动登录",
-                "preparing_restore_for": "正在为 {userId} 准备自动恢复会话",
+                "preparing_restore_for": "正在为 {userId} 准备自动登录",
                 "starts_in": "自动登录将在 {seconds} 秒后开始",
                 "authenticating": "正在以 {name} 的身份登录",
-                "restoring_session_for": "正在为 {name} 恢复已有会话",
+                "restoring_session_for": "正在为 {name} 恢复登录",
                 "logged_in_as": "已作为 {name} 自动登录",
-                "restored_session_for": "已为 {name} 自动恢复上次会话",
-                "skipped_before_request": "认证请求开始前已跳过自动登录",
+                "restored_session_for": "已为 {name} 恢复上次登录",
+                "skipped_before_request": "登录开始前已跳过自动登录",
                 "throttled": "由于过去一小时内多次失败，自动登录已停用。",
-                "expired": "上一个会话已过期，且没有可用的已保存账号作为回退。",
+                "expired": "上次登录已过期，且没有可用的已保存账号可供登录。",
                 "failed_manual": "自动登录失败，但你仍可在下方手动登录",
                 "failed_unexpectedly": "自动登录因意外失败",
-                "skipped_form_changed": "登录表单已更改，已跳过自动登录",
+                "skipped_form_changed": "登录信息已更改，已跳过自动登录",
                 "skipped_manual_started": "已开始手动登录，因此跳过自动登录",
                 "skipped_saved_account_selected": "选择了另一个已保存账号，因此跳过自动登录",
                 "skipped_countdown_finished": "倒计时结束前已跳过自动登录",
                 "skipped_saved_account_edited": "正在编辑已保存账号，因此跳过自动登录"
             },
             "toast": {
-                "failed_to_load_saved_auth_snapshot": "加载已保存认证快照失败",
+                "failed_to_load_saved_auth_snapshot": "加载已保存的登录信息失败",
                 "automatic_login_failed_unexpectedly": "自动登录意外失败",
                 "failed_to_change_language": "切换语言失败",
                 "failed_to_load_proxy_settings": "加载代理设置失败",
                 "failed_to_save_proxy_settings": "保存代理设置失败",
                 "failed_to_update_endpoint_preference": "更新端点偏好失败",
                 "failed_to_remove_saved_account": "移除已保存账号失败",
-                "failed_to_authenticate": "认证失败",
+                "failed_to_authenticate": "登录失败",
                 "failed_to_restore_the_saved_account": "恢复已保存账号失败"
             },
             "dynamic": {
-                "authenticated_and_prepared_the_session_for_value": "登录成功，已为 {value} 准备好会话"
+                "authenticated_and_prepared_the_session_for_value": "{value} 已登录成功"
             }
         },
         "favorites": {
@@ -3358,7 +3397,7 @@
                 "search_worlds": "搜索世界",
                 "search_favorite_worlds": "搜索收藏的世界",
                 "search_avatars": "搜索模型",
-                "unfriend_request_sent_but_the_active_session_changed_before_local_state_was_updated": "删除好友请求已被发送，但本地状态与当前活动的会话状态不一致，可能是活动会话发生了变更"
+                "unfriend_request_sent_but_the_active_session_changed_before_local_state_was_updated": "删除好友请求已发送，但更新本地状态前登录账号已切换，本地状态可能未同步"
             },
             "loading": {
                 "loading_activity": "正在加载活动",
@@ -3418,7 +3457,7 @@
                 "user_profile_unavailable": "用户个人资料不可用",
                 "avatar_author_unavailable": "模型作者不可用",
                 "blocked": "已屏蔽",
-                "cannot_load_message_templates_no_current_user_session_is_available": "无法加载消息模板：当前没有可用的用户会话"
+                "cannot_load_message_templates_no_current_user_session_is_available": "无法加载消息模板：当前没有已登录的账号"
             },
             "description": {
                 "update_your_social_status_and_status_description": "更新你的社交状态和签名",
@@ -3638,7 +3677,7 @@
             },
             "loading": {
                 "loading_world_profile": "正在加载世界详情",
-                "fetching_the_current_vrchat_world_snapshot_for_this_dialog": "正在获取当前世界的快照"
+                "fetching_the_current_vrchat_world_snapshot_for_this_dialog": "正在获取最新的世界信息"
             },
             "error": {
                 "world_profile_unavailable": "世界资料不可用",
@@ -3648,7 +3687,7 @@
                 "cannot_self_invite_location_is_not_a_concrete_instance": "无法自我邀请：位置不是具体房间",
                 "cannot_open_in_vrchat_location_is_not_a_concrete_instance": "无法在 VRChat 中打开：位置不是具体房间",
                 "failed_open_instance_in_vrchat_falling_back_to_self_invite": "无法在 VRChat 中打开房间，改用自我邀请",
-                "failed_to_refresh_the_remote_world_snapshot": "刷新远程世界快照失败",
+                "failed_to_refresh_the_remote_world_snapshot": "刷新世界信息失败",
                 "failed_to_load_the_world_profile": "加载世界资料失败",
                 "world_not_found_description": "找不到世界 {worldId}",
                 "selected_image_is_too_large": "所选图片过大",
@@ -3672,7 +3711,7 @@
             },
             "description": {
                 "edit_world_details": "编辑世界详情",
-                "world_snapshot_unavailable_description": "VRCX-0 无法解析此世界的快照"
+                "world_snapshot_unavailable_description": "VRCX-0 无法获取此世界的信息"
             },
             "empty": {
                 "no_world_id_was_provided_for_this_dialog": "没有提供世界 ID",
@@ -3806,7 +3845,7 @@
             },
             "loading": {
                 "loading_avatar_profile": "正在加载模型信息",
-                "fetching_the_current_vrchat_avatar_snapshot_for_this_dialog": "正在获取此弹窗的模型快照"
+                "fetching_the_current_vrchat_avatar_snapshot_for_this_dialog": "正在获取最新的模型信息"
             },
             "error": {
                 "avatar_profile_unavailable": "模型信息不可用",
@@ -3841,7 +3880,7 @@
             },
             "description": {
                 "edit_avatar_details_description": "编辑模型名称、描述、样式和作者标签。",
-                "avatar_snapshot_unavailable_description": "VRCX-0 无法解析此模型快照"
+                "avatar_snapshot_unavailable_description": "VRCX-0 无法获取此模型的信息"
             },
             "toast": {
                 "failed_to_refresh_avatar": "刷新模型失败",
@@ -3871,7 +3910,7 @@
                 "failed_to_delete_impostor": "删除 Impostor 失败",
                 "impostor_queued_for_regeneration": "已排队重新生成 Impostor",
                 "failed_to_regenerate_impostor": "重新生成 Impostor 失败",
-                "avatar_deleted_but_current_user_snapshot_refresh": "模型已删除，但当前用户快照刷新失败"
+                "avatar_deleted_but_current_user_snapshot_refresh": "模型已删除，但刷新当前用户信息失败"
             },
             "modal": {
                 "select_fallback_avatar": "要将该模型作为备用模型使用吗？",
@@ -4037,12 +4076,12 @@
             },
             "loading": {
                 "loading_group_profile": "正在加载群组资料",
-                "fetching_the_current_vrchat_group_snapshot_for_this_dialog": "正在获取当前群组的快照信息",
+                "fetching_the_current_vrchat_group_snapshot_for_this_dialog": "正在获取最新的群组信息",
                 "loading": "加载中..."
             },
             "error": {
                 "group_profile_unavailable": "群组资料不可用",
-                "failed_to_refresh_the_remote_group_snapshot": "刷新远程群组快照失败",
+                "failed_to_refresh_the_remote_group_snapshot": "刷新群组信息失败",
                 "failed_to_load_the_group_profile": "加载群组资料失败",
                 "title_and_text_are_required": "需要标题和正文",
                 "failed_to_load_details": "加载详情失败"
@@ -4054,7 +4093,7 @@
                 "no_gallery_images": "没有图库图片"
             },
             "description": {
-                "group_snapshot_unavailable_description": "VRCX-0 无法解析此弹窗的群组快照"
+                "group_snapshot_unavailable_description": "VRCX-0 无法获取此群组的信息"
             },
             "label": {
                 "group_left": "已退出群组",
@@ -4774,7 +4813,6 @@
                 "OnPlayerJoining": "玩家正在加入",
                 "OnPlayerJoined": "玩家已加入",
                 "OnPlayerLeft": "玩家已离开",
-                "ChatBoxMessage": "聊天气泡消息",
                 "AvatarChange": "模型变动",
                 "Online": "上线",
                 "Offline": "离线",

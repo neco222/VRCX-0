@@ -6,7 +6,9 @@ use crate::realtime::normalize_user_table_prefix;
 use crate::Error;
 
 use super::caveats::fading_friends_caveats;
-use super::helpers::{clamped_optional_limit, date_part, millis_to_minutes, table_exists};
+use super::helpers::{
+    clamped_optional_limit, date_part, millis_to_minutes, table_exists, LatestName,
+};
 use super::types::{FadingFriendRow, FadingFriendsInput, FadingFriendsOutput};
 
 pub fn get_fading_friends(
@@ -47,9 +49,9 @@ pub fn get_fading_friends(
             .entry(user_id.clone())
             .or_insert_with(|| FadingAccumulator {
                 user_id,
-                display_name,
                 ..FadingAccumulator::default()
             });
+        entry.latest_name.observe(&display_name, &created_at);
         let is_recent = created_at >= input.pivot;
         if is_recent {
             entry.recent_millis += millis;
@@ -80,7 +82,7 @@ pub fn get_fading_friends(
                 ((prior_minutes - recent_minutes) * 100 / prior_minutes).clamp(0, 100);
             Some(FadingFriendRow {
                 user_id: entry.user_id,
-                display_name: entry.display_name,
+                display_name: entry.latest_name.into_name(),
                 prior_minutes,
                 recent_minutes,
                 prior_co_days: entry.prior_days.len(),
@@ -109,7 +111,7 @@ pub fn get_fading_friends(
 #[derive(Clone, Debug, Default)]
 struct FadingAccumulator {
     user_id: String,
-    display_name: String,
+    latest_name: LatestName,
     prior_millis: i64,
     recent_millis: i64,
     prior_days: HashSet<String>,

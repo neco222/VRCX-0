@@ -14,7 +14,7 @@ import { logoutFromReactShell } from '@/services/authExecutionService';
 import { startBackgroundModeForCurrentSession } from '@/services/backgroundModeService';
 import { openExternalLink } from '@/services/entityMediaService';
 import {
-    setSidebarCollapsedPreference,
+    setNavbarCollapsedPreference,
     setZoomLevelPreference
 } from '@/services/preferencesService';
 import {
@@ -76,9 +76,9 @@ export function MacNativeMenuActionHost() {
     const openVrcNotificationCenter = useVrcNotificationStore(
         (state: any) => state.openCenter
     );
-    const sidebarOpen = useShellStore((state: any) => state.sidebarOpen);
+    const navbarOpen = useShellStore((state: any) => state.sidebarOpen);
     const zoomLevel = useShellStore((state: any) => state.zoomLevel);
-    const { toggleSidePanelOpen: toggleRightSidebar } =
+    const { toggleSidePanelOpen: toggleFriendsSidebar } =
         useRightSidePanelVisibility(location.pathname);
     const currentZoom = normalizeZoomLevel(zoomLevel);
     // oxlint-disable-next-line no-undef
@@ -203,11 +203,11 @@ export function MacNativeMenuActionHost() {
                 case 'direct-access':
                     openDirectAccessFromClipboard();
                     break;
-                case 'toggle-left-sidebar':
-                    setSidebarCollapsedPreference(sidebarOpen);
+                case 'toggle-nav':
+                    setNavbarCollapsedPreference(navbarOpen);
                     break;
-                case 'toggle-right-sidebar':
-                    toggleRightSidebar();
+                case 'toggle-friends-sidebar':
+                    toggleFriendsSidebar();
                     break;
                 case 'custom-nav':
                     publishNavCustomizeRequested();
@@ -270,8 +270,8 @@ export function MacNativeMenuActionHost() {
             runStartBackgroundMode,
             sessionReady,
             setSystemHostOpen,
-            sidebarOpen,
-            toggleRightSidebar
+            navbarOpen,
+            toggleFriendsSidebar
         ]
     );
 

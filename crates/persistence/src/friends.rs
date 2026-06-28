@@ -144,6 +144,41 @@ pub fn friend_log_current_list(
         .collect())
 }
 
+/// Current display names for a specific set of friend user ids. Scoped to the
+/// requested ids so callers that only need to relabel a handful of rows do not
+/// load and materialize the entire friend roster.
+pub fn friend_display_names(
+    db: &DatabaseService,
+    owner_user_id: String,
+    user_ids: &[String],
+) -> Result<HashMap<String, String>, Error> {
+    let owner_user_id = normalize_text(owner_user_id);
+    if owner_user_id.is_empty() || user_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let user_prefix = normalize_user_table_prefix(&owner_user_id)?;
+    ensure_realtime_tables(db, &user_prefix)?;
+    let mut placeholders = Vec::with_capacity(user_ids.len());
+    let mut params = ParamsBuilder::new();
+    for (index, user_id) in user_ids.iter().enumerate() {
+        let key = format!("u{index}");
+        placeholders.push(format!("@{key}"));
+        params = params.set(&key, user_id.clone());
+    }
+    let sql = format!(
+        "SELECT user_id, display_name FROM {user_prefix}_friend_log_current WHERE user_id IN ({})",
+        placeholders.join(", ")
+    );
+    let mut names = HashMap::new();
+    for row in db.execute(&sql, &params.build())? {
+        let user_id = row_string(&row, 0);
+        if !user_id.is_empty() {
+            names.insert(user_id, row_string(&row, 1));
+        }
+    }
+    Ok(names)
+}
+
 pub fn friend_log_history_query(
     db: &DatabaseService,
     query: FriendLogHistoryQueryInput,

@@ -41,6 +41,7 @@ import {
     DEFAULT_TABLE_PAGE_SIZES
 } from './preferencesConstants';
 import {
+    appLanguageChanged,
     applyAccessibleStatusClass,
     applyDataTableStripedClass,
     applyTableDensityClass,
@@ -84,6 +85,7 @@ export async function setAppLanguagePreference(language: unknown) {
         locale: nextLanguage
     });
     await reloadWristOverlayRuntimeConfigIfNeeded('appLanguage');
+    await appLanguageChanged(nextLanguage);
 }
 
 export async function setThemeModePreference(themeMode: unknown) {
@@ -113,7 +115,7 @@ export async function setZoomLevelPreference(value: string | number) {
     return zoomLevel;
 }
 
-export async function setSidebarCollapsedPreference(collapsed: boolean) {
+export async function setNavbarCollapsedPreference(collapsed: boolean) {
     const isCollapsed = collapsed;
     useShellStore.getState().setSidebarOpen(!isCollapsed);
     await configRepository.setBool('navIsCollapsed', isCollapsed);

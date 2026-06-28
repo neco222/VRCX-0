@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use chrono::{DateTime, Datelike, FixedOffset, Local, Utc};
 use serde_json::{Map, Value};
 use tokio_util::sync::CancellationToken;
 use vrcx_0_integrations::llm::{ChatMessage, LlmClient, ToolDefinition};
@@ -11,11 +12,16 @@ use crate::events::AssistantEmitter;
 use crate::session::{ActiveTurn, Message, Role, SessionStore, TurnStatus};
 
 const MAX_TOOL_ROUNDS: usize = 6;
-const HISTORY_LIMIT: usize = 16;
+const HISTORY_LIMIT: usize = 8;
+const KNOWN_REFERENCES_LIMIT: usize = 12;
+const KNOWN_REFERENCE_TEXT_LIMIT: usize = 80;
 const SUMMARY_LIMIT: usize = 240;
 const TOOL_CONTENT_CHAR_BUDGET: usize = 64_000;
 const TOOL_RESULT_ARRAY_LIMIT: usize = 100;
 const TOOL_RESULT_STRING_LIMIT: usize = 4_000;
+const STALE_ASSISTANT_STUB: &str = "\
+[earlier assistant reply omitted; if relevant, resolve references and recompute social facts \
+with tools this turn]";
 const FINAL_ANSWER_PROMPT: &str = "\
 Stop calling tools now and write the final answer using only the tool results already \
 in this conversation. If the data is incomplete, say so briefly and answer with the \
@@ -37,6 +43,21 @@ presenting figures as exact.
 - For most/top/closest/ranked questions, the tools already rank and limit the rows. \
 Read the top rows and answer — do NOT keep calling tools to enumerate everyone. \
 Mention coverage or truncation when it matters.
+- When the question names a time period, you MUST set the tool's `time_window`. Prefer a \
+relative string: \"today\", \"yesterday\", \"this week\", \"last week\", \"this month\", \
+\"last month\", or a rolling window like \"7d\", \"2w\", \"3mo\", \"24h\", \"1y\". Use an \
+object {from, to} in RFC3339 only for a custom range. Relative windows resolve in UTC and \
+weeks start on Monday. Omit `time_window` only when the user means all of history (e.g. \
+\"ever\", \"so far\").
+
+Conversation history:
+- Earlier ASSISTANT turns are your own past replies, not data. They can carry stale time \
+windows, dropped caveats, or earlier mistakes. Never reuse a number, ranking, time window, \
+or social claim from what you said before.
+- For any social fact, call a tool THIS turn and answer from this turn's tool results.
+- Use history only to resolve references (\"he\", \"that world\", \"the first one\"), honor \
+stated preferences, and understand what the user is following up on. The Known references \
+note gives ids for names already mentioned; prefer those ids for pronouns and follow-ups.
 
 Style:
 - Stay on VRChat social topics. Be concise and refer to people by name.
@@ -63,6 +84,7 @@ pub(crate) async fn run_turn(ctx: TurnContext) {
     let mut collected: Vec<Entity> = Vec::new();
     let mut final_answer = String::new();
     let mut used_tools = false;
+    let mut last_tool_summary: Option<String> = None;
     let user_text = latest_user_message(&ctx).unwrap_or_default();
     let mut dispatched_tools = HashSet::new();
 
@@ -128,6 +150,11 @@ pub(crate) async fn run_turn(ctx: TurnContext) {
                     "assistant: tool call failed"
                 );
             }
+            if resolved.ok {
+                if let Some(summary) = resolved.fact_summary.clone() {
+                    last_tool_summary = Some(summary);
+                }
+            }
             collected.extend(resolved.entities.iter().cloned());
             ctx.emitter
                 .tool_result(&call.id, resolved.ok, &resolved.summary, &resolved.entities);
@@ -160,7 +187,9 @@ pub(crate) async fn run_turn(ctx: TurnContext) {
         return;
     }
 
-    if final_answer.trim().is_empty() {
+    if final_answer.trim().is_empty()
+        && !apply_tool_summary_fallback(&mut final_answer, last_tool_summary)
+    {
         return finish_error(
             &ctx,
             "no_answer",
@@ -172,9 +201,9 @@ pub(crate) async fn run_turn(ctx: TurnContext) {
         .push_message(&ctx.session_id, Role::Assistant, final_answer.clone());
 
     let surfaced = surfaced_entities(dedup_entities(collected), &final_answer);
+    ctx.sessions
+        .set_surfaced_entities(&ctx.session_id, &surfaced);
     if !surfaced.is_empty() {
-        ctx.sessions
-            .set_surfaced_entities(&ctx.session_id, &surfaced);
         ctx.emitter.turn_entities(&surfaced);
     }
 
@@ -188,8 +217,29 @@ pub(crate) async fn run_turn(ctx: TurnContext) {
     ctx.emitter.done();
 }
 
+fn current_time_directive(now_local: DateTime<FixedOffset>) -> String {
+    let now_utc = now_local.with_timezone(&Utc);
+    let offset_minutes = now_local.offset().local_minus_utc() / 60;
+    format!(
+        "The current date is {date} ({weekday}), UTC — resolve relative time windows \
+(\"today\", \"this week\", \"7d\", etc.) against this UTC date. The user's local timezone \
+is UTC{offset}; when you show or describe timestamps to the user, convert the UTC times \
+returned by tools into this local timezone. For any tool that accepts a utcOffsetMinutes \
+parameter (activity timelines, streaks, or hour/weekday buckets), pass \
+utcOffsetMinutes={offset_minutes} so buckets and day boundaries come back already in the \
+user's local time.",
+        date = now_utc.format("%Y-%m-%d"),
+        weekday = now_utc.weekday(),
+        offset = now_local.format("%:z"),
+        offset_minutes = offset_minutes,
+    )
+}
+
 fn build_context(ctx: &TurnContext) -> Vec<ChatMessage> {
-    let mut working = vec![ChatMessage::system(SYSTEM_PROMPT)];
+    let mut working = vec![
+        ChatMessage::system(SYSTEM_PROMPT),
+        ChatMessage::system(current_time_directive(Local::now().fixed_offset())),
+    ];
     if let Some(locale) = ctx
         .locale
         .as_deref()
@@ -201,16 +251,12 @@ fn build_context(ctx: &TurnContext) -> Vec<ChatMessage> {
 {locale}. Keep proper nouns (names, world titles) as-is."
         )));
     }
-    let history = ctx.sessions.history(&ctx.session_id);
-    let start = context_window_start(&history);
-    for message in &history[start..] {
-        match message.role {
-            Role::User => working.push(ChatMessage::user(message.content.clone())),
-            Role::Assistant => {
-                working.push(ChatMessage::assistant(message.content.clone()));
-            }
-        }
-    }
+    let (history, surfaced) = ctx
+        .sessions
+        .get(&ctx.session_id)
+        .map(|session| (session.messages, session.surfaced_entities))
+        .unwrap_or_default();
+    working.extend(assemble_history(&history, &surfaced));
     working
 }
 
@@ -234,6 +280,82 @@ fn context_window_start(history: &[Message]) -> usize {
         start += 1;
     }
     start
+}
+
+fn assemble_history(history: &[Message], surfaced: &[Entity]) -> Vec<ChatMessage> {
+    let mut out = Vec::new();
+    if let Some(note) = known_references_note(surfaced) {
+        out.push(ChatMessage::system(note));
+    }
+
+    let start = context_window_start(history);
+    let window = &history[start..];
+    let last_assistant = window
+        .iter()
+        .rposition(|message| matches!(message.role, Role::Assistant));
+
+    for (index, message) in window.iter().enumerate() {
+        match message.role {
+            Role::User => out.push(ChatMessage::user(message.content.clone())),
+            Role::Assistant if Some(index) == last_assistant => {
+                out.push(ChatMessage::assistant(message.content.clone()));
+            }
+            Role::Assistant => out.push(ChatMessage::assistant(STALE_ASSISTANT_STUB)),
+        }
+    }
+
+    out
+}
+
+fn known_references_note(surfaced: &[Entity]) -> Option<String> {
+    let refs: Vec<String> = surfaced
+        .iter()
+        .filter_map(known_reference_entry)
+        .take(KNOWN_REFERENCES_LIMIT)
+        .collect();
+
+    if refs.is_empty() {
+        return None;
+    }
+
+    Some(format!(
+        "Known references from earlier in this conversation. Use these ids for pronouns and \
+\"that person/world\" follow-ups; they are reference hints, not social facts: {}",
+        refs.join("; ")
+    ))
+}
+
+fn known_reference_entry(entity: &Entity) -> Option<String> {
+    let kind = clean_reference_text(&entity.kind)?;
+    let id = clean_reference_text(&entity.id)?;
+    let display_name = clean_reference_text(&entity.display_name)?;
+    Some(format!(
+        "kind={}, id={}, displayName={}",
+        json_string(&kind),
+        json_string(&id),
+        json_string(&display_name)
+    ))
+}
+
+fn clean_reference_text(text: &str) -> Option<String> {
+    let collapsed = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    if collapsed.is_empty() {
+        return None;
+    }
+    Some(limit_chars(&collapsed, KNOWN_REFERENCE_TEXT_LIMIT))
+}
+
+fn limit_chars(text: &str, limit: usize) -> String {
+    if text.chars().count() <= limit {
+        return text.to_string();
+    }
+
+    let clipped: String = text.chars().take(limit).collect();
+    format!("{clipped}...")
+}
+
+fn json_string(text: &str) -> String {
+    serde_json::to_string(text).unwrap_or_else(|_| "\"\"".into())
 }
 
 fn finish_cancelled(ctx: &TurnContext) {
@@ -268,6 +390,7 @@ struct ResolvedTool {
     ok: bool,
     content: String,
     summary: String,
+    fact_summary: Option<String>,
     entities: Vec<Entity>,
 }
 
@@ -285,7 +408,10 @@ fn resolve_tool_outcome(outcome: Result<ToolCallOutcome, vrcx_0_mcp::McpError>) 
                 })
                 .unwrap_or_default();
             let content = tool_content(&result);
-            let summary = truncate(if result.text.is_empty() {
+            let fact_summary = tool_fact_summary(&result, &content);
+            let summary = truncate(if let Some(summary) = fact_summary.as_deref() {
+                summary
+            } else if result.text.is_empty() {
                 &content
             } else {
                 &result.text
@@ -294,6 +420,7 @@ fn resolve_tool_outcome(outcome: Result<ToolCallOutcome, vrcx_0_mcp::McpError>) 
                 ok: !result.is_error,
                 content,
                 summary,
+                fact_summary,
                 entities,
             }
         }
@@ -303,6 +430,7 @@ fn resolve_tool_outcome(outcome: Result<ToolCallOutcome, vrcx_0_mcp::McpError>) 
                 ok: false,
                 content: message.clone(),
                 summary: truncate(&message),
+                fact_summary: None,
                 entities: Vec::new(),
             }
         }
@@ -316,6 +444,7 @@ fn duplicate_tool_call_result(tool_name: &str) -> ResolvedTool {
             "VRCX-0 skipped a duplicate call to `{tool_name}` with the same arguments in this turn. Use the previous tool result and compose the answer now."
         ),
         summary: "Skipped duplicate tool call; use the previous result.".into(),
+        fact_summary: None,
         entities: Vec::new(),
     }
 }
@@ -398,6 +527,49 @@ fn tool_content(result: &ToolCallOutcome) -> String {
         Some(value) if !value.is_null() => budget_json_tool_content(value),
         _ => budget_text_tool_content(&result.text),
     }
+}
+
+fn tool_fact_summary(result: &ToolCallOutcome, content: &str) -> Option<String> {
+    result
+        .structured
+        .as_ref()
+        .and_then(summary_from_value)
+        .or_else(|| {
+            serde_json::from_str::<Value>(&result.text)
+                .ok()
+                .and_then(|value| summary_from_value(&value))
+        })
+        .or_else(|| {
+            serde_json::from_str::<Value>(content)
+                .ok()
+                .and_then(|value| summary_from_value(&value))
+        })
+}
+
+fn summary_from_value(value: &Value) -> Option<String> {
+    value
+        .get("summary")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|summary| !summary.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn apply_tool_summary_fallback(
+    final_answer: &mut String,
+    last_tool_summary: Option<String>,
+) -> bool {
+    if !final_answer.trim().is_empty() {
+        return false;
+    }
+    let Some(summary) = last_tool_summary
+        .map(|summary| summary.trim().to_string())
+        .filter(|summary| !summary.is_empty())
+    else {
+        return false;
+    };
+    *final_answer = summary;
+    true
 }
 
 fn budget_json_tool_content(value: &Value) -> String {
@@ -519,6 +691,16 @@ fn truncate(text: &str) -> String {
 mod tests {
     use super::*;
 
+    fn message(role: Role, content: &str) -> Message {
+        Message {
+            id: format!("m_{content}"),
+            seq: 0,
+            role,
+            content: content.into(),
+            created_at: String::new(),
+        }
+    }
+
     fn turns(pairs: usize) -> Vec<Message> {
         let mut messages = Vec::new();
         for index in 0..pairs {
@@ -535,6 +717,14 @@ mod tests {
         messages
     }
 
+    fn entity(kind: &str, id: &str, display_name: &str) -> Entity {
+        Entity {
+            kind: kind.into(),
+            id: id.into(),
+            display_name: display_name.into(),
+        }
+    }
+
     #[test]
     fn keeps_everything_under_the_limit() {
         let history = turns(4);
@@ -542,8 +732,18 @@ mod tests {
     }
 
     #[test]
+    fn current_time_directive_states_utc_date_and_local_offset() {
+        // 2026-06-28 06:00 at UTC+09:00 is still 2026-06-27 (Saturday) in UTC.
+        let now_local = DateTime::parse_from_rfc3339("2026-06-28T06:00:00+09:00").unwrap();
+        let directive = current_time_directive(now_local);
+        assert!(directive.contains("2026-06-27"));
+        assert!(directive.contains("Sat"));
+        assert!(directive.contains("UTC+09:00"));
+    }
+
+    #[test]
     fn slides_in_pairs_and_starts_on_a_user_turn() {
-        // 10 pairs = 20 messages; window keeps the most recent 16.
+        // 10 pairs = 20 messages; window keeps the most recent 8.
         let history = turns(10);
         let start = context_window_start(&history);
         assert_eq!(history.len() - start, HISTORY_LIMIT);
@@ -552,9 +752,9 @@ mod tests {
 
     #[test]
     fn skips_orphaned_leading_assistant() {
-        // 8 pairs + a fresh trailing question = 17 messages; the raw window would
+        // 4 pairs + a fresh trailing question = 9 messages; the raw window would
         // open on an assistant (index 1), so it must advance to the next user.
-        let mut history = turns(8);
+        let mut history = turns(4);
         history.push(Message {
             id: "q".into(),
             seq: history.len() as u64,
@@ -565,6 +765,96 @@ mod tests {
         let start = context_window_start(&history);
         assert_eq!(start, 2);
         assert!(matches!(history[start].role, Role::User));
+    }
+
+    #[test]
+    fn known_references_note_returns_none_for_empty_or_invalid_entities() {
+        assert!(known_references_note(&[]).is_none());
+
+        let note = known_references_note(&[
+            entity("", "usr_1", "Alice"),
+            entity("user", "", "Alice"),
+            entity("user", "usr_1", ""),
+        ]);
+        assert!(note.is_none());
+    }
+
+    #[test]
+    fn known_references_note_escapes_and_cleans_entity_fields() {
+        let note =
+            known_references_note(&[entity("user", "usr_1", "Alice \"The\nFirst\"")]).unwrap();
+
+        assert!(note.contains("kind=\"user\""));
+        assert!(note.contains("id=\"usr_1\""));
+        assert!(note.contains("displayName=\"Alice \\\"The First\\\"\""));
+        assert!(!note.contains('\n'));
+    }
+
+    #[test]
+    fn known_references_note_caps_entity_count() {
+        let entities = (0..20)
+            .map(|index| entity("user", &format!("usr_{index}"), &format!("Friend {index}")))
+            .collect::<Vec<_>>();
+
+        let note = known_references_note(&entities).unwrap();
+
+        assert!(note.contains("usr_0"));
+        assert!(note.contains("usr_11"));
+        assert!(!note.contains("usr_12"));
+    }
+
+    #[test]
+    fn assemble_history_stubs_stale_assistant_and_keeps_latest_assistant() {
+        let history = vec![
+            message(Role::User, "who did I see yesterday?"),
+            message(Role::Assistant, "old ranked claim"),
+            message(Role::User, "and this week?"),
+            message(Role::Assistant, "fresh answer"),
+            message(Role::User, "where did he go?"),
+        ];
+
+        let assembled = assemble_history(&history, &[]);
+
+        assert_eq!(assembled.len(), 5);
+        assert_eq!(assembled[0].role, "user");
+        assert_eq!(
+            assembled[0].content.as_deref(),
+            Some("who did I see yesterday?")
+        );
+        assert_eq!(assembled[1].role, "assistant");
+        assert_eq!(assembled[1].content.as_deref(), Some(STALE_ASSISTANT_STUB));
+        assert_eq!(assembled[2].role, "user");
+        assert_eq!(assembled[2].content.as_deref(), Some("and this week?"));
+        assert_eq!(assembled[3].role, "assistant");
+        assert_eq!(assembled[3].content.as_deref(), Some("fresh answer"));
+        assert_eq!(assembled[4].role, "user");
+        assert_eq!(assembled[4].content.as_deref(), Some("where did he go?"));
+    }
+
+    #[test]
+    fn assemble_history_adds_known_references_note_before_messages() {
+        let history = vec![message(Role::User, "he常去哪?")];
+        let assembled = assemble_history(&history, &[entity("user", "usr_1", "Alice")]);
+
+        assert_eq!(assembled.len(), 2);
+        assert_eq!(assembled[0].role, "system");
+        assert!(assembled[0]
+            .content
+            .as_deref()
+            .unwrap()
+            .contains("id=\"usr_1\""));
+        assert_eq!(assembled[1].role, "user");
+        assert_eq!(assembled[1].content.as_deref(), Some("he常去哪?"));
+    }
+
+    #[test]
+    fn assemble_history_keeps_single_current_user_without_stub() {
+        let history = vec![message(Role::User, "new question")];
+        let assembled = assemble_history(&history, &[]);
+
+        assert_eq!(assembled.len(), 1);
+        assert_eq!(assembled[0].role, "user");
+        assert_eq!(assembled[0].content.as_deref(), Some("new question"));
     }
 
     #[test]
@@ -669,5 +959,24 @@ mod tests {
             tool_call_signature("get_copresence_summary", Some(&first)),
             tool_call_signature("get_copresence_summary", Some(&second))
         );
+    }
+
+    #[test]
+    fn empty_final_answer_falls_back_to_last_tool_summary() {
+        let resolved = resolve_tool_outcome(Ok(ToolCallOutcome {
+            is_error: false,
+            text: String::new(),
+            structured: Some(serde_json::json!({
+                "summary": "Alice is your top companion.",
+                "rows": []
+            })),
+        }));
+        let mut final_answer = String::new();
+
+        assert!(apply_tool_summary_fallback(
+            &mut final_answer,
+            resolved.fact_summary
+        ));
+        assert_eq!(final_answer, "Alice is your top companion.");
     }
 }

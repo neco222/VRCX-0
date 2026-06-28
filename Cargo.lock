@@ -6711,7 +6711,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vrcx-0"
-version = "2.9.1"
+version = "2.9.2"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -6742,6 +6742,7 @@ dependencies = [
  "vrcx-0-core",
  "vrcx-0-harness",
  "vrcx-0-host",
+ "vrcx-0-i18n",
  "vrcx-0-integrations",
  "vrcx-0-mcp",
  "vrcx-0-media",
@@ -6855,6 +6856,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "vrcx-0-i18n"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "vrcx-0-integrations"
 version = "0.1.0"
 dependencies = [
@@ -6943,6 +6952,7 @@ dependencies = [
  "vrcx-0-application",
  "vrcx-0-core",
  "vrcx-0-host",
+ "vrcx-0-i18n",
  "vrcx-0-media",
  "vrcx-0-persistence",
  "vrcx-0-vr-overlay",

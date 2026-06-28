@@ -11,8 +11,9 @@ use vrcx_0_persistence::{mutual_graph, social_aggregates};
 use crate::server::VrcxMcpServer;
 
 use super::common::{
-    map_persistence_error, require_current_user_id, social_aggregates_result, structured_result,
-    TimeWindowParams,
+    map_persistence_error, require_current_user_id, resolve_optional_target_or_result,
+    resolve_target_or_result, social_aggregates_result, structured_result, TargetResolutionOutcome,
+    TimeWindowParams, WithResolution,
 };
 
 #[tool_router(router = graph_tool_router, vis = "pub(crate)")]
@@ -26,39 +27,83 @@ impl VrcxMcpServer {
         structured_result(self.refresh_mutual_graph_output(owner_user_id, input)?)
     }
 
-    #[tool(description = "Return mutual-friend graph edges and connection degrees.")]
+    #[tool(
+        description = "Return mutual-friend graph edges and connection degrees. Nodes include friends-of-friends (second-degree mutuals), not only your own friends — use each node's isFriend flag to tell them apart; never call a node a friend unless isFriend is true."
+    )]
     async fn get_social_graph(
         &self,
         Parameters(input): Parameters<SocialGraphParams>,
     ) -> Result<CallToolResult, String> {
         let owner_user_id = require_current_user_id(&self.runtime)?;
-        social_aggregates_result(social_aggregates::get_social_graph(
+        let (user_id, resolved_user) =
+            match resolve_optional_target_or_result(&self.runtime, input.user.as_deref())? {
+                Some(TargetResolutionOutcome::Resolved(target)) => {
+                    (Some(target.user_id), target.echo)
+                }
+                Some(TargetResolutionOutcome::ToolResult(result)) => return Ok(result),
+                None => (None, None),
+            };
+        let output = social_aggregates::get_social_graph(
             self.runtime.db.as_ref(),
             social_aggregates::SocialGraphInput {
                 owner_user_id,
-                user_id: input.user_id,
+                user_id,
                 depth: input.depth.unwrap_or(1),
                 max_nodes: input.max_nodes,
                 max_edges: input.max_edges,
             },
+        )
+        .map_err(map_persistence_error)?;
+        structured_result(WithResolution {
+            inner: output,
+            resolved_user,
+        })
+    }
+
+    #[tool(
+        description = "Return the signed-in user's friends grouped into mutual-friendship circles (pre-computed clusters of friends who know each other) for \"which of my friends know each other\" or \"my friend groups\". Returns ready-to-read circles plus a summary — do NOT use get_social_graph for this."
+    )]
+    async fn get_friend_circles(
+        &self,
+        Parameters(input): Parameters<FriendCirclesParams>,
+    ) -> Result<CallToolResult, String> {
+        let owner_user_id = require_current_user_id(&self.runtime)?;
+        social_aggregates_result(social_aggregates::get_friend_circles(
+            self.runtime.db.as_ref(),
+            social_aggregates::FriendCirclesInput {
+                owner_user_id,
+                max_circles: input.max_circles,
+                max_members_per_circle: input.max_members,
+            },
         ))
     }
 
-    #[tool(description = "Infer visible companions of a friend from feed_gps overlap.")]
+    #[tool(
+        description = "Infer who a given user is most often co-present with, from the local game log (instances the signed-in user attended). Ranked by shared instances. For \"who does X usually/often play with\" OMIT timeWindow so it covers all history — a narrow window will miss their regular companions. Third-party social circles are undercounted for instances you were not in."
+    )]
     async fn get_companions_of(
         &self,
         Parameters(input): Parameters<CompanionsOfParams>,
     ) -> Result<CallToolResult, String> {
         let owner_user_id = require_current_user_id(&self.runtime)?;
-        social_aggregates_result(social_aggregates::get_companions_of(
+        let target = match resolve_target_or_result(&self.runtime, &input.user)? {
+            TargetResolutionOutcome::Resolved(target) => target,
+            TargetResolutionOutcome::ToolResult(result) => return Ok(result),
+        };
+        let output = social_aggregates::get_companions_of(
             self.runtime.db.as_ref(),
             social_aggregates::CompanionsOfInput {
                 owner_user_id,
-                user_id: input.user_id,
+                user_id: target.user_id,
                 time_window: input.time_window.into(),
                 limit: input.limit,
             },
-        ))
+        )
+        .map_err(map_persistence_error)?;
+        structured_result(WithResolution {
+            inner: output,
+            resolved_user: target.echo,
+        })
     }
 }
 
@@ -165,7 +210,8 @@ struct RefreshMutualGraphParams {
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SocialGraphParams {
-    user_id: Option<String>,
+    #[serde(alias = "userId", alias = "user_id", alias = "focus")]
+    user: Option<String>,
     depth: Option<u8>,
     max_nodes: Option<i64>,
     max_edges: Option<i64>,
@@ -173,8 +219,16 @@ struct SocialGraphParams {
 
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
+struct FriendCirclesParams {
+    max_circles: Option<i64>,
+    max_members: Option<i64>,
+}
+
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
 struct CompanionsOfParams {
-    user_id: String,
+    #[serde(alias = "userId", alias = "user_id")]
+    user: String,
     #[serde(default)]
     time_window: TimeWindowParams,
     limit: Option<i64>,

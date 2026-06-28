@@ -12,30 +12,14 @@ import { useTranslation } from 'react-i18next';
 
 import { Location } from '@/components/Location';
 import { FriendInstanceTimer } from '@/components/sidebar/friends-sidebar/FriendsSidebarLocation';
+import { UserStatusDot } from '@/components/UserStatusDot';
 import { timeToText } from '@/lib/dateTime';
-import { cn } from '@/lib/utils';
 import { openUserDialog, openWorldDialog } from '@/services/dialogService';
 import { getTrustColor, TRUST_COLOR_ENTRIES } from '@/shared/utils/trustColors';
 import { useModalStore } from '@/state/modalStore';
 import { Skeleton } from '@/ui/shadcn/skeleton';
 
 import { useUserHoverCardData } from './useUserHoverCardData';
-
-function statusDotClassName(statusKey: any, variant: any) {
-    if (variant === 'offline') {
-        return 'bg-[var(--status-offline)]';
-    }
-    if (statusKey === 'join_me') {
-        return 'bg-[var(--status-joinme)]';
-    }
-    if (statusKey === 'ask_me') {
-        return 'bg-[var(--status-askme)]';
-    }
-    if (statusKey === 'busy') {
-        return 'bg-[var(--status-busy)]';
-    }
-    return 'bg-[var(--status-online)]';
-}
 
 function NoteLine({ icon, label, text }: any) {
     return (
@@ -76,6 +60,10 @@ export function UserHoverCardContent({ userId, seed }: any) {
     const statusText = model.statusKey
         ? t(`dialog.user.status.${model.statusKey}`)
         : '';
+    const statusDotClassName = model.statusDotClassName || '';
+    const hasStatusDescription = Boolean(model.statusDescription);
+    const isOffline = model.variant === 'offline';
+    const showInlineStatus = Boolean(statusText) && !hasStatusDescription;
     const showThumbnailBanner = model.variant === 'in-instance';
     const onlineForText =
         model.onlineForMs > 0 ? timeToText(model.onlineForMs) : '';
@@ -129,14 +117,9 @@ export function UserHoverCardContent({ userId, seed }: any) {
                                 <UserIcon className="text-muted-foreground size-5" />
                             )}
                         </span>
-                        <span
-                            className={cn(
-                                'border-background absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2',
-                                statusDotClassName(
-                                    model.statusKey,
-                                    model.variant
-                                )
-                            )}
+                        <UserStatusDot
+                            statusDotClassName={statusDotClassName}
+                            className="absolute -right-0.5 -bottom-0.5 z-10 size-3.75"
                         />
                     </button>
                     <span className="min-w-0 flex-1">
@@ -167,30 +150,21 @@ export function UserHoverCardContent({ userId, seed }: any) {
                     ) : null}
                 </div>
 
-                {statusText || model.statusDescription ? (
+                {showInlineStatus || hasStatusDescription ? (
                     <div className="flex min-w-0 items-center gap-1.5 text-xs">
-                        {statusText ? (
-                            <span
-                                className={cn(
-                                    'size-2 shrink-0 rounded-full',
-                                    statusDotClassName(
-                                        model.statusKey,
-                                        model.variant
-                                    )
-                                )}
+                        {showInlineStatus ? (
+                            <UserStatusDot
+                                statusDotClassName={statusDotClassName}
+                                className="size-2 shrink-0"
+                                variant="inline"
                             />
                         ) : null}
-                        {statusText ? (
+                        {showInlineStatus ? (
                             <span className="text-foreground/90 shrink-0">
                                 {statusText}
                             </span>
                         ) : null}
-                        {statusText && model.statusDescription ? (
-                            <span className="text-muted-foreground/40 shrink-0">
-                                ·
-                            </span>
-                        ) : null}
-                        {model.statusDescription ? (
+                        {hasStatusDescription ? (
                             <span className="text-muted-foreground min-w-0 truncate">
                                 {model.statusDescription}
                             </span>
@@ -242,7 +216,7 @@ export function UserHoverCardContent({ userId, seed }: any) {
                     </div>
                 ) : null}
 
-                {model.variant === 'offline' && model.lastOnlineAgoMs ? (
+                {isOffline && model.lastOnlineAgoMs ? (
                     <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
                         <MapPinIcon className="size-3.5" />
                         <span className="min-w-0 truncate">

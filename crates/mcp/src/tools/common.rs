@@ -91,7 +91,8 @@ fn parse_relative_window(text: &str) -> TimeWindowParams {
     let window = |from, to| TimeWindowParams { from, to };
 
     match normalized.as_str() {
-        "" | "all" | "all time" | "alltime" | "any" | "anytime" | "ever" | "always" => {
+        "" | "all" | "all time" | "alltime" | "all history" | "all-history" | "entire history"
+        | "any" | "anytime" | "ever" | "always" | "so far" | "forever" | "lifetime" => {
             return TimeWindowParams::default();
         }
         "today" => return window(rfc(start_of_day(now)), None),
@@ -229,6 +230,182 @@ pub(super) fn ms_to_rfc3339_z(millis: i64) -> String {
         .map(rfc3339_z)
         .unwrap_or_default()
 }
+
+pub(super) enum TargetResolution {
+    Resolved {
+        user_id: String,
+        echo: Option<ResolvedUserEcho>,
+    },
+    Ambiguous(Vec<social_aggregates::ResolvedUserRow>),
+    NotFound,
+}
+
+pub(super) struct ResolvedTarget {
+    pub(super) user_id: String,
+    pub(super) echo: Option<ResolvedUserEcho>,
+}
+
+pub(super) enum TargetResolutionOutcome {
+    Resolved(ResolvedTarget),
+    ToolResult(CallToolResult),
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct ResolvedUserEcho {
+    user_id: String,
+    display_name: String,
+    is_friend: bool,
+}
+
+impl ResolvedUserEcho {
+    fn from_row(row: &social_aggregates::ResolvedUserRow) -> Self {
+        Self {
+            user_id: row.user_id.clone(),
+            display_name: row.display_name.clone(),
+            is_friend: row.is_friend,
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct WithResolution<T: Serialize> {
+    #[serde(flatten)]
+    pub(super) inner: T,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) resolved_user: Option<ResolvedUserEcho>,
+}
+
+pub(super) fn resolve_target(
+    runtime: &McpRuntime,
+    value: &str,
+) -> Result<TargetResolution, String> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Ok(TargetResolution::NotFound);
+    }
+    if value.starts_with("usr_") {
+        return Ok(TargetResolution::Resolved {
+            user_id: value.to_string(),
+            echo: None,
+        });
+    }
+    let owner_user_id = require_current_user_id(runtime)?;
+    let rows = social_aggregates::resolve_user_by_name(
+        runtime.db.as_ref(),
+        social_aggregates::ResolveUserInput {
+            owner_user_id,
+            name_query: value.to_string(),
+            limit: Some(5),
+        },
+    )
+    .map_err(map_persistence_error)?
+    .rows;
+    Ok(resolve_target_from_candidates(value, rows))
+}
+
+pub(super) fn resolve_target_or_result(
+    runtime: &McpRuntime,
+    value: &str,
+) -> Result<TargetResolutionOutcome, String> {
+    match resolve_target(runtime, value)? {
+        TargetResolution::Resolved { user_id, echo } => {
+            Ok(TargetResolutionOutcome::Resolved(ResolvedTarget {
+                user_id,
+                echo,
+            }))
+        }
+        TargetResolution::Ambiguous(candidates) => Ok(TargetResolutionOutcome::ToolResult(
+            disambiguation_result(value, candidates)?,
+        )),
+        TargetResolution::NotFound => Ok(TargetResolutionOutcome::ToolResult(not_found_result(
+            value,
+        )?)),
+    }
+}
+
+pub(super) fn resolve_optional_target_or_result(
+    runtime: &McpRuntime,
+    value: Option<&str>,
+) -> Result<Option<TargetResolutionOutcome>, String> {
+    let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(None);
+    };
+    resolve_target_or_result(runtime, value).map(Some)
+}
+
+fn resolve_target_from_candidates(
+    query: &str,
+    rows: Vec<social_aggregates::ResolvedUserRow>,
+) -> TargetResolution {
+    let Some(top) = rows.first() else {
+        return TargetResolution::NotFound;
+    };
+    if rows.len() == 1 || confident_target(query, &rows) {
+        return TargetResolution::Resolved {
+            user_id: top.user_id.clone(),
+            echo: Some(ResolvedUserEcho::from_row(top)),
+        };
+    }
+    TargetResolution::Ambiguous(rows)
+}
+
+fn confident_target(query: &str, rows: &[social_aggregates::ResolvedUserRow]) -> bool {
+    let Some(top) = rows.first() else {
+        return false;
+    };
+    let Some(second) = rows.get(1) else {
+        return true;
+    };
+    if is_exact_name_match(top, query) && !is_exact_name_match(second, query) {
+        return true;
+    }
+    if top.is_friend && !second.is_friend {
+        return true;
+    }
+    top.encounter_count >= second.encounter_count.max(1).saturating_mul(3)
+}
+
+fn is_exact_name_match(row: &social_aggregates::ResolvedUserRow, query: &str) -> bool {
+    row.display_name.eq_ignore_ascii_case(query) || row.matched_name.eq_ignore_ascii_case(query)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DisambiguationOutput {
+    needs_disambiguation: bool,
+    query: String,
+    candidates: Vec<social_aggregates::ResolvedUserRow>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NotFoundOutput {
+    not_found: bool,
+    query: String,
+    hint: &'static str,
+}
+
+pub(super) fn disambiguation_result(
+    query: &str,
+    candidates: Vec<social_aggregates::ResolvedUserRow>,
+) -> Result<CallToolResult, String> {
+    structured_result(DisambiguationOutput {
+        needs_disambiguation: true,
+        query: query.to_string(),
+        candidates,
+    })
+}
+
+pub(super) fn not_found_result(query: &str) -> Result<CallToolResult, String> {
+    structured_result(NotFoundOutput {
+        not_found: true,
+        query: query.to_string(),
+        hint: "no user matching this name in local history",
+    })
+}
+
 pub(super) fn map_persistence_error(error: vrcx_0_persistence::Error) -> String {
     match error {
         vrcx_0_persistence::Error::InvalidData(message) => message,
@@ -270,6 +447,22 @@ pub(super) fn require_current_user_id(runtime: &McpRuntime) -> Result<String, St
 #[cfg(test)]
 mod time_window_tests {
     use super::*;
+
+    fn resolved_user(
+        user_id: &str,
+        display_name: &str,
+        is_friend: bool,
+        encounter_count: i64,
+    ) -> social_aggregates::ResolvedUserRow {
+        social_aggregates::ResolvedUserRow {
+            user_id: user_id.into(),
+            display_name: display_name.into(),
+            matched_name: display_name.into(),
+            is_friend,
+            encounter_count,
+            last_seen: "2026-06-01T10:00:00Z".into(),
+        }
+    }
 
     #[test]
     fn parses_object_form() {
@@ -349,5 +542,40 @@ mod time_window_tests {
         let window = time_window_from_value(&value);
         assert!(window.from.is_none(), "garbage 'from' should drop to None");
         assert!(window.to.is_some(), "valid 'to' should remain");
+    }
+
+    #[test]
+    fn target_resolution_prefers_exact_name_over_non_exact_candidate() {
+        let resolution = resolve_target_from_candidates(
+            "Alice",
+            vec![
+                resolved_user("usr_alice", "Alice", false, 1),
+                resolved_user("usr_alias", "Alice Clone", false, 30),
+            ],
+        );
+
+        match resolution {
+            TargetResolution::Resolved { user_id, echo } => {
+                assert_eq!(user_id, "usr_alice");
+                assert_eq!(echo.unwrap().display_name, "Alice");
+            }
+            _ => panic!("expected confident resolution"),
+        }
+    }
+
+    #[test]
+    fn target_resolution_returns_ambiguous_for_close_candidates() {
+        let resolution = resolve_target_from_candidates(
+            "Ali",
+            vec![
+                resolved_user("usr_alice", "Alice", false, 2),
+                resolved_user("usr_ally", "Ally", false, 2),
+            ],
+        );
+
+        match resolution {
+            TargetResolution::Ambiguous(candidates) => assert_eq!(candidates.len(), 2),
+            _ => panic!("expected disambiguation"),
+        }
     }
 }

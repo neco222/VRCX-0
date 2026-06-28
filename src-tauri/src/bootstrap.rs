@@ -746,6 +746,7 @@ pub fn setup_app_with_data_dir(
     app_data_dir: vrcx_0_host::app_paths::AppDataDirResolution,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let app_state = AppState::new(app_data_dir).expect("failed to initialize app state");
+    let language = app_language(&app_state);
     app.manage(app_state);
 
     let state = app.state::<AppState>();
@@ -784,7 +785,9 @@ pub fn setup_app_with_data_dir(
         .runtime
         .record_phase("tray", "completed", "System tray configured.");
     #[cfg(target_os = "macos")]
-    crate::macos_menu::configure_macos_app_menu(app.handle())?;
+    crate::macos_menu::configure_macos_app_menu(app.handle(), &language)?;
+    #[cfg(not(target_os = "macos"))]
+    let _ = language;
     sync_autostart_from_db(app, &state);
     apply_autostart_window_state_if_needed(app, &state);
     start_host_services(app.handle(), &state);

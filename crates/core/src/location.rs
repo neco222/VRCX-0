@@ -146,6 +146,18 @@ pub fn parse_location(tag: &str) -> ParsedLocation {
     parsed
 }
 
+pub fn world_id_from_location(tag: &str) -> String {
+    let trimmed = tag.trim();
+    if !trimmed.starts_with("wrld_") {
+        return String::new();
+    }
+    trimmed
+        .split([':', '~'])
+        .next()
+        .unwrap_or_default()
+        .to_string()
+}
+
 fn parse_location_segment(segment: &str) -> (String, String) {
     let Some(open) = segment.find('(') else {
         return (segment.to_string(), String::new());
@@ -309,6 +321,24 @@ mod tests {
             assert!(!parsed.is_real_instance, "{tag}");
             assert_eq!(parsed.world_id, "", "{tag}");
         }
+    }
+
+    #[test]
+    fn world_id_from_location_extracts_or_empties() {
+        for tag in [
+            "offline",
+            "offline:offline",
+            "private",
+            "traveling",
+            "local",
+            "local:1234",
+            "",
+        ] {
+            assert_eq!(world_id_from_location(tag), "", "{tag}");
+        }
+        assert_eq!(world_id_from_location("wrld_a:1~region(us)"), "wrld_a");
+        assert_eq!(world_id_from_location("wrld_only"), "wrld_only");
+        assert_eq!(world_id_from_location("  wrld_a:1  "), "wrld_a");
     }
 
     #[test]

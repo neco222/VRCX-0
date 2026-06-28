@@ -1,3 +1,4 @@
+pub mod activity_buckets;
 pub mod friends;
 pub mod game_process;
 pub mod ipc;
@@ -6,6 +7,7 @@ pub mod location;
 pub mod log_watcher;
 pub mod realtime;
 pub mod screenshots;
+pub mod social_circles;
 pub mod trust;
 pub mod user_facts;
 pub mod vrchat_endpoints;

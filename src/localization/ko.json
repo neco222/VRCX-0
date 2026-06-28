@@ -129,7 +129,8 @@
         "footer": {
             "players": "{count}명",
             "instance_duration": "체류 {duration}"
-        }
+        },
+        "generic_instance_location": "인스턴스"
     },
     "nativeShell": {
         "tray": {
@@ -147,6 +148,46 @@
             "authFailure": {
                 "title": "VRChat login expired",
                 "body": "Sign in again to continue."
+            }
+        },
+        "menu": {
+            "app": {
+                "title": "VRCX-0",
+                "about": "VRCX-0 정보",
+                "settings": "설정...",
+                "checkUpdates": "업데이트 확인",
+                "restart": "VRCX-0 다시 시작",
+                "startBackgroundMode": "배경 모드로 전환",
+                "logout": "로그아웃",
+                "quit": "VRCX-0 종료"
+            },
+            "view": {
+                "title": "보기",
+                "notificationCenter": "알림 센터",
+                "quickSearch": "빠른 검색",
+                "directAccess": "빠른 접근",
+                "toggleNav": "네비게이션 바 토글",
+                "toggleFriendsSidebar": "친구 사이드바 전환",
+                "customNav": "탐색 사용자 정의",
+                "themes": "테마",
+                "zoomIn": "확대",
+                "zoomOut": "축소",
+                "resetZoom": "줌 재설정"
+            },
+            "tools": {
+                "title": "도구",
+                "allTools": "모든 도구..."
+            },
+            "help": {
+                "title": "도움말",
+                "changelog": "변경 내역",
+                "keyboardShortcuts": "키보드 단축키",
+                "reportIssue": "문제 보고",
+                "github": "GitHub",
+                "discord": "Discord에 가입하세요",
+                "qqGroup": "QQ그룹 (중국 커뮤니티)",
+                "openDevtools": "DevTools 열기",
+                "supportVrcx": "VRCX-0 후원"
             }
         }
     },
@@ -171,8 +212,8 @@
         "settings": "설정",
         "manage": "관리",
         "help_support": "도움말 및 지원",
-        "expand_menu": "메뉴 펼치기",
-        "collapse_menu": "메뉴 접기",
+        "expand_nav": "네비게이션 펼치기",
+        "collapse_nav": "네비게이션 접기",
         "toggle_theme": "테마 전환"
     },
     "nav_menu": {
@@ -336,9 +377,8 @@
         "quick_search": "빠른 검색",
         "keyboard_shortcuts": "키보드 단축키",
         "notification_center": "알림 센터",
-        "expand_friends_sidebar": "친구 사이드바 표시",
-        "show_side_panel": "측면 패널 표시",
-        "hide_side_panel": "측면 패널 숨기기",
+        "show_friends_sidebar": "친구 사이드바 표시",
+        "hide_friends_sidebar": "친구 사이드바 숨기기",
         "zoom_in": "확대",
         "zoom_out": "축소",
         "reset_zoom": "줌 재설정",
@@ -4700,7 +4740,6 @@
                 "OnPlayerJoining": "플레이어 입장 중",
                 "OnPlayerJoined": "플레이어 입장",
                 "OnPlayerLeft": "플레이어 퇴장",
-                "ChatBoxMessage": "채팅박스 메시지",
                 "AvatarChange": "아바타 변경",
                 "Online": "온라인",
                 "Offline": "오프라인",

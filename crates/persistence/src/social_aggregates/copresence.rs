@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::common::{row_i64, row_string, ParamsBuilder};
 use crate::database::DatabaseService;
@@ -7,8 +7,8 @@ use crate::Error;
 
 use super::caveats::copresence_caveats;
 use super::helpers::{
-    append_time_window_filter, clamped_optional_limit, millis_to_minutes, normalize_access_bucket,
-    table_exists,
+    append_time_window_filter, clamped_optional_limit, current_friend_id_set, format_minutes,
+    millis_to_minutes, normalize_access_bucket, table_exists, world_names_for_ids,
 };
 use super::types::{
     CopresenceGroupBy, CopresenceSummaryInput, CopresenceSummaryOutput, CopresenceSummaryRow,
@@ -37,6 +37,10 @@ pub fn get_copresence_summary(
             SELECT
                 COALESCE(g.user_id, '') AS user_id,
                 COALESCE(g.display_name, '') AS display_name,
+                CASE
+                    WHEN trim(COALESCE(g.user_id, '')) <> '' THEN COALESCE(g.user_id, '')
+                    ELSE 'name:' || COALESCE(g.display_name, '')
+                END AS group_key,
                 ",
     );
     sql.push_str(world_id_expr);
@@ -60,6 +64,14 @@ pub fn get_copresence_summary(
     let mut params = ParamsBuilder::new();
     append_time_window_filter(&mut sql, &mut params, &input.time_window, "g.created_at");
 
+    let owner_user_id = input
+        .owner_user_id
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or_default()
+        .to_string();
+    sql.push_str(" AND (@owner_user_id = '' OR COALESCE(g.user_id, '') <> @owner_user_id)");
+
     if input.friends_only {
         if let Some(owner_user_id) = input
             .owner_user_id
@@ -79,6 +91,7 @@ pub fn get_copresence_summary(
                     total_rows: 0,
                     returned_rows: 0,
                     truncated: false,
+                    summary: copresence_summary(&[]),
                     caveats: copresence_caveats(),
                 });
             }
@@ -86,10 +99,26 @@ pub fn get_copresence_summary(
     }
     sql.push_str(
         ")
+        , latest_name AS (
+            SELECT group_key, world_id, display_name
+            FROM (
+                SELECT
+                    group_key,
+                    world_id,
+                    display_name,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY group_key, world_id
+                        ORDER BY created_at DESC
+                    ) AS rn
+                FROM base
+                WHERE NOT (trim(user_id) = '' AND trim(display_name) = '')
+            )
+            WHERE rn = 1
+        )
         , grouped AS (
             SELECT
-                user_id,
-                display_name,
+                group_key,
+                MAX(user_id) AS user_id,
                 world_id,
                 SUM(time) AS total_millis,
                 COUNT(DISTINCT CASE WHEN created_at <> '' THEN substr(created_at, 1, 10) END) AS co_days,
@@ -97,33 +126,36 @@ pub fn get_copresence_summary(
                 MAX(created_at) AS last_seen_together
             FROM base
             WHERE NOT (trim(user_id) = '' AND trim(display_name) = '')
-            GROUP BY user_id, display_name, world_id
+            GROUP BY group_key, world_id
             HAVING SUM(time) >= @min_millis
         )
         , ranked AS (
             SELECT
-                user_id,
-                display_name,
-                world_id,
-                total_millis,
-                co_days,
-                instances,
-                last_seen_together,
+                grouped.group_key,
+                grouped.user_id,
+                latest_name.display_name AS display_name,
+                grouped.world_id,
+                grouped.total_millis,
+                grouped.co_days,
+                grouped.instances,
+                grouped.last_seen_together,
                 COUNT(*) OVER () AS total_rows
             FROM grouped
-            ORDER BY total_millis DESC, display_name ASC, user_id ASC
+            JOIN latest_name
+                ON latest_name.group_key = grouped.group_key
+                AND latest_name.world_id = grouped.world_id
+            ORDER BY grouped.total_millis DESC, latest_name.display_name ASC, grouped.user_id ASC, grouped.group_key ASC, grouped.world_id ASC
             LIMIT @limit
         )
         , access AS (
             SELECT
-                user_id,
-                display_name,
+                group_key,
                 world_id,
                 access_bucket,
                 SUM(time) AS access_millis
             FROM base
             WHERE NOT (trim(user_id) = '' AND trim(display_name) = '')
-            GROUP BY user_id, display_name, world_id, access_bucket
+            GROUP BY group_key, world_id, access_bucket
         )
         SELECT
             ranked.user_id,
@@ -135,15 +167,18 @@ pub fn get_copresence_summary(
             ranked.last_seen_together,
             ranked.total_rows,
             access.access_bucket,
-            access.access_millis
+            access.access_millis,
+            ranked.group_key
         FROM ranked
         LEFT JOIN access
-            ON access.user_id = ranked.user_id
-            AND access.display_name = ranked.display_name
+            ON access.group_key = ranked.group_key
             AND access.world_id = ranked.world_id
-        ORDER BY ranked.total_millis DESC, ranked.display_name ASC, ranked.user_id ASC, ranked.world_id ASC, access.access_bucket ASC",
+        ORDER BY ranked.total_millis DESC, ranked.display_name ASC, ranked.user_id ASC, ranked.group_key ASC, ranked.world_id ASC, access.access_bucket ASC",
     );
-    params = params.set("min_millis", min_millis).set("limit", limit);
+    params = params
+        .set("min_millis", min_millis)
+        .set("limit", limit)
+        .set("owner_user_id", owner_user_id.clone());
 
     let mut rows = Vec::new();
     let mut current_key: Option<CopresenceKey> = None;
@@ -154,8 +189,7 @@ pub fn get_copresence_summary(
         let display_name = row_string(&row, 1);
         let world_id = row_string(&row, 2);
         let key = CopresenceKey {
-            user_id: user_id.clone(),
-            display_name: display_name.clone(),
+            group_key: row_string(&row, 10),
             world_id: (!world_id.is_empty()).then_some(world_id.clone()),
         };
 
@@ -165,8 +199,9 @@ pub fn get_copresence_summary(
             }
             current_key = Some(key.clone());
             current_row = Some(CopresenceSummaryRow {
-                user_id: key.user_id,
-                display_name: key.display_name,
+                user_id,
+                display_name,
+                is_friend: false,
                 world_id: key.world_id,
                 world_name: None,
                 total_minutes: millis_to_minutes(row_i64(&row, 3)),
@@ -190,9 +225,40 @@ pub fn get_copresence_summary(
     if let Some(row) = current_row {
         rows.push(row);
     }
+
+    // When friends_only is set the query already restricted rows to current
+    // friends, so skip the extra friend-set read and mark them directly.
+    let friend_ids = if input.friends_only {
+        None
+    } else {
+        Some(current_friend_id_set(db, &owner_user_id)?)
+    };
+    for row in &mut rows {
+        row.is_friend = match &friend_ids {
+            None => true,
+            Some(friend_ids) => !row.user_id.is_empty() && friend_ids.contains(&row.user_id),
+        };
+    }
+
+    let world_ids = rows
+        .iter()
+        .filter_map(|row| row.world_id.clone())
+        .filter(|world_id| !world_id.is_empty())
+        .collect::<BTreeSet<_>>();
+    if !world_ids.is_empty() {
+        let world_names = world_names_for_ids(db, &world_ids)?;
+        for row in &mut rows {
+            if let Some(world_id) = row.world_id.as_ref() {
+                if let Some(name) = world_names.get(world_id) {
+                    row.world_name = Some(name.clone());
+                }
+            }
+        }
+    }
     let returned_rows = rows.len();
 
     Ok(CopresenceSummaryOutput {
+        summary: copresence_summary(&rows),
         rows,
         total_rows,
         returned_rows,
@@ -203,7 +269,28 @@ pub fn get_copresence_summary(
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct CopresenceKey {
-    user_id: String,
-    display_name: String,
+    group_key: String,
     world_id: Option<String>,
+}
+
+fn copresence_summary(rows: &[CopresenceSummaryRow]) -> String {
+    let Some(top) = rows.first() else {
+        return "No co-presence rows match this query.".into();
+    };
+    let mut parts = Vec::new();
+    parts.push(format!(
+        "You spend the most time with {} ({}, {} instance(s))",
+        top.display_name,
+        format_minutes(top.total_minutes),
+        top.instances
+    ));
+    for row in rows.iter().skip(1).take(2) {
+        parts.push(format!(
+            "{} ({}, {} instance(s))",
+            row.display_name,
+            format_minutes(row.total_minutes),
+            row.instances
+        ));
+    }
+    format!("{}.", parts.join(", then "))
 }

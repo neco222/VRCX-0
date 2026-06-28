@@ -1,0 +1,8 @@
+[package]
+name = "vrcx-0-i18n"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }

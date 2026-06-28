@@ -173,8 +173,8 @@ function AppNavFooter({
                         type="button"
                         tooltip={
                             sidebarOpen
-                                ? t('nav_tooltip.collapse_menu')
-                                : t('nav_tooltip.expand_menu')
+                                ? t('nav_tooltip.collapse_nav')
+                                : t('nav_tooltip.expand_nav')
                         }
                         onClick={() => {
                             onToggleSidebar();
@@ -183,8 +183,8 @@ function AppNavFooter({
                         <PanelLeftIcon />
                         <span>
                             {sidebarOpen
-                                ? t('nav_tooltip.collapse_menu')
-                                : t('nav_tooltip.expand_menu')}
+                                ? t('nav_tooltip.collapse_nav')
+                                : t('nav_tooltip.expand_nav')}
                         </span>
                     </SidebarMenuButton>
                 </SidebarMenuItem>

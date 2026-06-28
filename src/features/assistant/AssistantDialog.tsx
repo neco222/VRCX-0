@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
+import { recordAssistantOpen } from '@/services/telemetry/telemetryAssistantUsage';
 import { useAssistantChatStore } from '@/state/assistantChatStore';
 import {
     Dialog,
@@ -64,8 +65,13 @@ export function AssistantDialog() {
     );
 
     const bottomRef = useRef<HTMLDivElement | null>(null);
+    const previousOpenRef = useRef(false);
 
     useEffect(() => {
+        if (open && !previousOpenRef.current) {
+            recordAssistantOpen();
+        }
+        previousOpenRef.current = open;
         if (open) {
             refreshSessions();
         }
@@ -91,6 +97,17 @@ export function AssistantDialog() {
                 className="flex h-[84vh] w-[min(1360px,96vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none"
                 showCloseButton={false}
                 style={{ fontFamily: 'var(--vrcx-app-font-family, inherit)' }}
+                // FIXME: resize drag misread as outside-click (react-resizable-panels
+                // x Radix); keep open when target is inside. Remove after deps fix.
+                onInteractOutside={(event) => {
+                    const target = event.detail.originalEvent.target;
+                    if (
+                        target instanceof Element &&
+                        target.closest('[data-slot="dialog-content"]')
+                    ) {
+                        event.preventDefault();
+                    }
+                }}
             >
                 <DialogHeader className="border-border/40 flex-row items-center justify-between space-y-0 border-b py-3 pr-3 pl-4">
                     <DialogTitle

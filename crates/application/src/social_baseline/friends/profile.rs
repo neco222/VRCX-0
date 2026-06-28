@@ -109,25 +109,19 @@ pub(super) fn get_display_name(user: &Value) -> String {
 }
 
 pub(super) fn get_meaningful_display_name(user: &Value, user_id: &str) -> String {
-    let normalized_user_id = normalize_text(if user_id.is_empty() {
+    let resolved_user_id = if user_id.is_empty() {
         object_field_string(user, &["id"])
     } else {
         user_id.to_string()
-    });
-    for key in ["displayName", "username"] {
-        let display_name = object_field_normalized(user, &[key]);
-        if !display_name.is_empty() && display_name != normalized_user_id {
-            return display_name;
-        }
-    }
-    String::new()
+    };
+    vrcx_0_core::friends::meaningful_display_name(
+        &object_field_string(user, &["displayName"]),
+        &object_field_string(user, &["username"]),
+        &resolved_user_id,
+    )
+    .unwrap_or_default()
 }
 
 pub(super) fn normalize_state_bucket(value: &str) -> String {
-    match normalize_text(value).to_ascii_lowercase().as_str() {
-        "online" => "online".into(),
-        "active" => "active".into(),
-        "offline" => "offline".into(),
-        _ => String::new(),
-    }
+    vrcx_0_core::friends::normalize_state_bucket(value).unwrap_or_default()
 }

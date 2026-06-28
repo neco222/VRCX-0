@@ -60,6 +60,17 @@ pub fn app__change_theme(app_handle: AppHandle, value: i32) -> Result<(), AppErr
 
 #[tauri::command]
 #[specta::specta]
+#[allow(unused_variables)]
+pub fn app__language_changed(app_handle: AppHandle, language: String) -> Result<(), AppError> {
+    #[cfg(target_os = "macos")]
+    let _ = crate::macos_menu::configure_macos_app_menu(&app_handle, &language);
+    drop(app_handle);
+    drop(language);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn app__do_funny() {}
 
 #[tauri::command]

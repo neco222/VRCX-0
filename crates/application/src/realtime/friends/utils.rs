@@ -56,13 +56,7 @@ pub(super) fn first_string<'a>(values: impl IntoIterator<Item = Option<&'a str>>
         .to_string()
 }
 
-pub(super) fn first_non_empty<'a>(values: impl IntoIterator<Item = &'a str>) -> &'a str {
-    values
-        .into_iter()
-        .find(|value| !value.trim().is_empty())
-        .unwrap_or("")
-        .trim()
-}
+pub(super) use vrcx_0_core::friends::first_non_empty;
 
 pub(super) fn first_owned(values: impl IntoIterator<Item = String>) -> String {
     values

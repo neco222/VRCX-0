@@ -66,6 +66,10 @@ export function patchPreferenceValue(
         .setPreferenceValue(normalizeStorePreferenceKey(key), value);
 }
 
+export async function appLanguageChanged(language: string) {
+    await commands.appLanguageChanged(language);
+}
+
 export async function reloadWristOverlayRuntimeConfigIfNeeded(key: string) {
     const normalizedKey = normalizePreferenceKey(key);
     if (!WRIST_OVERLAY_RUNTIME_CONFIG_KEYS.has(normalizedKey)) {

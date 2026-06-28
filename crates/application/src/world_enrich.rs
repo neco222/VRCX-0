@@ -1,6 +1,6 @@
 use serde_json::Value;
 pub(crate) use vrcx_0_core::location::is_meaningful_world_name;
-use vrcx_0_core::location::{format_display_location, parse_location};
+use vrcx_0_core::location::{format_display_location, parse_location, world_id_from_location};
 
 use crate::realtime::RealtimeEntryCorrectionStream;
 use crate::world_cache::WorldCache;
@@ -225,15 +225,7 @@ fn first_world_id<const N: usize>(values: [String; N]) -> String {
 }
 
 pub(crate) fn world_id_from_location_or_id(value: &str) -> String {
-    let trimmed = value.trim();
-    if !trimmed.starts_with("wrld_") {
-        return String::new();
-    }
-    trimmed
-        .split([':', '~'])
-        .next()
-        .unwrap_or_default()
-        .to_string()
+    world_id_from_location(value)
 }
 
 fn first_owned<const N: usize>(values: [String; N]) -> String {

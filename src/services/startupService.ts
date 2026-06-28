@@ -80,7 +80,7 @@ export async function initializeReactRuntime() {
         const localeSource = trimmedSavedAppLanguage
             ? trimmedSavedAppLanguage
             : await commands
-                  .appCurrentLanguage()
+                  .appSystemLanguage()
                   .catch(() => navigator.language || null);
         const normalizedLocale = normalizeLanguageCode(localeSource);
         shellStore.setLocale(normalizedLocale);

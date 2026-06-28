@@ -1,4 +1,5 @@
 use serde_json::{json, Map, Value};
+use vrcx_0_core::friends::first_non_empty;
 use vrcx_0_core::realtime::RealtimeWsMessagePayload;
 use vrcx_0_persistence::realtime::{NotificationExpiration, NotificationV2Update};
 
@@ -419,14 +420,6 @@ fn int_field(value: Option<&Value>) -> Option<i64> {
 
 fn bool_field(value: Option<&Value>) -> bool {
     value.and_then(Value::as_bool).unwrap_or(false)
-}
-
-fn first_non_empty<'a>(values: impl IntoIterator<Item = &'a str>) -> &'a str {
-    values
-        .into_iter()
-        .find(|value| !value.trim().is_empty())
-        .unwrap_or("")
-        .trim()
 }
 
 fn first_owned(values: impl IntoIterator<Item = String>) -> String {

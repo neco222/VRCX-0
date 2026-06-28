@@ -100,6 +100,9 @@ describe('settingsValues', () => {
                     PortalSpawn: {
                         scope: 'everyoneInInstance'
                     },
+                    ChatBoxMessage: {
+                        scope: 'everyoneInInstance'
+                    },
                     unknown: {
                         scope: 'on'
                     }
@@ -139,6 +142,7 @@ describe('settingsValues', () => {
         );
         expect(filters.wrist.types.Avatar).toBeUndefined();
         expect(filters.wrist.types.PortalSpawn).toBeUndefined();
+        expect(filters.wrist.types.ChatBoxMessage).toBeUndefined();
         expect(filters.wrist.types.unknown).toEqual({
             scope: 'on',
             favoriteGroupKeys: 'all'

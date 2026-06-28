@@ -2185,6 +2185,46 @@
                 "title": "Logowanie do VRChat wygasło",
                 "body": "Zaloguj się ponownie, aby kontynuować."
             }
+        },
+        "menu": {
+            "app": {
+                "title": "VRCX-0",
+                "about": "About VRCX-0",
+                "settings": "Settings...",
+                "checkUpdates": "Check for Updates",
+                "restart": "Restart VRCX-0",
+                "startBackgroundMode": "Switch to Background Mode",
+                "logout": "Log Out",
+                "quit": "Quit VRCX-0"
+            },
+            "view": {
+                "title": "View",
+                "notificationCenter": "Notification Center",
+                "quickSearch": "Quick Search",
+                "directAccess": "Direct Access",
+                "toggleNav": "Toggle Navigation",
+                "toggleFriendsSidebar": "Toggle Friends Sidebar",
+                "customNav": "Customize Navigation",
+                "themes": "Theme",
+                "zoomIn": "Zoom In",
+                "zoomOut": "Zoom Out",
+                "resetZoom": "Reset Zoom"
+            },
+            "tools": {
+                "title": "Tools",
+                "allTools": "All Tools..."
+            },
+            "help": {
+                "title": "Help",
+                "changelog": "Changelog",
+                "keyboardShortcuts": "Keyboard Shortcuts",
+                "reportIssue": "Report Issue",
+                "github": "GitHub",
+                "discord": "Join our Discord",
+                "qqGroup": "QQ Group (Chinese community)",
+                "openDevtools": "Open DevTools",
+                "supportVrcx": "Support VRCX-0"
+            }
         }
     }
 }

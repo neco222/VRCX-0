@@ -282,7 +282,6 @@ const sharedFeedFiltersDefaults: SharedFeedFilterDefaults = {
         MutedOnPlayerJoined: 'Off',
         MutedOnPlayerLeft: 'Off',
         AvatarChange: 'Off',
-        ChatBoxMessage: 'Off',
         Blocked: 'Off',
         Unblocked: 'Off',
         Muted: 'Off',

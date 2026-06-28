@@ -125,7 +125,26 @@ pub fn normalize_state_bucket(value: &str) -> Option<String> {
     }
 }
 
-fn first_non_empty<'a>(values: impl IntoIterator<Item = &'a str>) -> &'a str {
+pub fn meaningful_display_name(
+    display_name: &str,
+    username: &str,
+    user_id: &str,
+) -> Option<String> {
+    let user_id = user_id.trim();
+    for candidate in [display_name, username] {
+        let candidate = candidate.trim();
+        if !candidate.is_empty()
+            && candidate != user_id
+            && candidate != "Unknown"
+            && !candidate.starts_with("usr_")
+        {
+            return Some(candidate.to_string());
+        }
+    }
+    None
+}
+
+pub fn first_non_empty<'a>(values: impl IntoIterator<Item = &'a str>) -> &'a str {
     values
         .into_iter()
         .find(|value| !value.trim().is_empty())
@@ -136,7 +155,8 @@ fn first_non_empty<'a>(values: impl IntoIterator<Item = &'a str>) -> &'a str {
 #[cfg(test)]
 mod tests {
     use super::{
-        strip_default_avatar_image, FriendRecord, FriendRosterBaseline, DEFAULT_AVATAR_FILE_ID,
+        meaningful_display_name, strip_default_avatar_image, FriendRecord, FriendRosterBaseline,
+        DEFAULT_AVATAR_FILE_ID,
     };
     use crate::vrchat_endpoints::VRCHAT_API_DEFAULT_ENDPOINT;
     use serde_json::{json, Value};
@@ -204,5 +224,21 @@ mod tests {
         assert_eq!(friend.id, "usr_friend");
         assert_eq!(friend.state_bucket, "online");
         assert_eq!(friend.display_name_or_id(), "Friend");
+    }
+
+    #[test]
+    fn meaningful_display_name_skips_placeholders() {
+        assert_eq!(
+            meaningful_display_name("Nagisa", "naginagi", "usr_1"),
+            Some("Nagisa".to_string())
+        );
+        assert_eq!(
+            meaningful_display_name("  ", "naginagi", "usr_1"),
+            Some("naginagi".to_string())
+        );
+        assert_eq!(meaningful_display_name("Unknown", "", "usr_1"), None);
+        assert_eq!(meaningful_display_name("usr_1", "", "usr_1"), None);
+        assert_eq!(meaningful_display_name("usr_other", "", "usr_1"), None);
+        assert_eq!(meaningful_display_name("", "", "usr_1"), None);
     }
 }

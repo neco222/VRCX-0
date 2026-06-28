@@ -26,11 +26,60 @@ describe('compareByStatus', () => {
         expect(compareByStatus(offline, online)).toBeGreaterThan(0);
     });
 
+    it('sorts online before offline in both directions (antisymmetric)', () => {
+        const onlineBusy = { ref: { state: 'online', status: 'busy' } };
+        const offlineJoinMe = { ref: { state: 'offline', status: 'join me' } };
+        expect(compareByStatus(onlineBusy, offlineJoinMe)).toBeLessThan(0);
+        expect(compareByStatus(offlineJoinMe, onlineBusy)).toBeGreaterThan(0);
+        expect(compareByStatus(onlineBusy, offlineJoinMe)).toBe(
+            -compareByStatus(offlineJoinMe, onlineBusy)
+        );
+    });
+
     it('orders by status priority when neither is offline state', () => {
         const joinMe = { ref: { state: 'online', status: 'join me' } };
         const busy = { ref: { state: 'online', status: 'busy' } };
         expect(compareByStatus(joinMe, busy)).toBeLessThan(0);
         expect(compareByStatus(busy, joinMe)).toBeGreaterThan(0);
+    });
+
+    it('orders two offline friends by status priority', () => {
+        const joinMe = { ref: { state: 'offline', status: 'join me' } };
+        const busy = { ref: { state: 'offline', status: 'busy' } };
+        expect(compareByStatus(joinMe, busy)).toBeLessThan(0);
+        expect(compareByStatus(busy, joinMe)).toBeGreaterThan(0);
+    });
+
+    it('is antisymmetric for two offline friends with differing status', () => {
+        const a = { ref: { state: 'offline', status: 'ask me' } };
+        const b = { ref: { state: 'offline', status: 'active' } };
+        expect(compareByStatus(a, b)).toBe(-compareByStatus(b, a));
+    });
+
+    it('returns 0 for two offline friends with identical status', () => {
+        const a = { ref: { state: 'offline', status: 'busy' } };
+        const b = { ref: { state: 'offline', status: 'busy' } };
+        expect(compareByStatus(a, b)).toBe(0);
+    });
+
+    it('sorts an all-offline list stably and idempotently', () => {
+        const rows = [
+            { id: 'busy', ref: { state: 'offline', status: 'busy' } },
+            { id: 'joinMe', ref: { state: 'offline', status: 'join me' } },
+            { id: 'askMe', ref: { state: 'offline', status: 'ask me' } },
+            { id: 'active', ref: { state: 'offline', status: 'active' } }
+        ];
+        const sorted = [...rows].sort(compareByStatus);
+        expect(sorted.map((row) => row.id)).toEqual([
+            'joinMe',
+            'active',
+            'askMe',
+            'busy'
+        ]);
+        const resorted = [...sorted].sort(compareByStatus);
+        expect(resorted.map((row) => row.id)).toEqual(
+            sorted.map((row) => row.id)
+        );
     });
 });
 

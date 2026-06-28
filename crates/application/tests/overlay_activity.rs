@@ -33,6 +33,9 @@ fn activity_type_definitions_are_exported_from_backend() {
     assert!(definitions
         .iter()
         .all(|definition| definition.key != "PortalSpawn"));
+    assert!(definitions
+        .iter()
+        .all(|definition| definition.key != "ChatBoxMessage"));
 }
 
 #[test]

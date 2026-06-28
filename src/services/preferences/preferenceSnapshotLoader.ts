@@ -238,7 +238,7 @@ export async function loadPreferenceSnapshot() {
         configRepository.getBool('dtIsoFormat', false),
         configRepository.getBool('dtHour12', false),
         configRepository.getObject('VRCX_trustColor', null),
-        commands.appCurrentCulture().catch(() => navigator.language || 'en-gb'),
+        commands.appSystemCulture().catch(() => navigator.language || 'en-gb'),
         storageRepository.getString('VRCX_ProxyServer', ''),
         configRepository.getInt('VRCX_tablePageSize', DEFAULT_TABLE_PAGE_SIZE),
         configRepository.getArray(

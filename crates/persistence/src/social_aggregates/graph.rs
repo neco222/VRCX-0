@@ -1,17 +1,26 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use vrcx_0_core::social_circles;
+
 use crate::database::DatabaseService;
 use crate::friends::friend_log_current_list;
 use crate::mutual_graph::mutual_graph_snapshot_get;
 use crate::Error;
 
-use super::caveats::social_graph_caveats;
-use super::types::{SocialGraphEdge, SocialGraphInput, SocialGraphNode, SocialGraphOutput};
+use super::caveats::{friend_circles_caveats, social_graph_caveats};
+use super::types::{
+    FriendCirclePair, FriendCircleRow, FriendCirclesInput, FriendCirclesOutput, SocialGraphEdge,
+    SocialGraphInput, SocialGraphNode, SocialGraphOutput,
+};
 
-const DEFAULT_MAX_NODES: usize = 100;
+const DEFAULT_MAX_NODES: usize = 40;
 const MAX_MAX_NODES: usize = 250;
-const DEFAULT_MAX_EDGES: usize = 500;
+const DEFAULT_MAX_EDGES: usize = 100;
 const MAX_MAX_EDGES: usize = 1_000;
+const DEFAULT_MAX_CIRCLES: usize = 6;
+const MAX_MAX_CIRCLES: usize = 50;
+const DEFAULT_MAX_MEMBERS_PER_CIRCLE: usize = 8;
+const MAX_MAX_MEMBERS_PER_CIRCLE: usize = 100;
 
 pub fn get_social_graph(
     db: &DatabaseService,
@@ -19,7 +28,13 @@ pub fn get_social_graph(
 ) -> Result<SocialGraphOutput, Error> {
     let owner_user_id = input.owner_user_id;
     let snapshot = mutual_graph_snapshot_get(db, owner_user_id.clone())?;
-    let display_name_by_user_id = friend_log_current_list(db, owner_user_id)?
+    let friends = friend_log_current_list(db, owner_user_id)?;
+    let friend_ids = friends
+        .iter()
+        .map(|friend| friend.user_id.clone())
+        .filter(|user_id| !user_id.trim().is_empty())
+        .collect::<BTreeSet<_>>();
+    let display_name_by_user_id = friends
         .into_iter()
         .filter(|friend| !friend.display_name.trim().is_empty())
         .map(|friend| (friend.user_id, friend.display_name))
@@ -96,6 +111,7 @@ pub fn get_social_graph(
                 .get(&user_id)
                 .cloned()
                 .unwrap_or_default(),
+            is_friend: friend_ids.contains(&user_id),
             user_id,
             connection_degree: connections.len(),
         })
@@ -147,4 +163,135 @@ fn clamped_limit(limit: Option<i64>, default: usize, max: usize) -> usize {
         .and_then(|value| usize::try_from(value).ok())
         .unwrap_or(default)
         .clamp(1, max)
+}
+
+pub fn get_friend_circles(
+    db: &DatabaseService,
+    input: FriendCirclesInput,
+) -> Result<FriendCirclesOutput, Error> {
+    let owner_user_id = input.owner_user_id;
+    let snapshot = mutual_graph_snapshot_get(db, owner_user_id.clone())?;
+    let friends = friend_log_current_list(db, owner_user_id)?;
+    let friend_ids = friends
+        .iter()
+        .map(|friend| friend.user_id.clone())
+        .filter(|user_id| !user_id.trim().is_empty())
+        .collect::<BTreeSet<_>>();
+    let display_name_by_user_id = friends
+        .into_iter()
+        .map(|friend| {
+            let display_name = if friend.display_name.trim().is_empty() {
+                friend.user_id.clone()
+            } else {
+                friend.display_name
+            };
+            (friend.user_id, display_name)
+        })
+        .collect::<BTreeMap<_, _>>();
+    let mut deduped_edges = BTreeSet::new();
+    for link in snapshot.links {
+        if !friend_ids.contains(&link.friend_id) || !friend_ids.contains(&link.mutual_id) {
+            continue;
+        }
+        if link.friend_id == link.mutual_id {
+            continue;
+        }
+        let (left, right) = if link.friend_id < link.mutual_id {
+            (link.friend_id, link.mutual_id)
+        } else {
+            (link.mutual_id, link.friend_id)
+        };
+        deduped_edges.insert((left, right));
+    }
+    let edge_list = deduped_edges.iter().cloned().collect::<Vec<_>>();
+    let circles =
+        social_circles::friend_circles(&friend_ids.iter().cloned().collect::<Vec<_>>(), &edge_list);
+    let circle_count = circles.len();
+    let connected_friend_ids = edge_list
+        .iter()
+        .flat_map(|(left, right)| [left.clone(), right.clone()])
+        .collect::<BTreeSet<_>>();
+    let isolated_friend_count = friend_ids.len().saturating_sub(connected_friend_ids.len());
+    let max_circles = clamped_limit(input.max_circles, DEFAULT_MAX_CIRCLES, MAX_MAX_CIRCLES);
+    let max_members = clamped_limit(
+        input.max_members_per_circle,
+        DEFAULT_MAX_MEMBERS_PER_CIRCLE,
+        MAX_MAX_MEMBERS_PER_CIRCLE,
+    );
+    let rows = circles
+        .into_iter()
+        .take(max_circles)
+        .map(|circle| {
+            let member_ids = circle.members;
+            let member_count = member_ids.len();
+            let member_set = member_ids.iter().cloned().collect::<BTreeSet<_>>();
+            let sample_pairs = edge_list
+                .iter()
+                .filter(|(left, right)| member_set.contains(left) && member_set.contains(right))
+                .take(3)
+                .map(|(left, right)| FriendCirclePair {
+                    a: display_name_by_user_id
+                        .get(left)
+                        .cloned()
+                        .unwrap_or_else(|| left.clone()),
+                    b: display_name_by_user_id
+                        .get(right)
+                        .cloned()
+                        .unwrap_or_else(|| right.clone()),
+                })
+                .collect::<Vec<_>>();
+            let members = member_ids
+                .into_iter()
+                .take(max_members)
+                .map(|user_id| {
+                    display_name_by_user_id
+                        .get(&user_id)
+                        .cloned()
+                        .unwrap_or(user_id)
+                })
+                .collect::<Vec<_>>();
+            FriendCircleRow {
+                members,
+                member_count,
+                sample_pairs,
+            }
+        })
+        .collect::<Vec<_>>();
+    let summary =
+        friend_circles_summary(friend_ids.len(), circle_count, isolated_friend_count, &rows);
+    Ok(FriendCirclesOutput {
+        circles: rows,
+        circle_count,
+        isolated_friend_count,
+        friends_analyzed: friend_ids.len(),
+        summary,
+        caveats: friend_circles_caveats(),
+    })
+}
+
+fn friend_circles_summary(
+    friends_analyzed: usize,
+    circle_count: usize,
+    isolated_friend_count: usize,
+    rows: &[FriendCircleRow],
+) -> String {
+    let top = rows
+        .first()
+        .map(|circle| {
+            let names = circle
+                .members
+                .iter()
+                .take(3)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!(
+                "the largest ({}) are linked through mutual friends: {}",
+                circle.member_count, names
+            )
+        })
+        .unwrap_or_else(|| "no fetched mutual circles are available yet".into());
+    format!(
+        "Your {friends_analyzed} friends form {circle_count} mutual circle(s); {top}. {isolated_friend_count} share no fetched mutual link."
+    )
 }

@@ -11,7 +11,7 @@ import { logoutFromReactShell } from '@/services/authExecutionService';
 import { startBackgroundModeForCurrentSession } from '@/services/backgroundModeService';
 import { openExternalLink } from '@/services/entityMediaService';
 import {
-    setSidebarCollapsedPreference,
+    setNavbarCollapsedPreference,
     setZoomLevelPreference
 } from '@/services/preferencesService';
 import {
@@ -115,7 +115,7 @@ export function AppMenuBar({
     const [supportOpen, setSupportOpen] = useState(false);
     const [quickAccessKeys, setQuickAccessKeys] = useState<string[]>([]);
     const zoomLevel = useShellStore((state: any) => state.zoomLevel);
-    const sidebarOpen = useShellStore((state: any) => state.sidebarOpen);
+    const navbarOpen = useShellStore((state: any) => state.sidebarOpen);
     const notificationLayout = usePreferencesStore(
         (state: any) => state.notificationLayout
     );
@@ -330,20 +330,20 @@ export function AppMenuBar({
                             </MenuItem>
                             <MenuItem
                                 onSelect={() => {
-                                    setSidebarCollapsedPreference(sidebarOpen);
+                                    setNavbarCollapsedPreference(navbarOpen);
                                 }}
                             >
                                 {t(
-                                    sidebarOpen
-                                        ? 'nav_tooltip.collapse_menu'
-                                        : 'nav_tooltip.expand_menu'
+                                    navbarOpen
+                                        ? 'nav_tooltip.collapse_nav'
+                                        : 'nav_tooltip.expand_nav'
                                 )}
                             </MenuItem>
                             <MenuItem onSelect={() => onToggleRightSidebar?.()}>
                                 {t(
                                     rightSidebarOpen
-                                        ? 'app_menu.hide_side_panel'
-                                        : 'app_menu.show_side_panel'
+                                        ? 'app_menu.hide_friends_sidebar'
+                                        : 'app_menu.show_friends_sidebar'
                                 )}
                             </MenuItem>
                             <MenuItem

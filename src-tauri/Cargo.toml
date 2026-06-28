@@ -1,6 +1,6 @@
 [package]
 name = "vrcx-0"
-version = "2.9.1"
+version = "2.9.2"
 edition = "2021"
 default-run = "vrcx-0"
 
@@ -51,6 +51,7 @@ vrcx-0-core = { path = "../crates/core" }
 vrcx-0-persistence = { path = "../crates/persistence" }
 vrcx-0-integrations = { path = "../crates/integrations" }
 vrcx-0-host = { path = "../crates/host" }
+vrcx-0-i18n = { path = "../crates/i18n" }
 vrcx-0-media = { path = "../crates/media" }
 vrcx-0-application = { path = "../crates/application" }
 vrcx-0-mcp = { path = "../crates/mcp" }

@@ -3,6 +3,7 @@ use vrcx_0_application::{
     OverlayActivityActorRelation, OverlayActivityCategory, OverlayActivityEntry,
     OverlayActivitySnapshot, OverlayActivityText,
 };
+use vrcx_0_core::location::world_id_from_location;
 use vrcx_0_host::vr_overlay::{VrDeviceSnapshot, VrDeviceStatus};
 use vrcx_0_vr_overlay::{
     Color, DeviceChip, DeviceRole, DeviceStatus, FeedKind, FeedLine, FeedRelation, FeedSeverity,
@@ -409,18 +410,6 @@ fn is_location_id_like(value: &str) -> bool {
         return true;
     }
     trimmed.starts_with("wrld_")
-}
-
-fn world_id_from_location(location: &str) -> String {
-    let trimmed = location.trim();
-    if !trimmed.starts_with("wrld_") {
-        return String::new();
-    }
-    trimmed
-        .split([':', '~'])
-        .next()
-        .unwrap_or_default()
-        .to_string()
 }
 
 fn feed_kind(entry: &OverlayActivityEntry) -> FeedKind {

@@ -337,17 +337,12 @@ pub(super) fn display_name(user_id: &str, patch: &Value, previous: Option<&Value
 }
 
 pub(super) fn meaningful_name(value: &Value, user_id: &str) -> String {
-    for key in ["displayName", "username", "id"] {
-        let candidate = string_field(value.get(key));
-        if !candidate.is_empty()
-            && candidate != user_id
-            && candidate != "Unknown"
-            && !candidate.starts_with("usr_")
-        {
-            return candidate;
-        }
-    }
-    String::new()
+    vrcx_0_core::friends::meaningful_display_name(
+        &string_field(value.get("displayName")),
+        &string_field(value.get("username")),
+        user_id,
+    )
+    .unwrap_or_default()
 }
 
 pub(super) fn resolve_location_name(

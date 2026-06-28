@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::error::Error;
-use vrcx_0_core::vrchat_registry_policy::{is_allowed_registry_key, ALLOWED_REGISTRY_TYPES};
 
 pub fn get_registry_key(key: &str) -> Result<serde_json::Value, Error> {
     let _ = key;
@@ -350,20 +349,7 @@ pub fn read_reg_json_file(filepath: &str) -> Result<String, Error> {
 }
 
 pub fn validate_registry_json(json: &str) -> Result<(), Error> {
-    let data: HashMap<String, HashMap<String, serde_json::Value>> = serde_json::from_str(json)?;
-    for (key, props) in data {
-        let type_int = props
-            .get("type")
-            .and_then(|value| value.as_i64())
-            .ok_or_else(|| Error::Custom(format!("Invalid registry type for {key}")))?;
-        let type_int = i32::try_from(type_int)
-            .map_err(|_| Error::Custom(format!("Invalid registry type for {key}")))?;
-        let value = props
-            .get("data")
-            .ok_or_else(|| Error::Custom(format!("Missing registry data for {key}")))?;
-        validate_registry_entry(&key, value, type_int)?;
-    }
-    Ok(())
+    vrcx_0_core::vrchat_registry_policy::validate_registry_json(json).map_err(Error::from)
 }
 
 pub fn validate_registry_entry(
@@ -371,52 +357,12 @@ pub fn validate_registry_entry(
     value: &serde_json::Value,
     type_int: i32,
 ) -> Result<(), Error> {
-    validate_registry_key(key)?;
-    if !ALLOWED_REGISTRY_TYPES.contains(&type_int) {
-        return Err(Error::Custom(format!(
-            "Registry type {type_int} is not allowed for {key}."
-        )));
-    }
-
-    match type_int {
-        3 if value.is_string() => Ok(()),
-        4 if value
-            .as_i64()
-            .and_then(|raw| i32::try_from(raw).ok())
-            .is_some() =>
-        {
-            Ok(())
-        }
-        100 if value.as_f64().is_some() => Ok(()),
-        3 | 4 | 100 => Err(Error::Custom(format!(
-            "Invalid registry value shape for {key}."
-        ))),
-        _ => unreachable!("registry type allow-list is checked before value validation"),
-    }
+    vrcx_0_core::vrchat_registry_policy::validate_registry_entry(key, value, type_int)
+        .map_err(Error::from)
 }
 
 pub fn validate_registry_key(key: &str) -> Result<(), Error> {
-    let key = key.trim();
-    if key.is_empty() || key.len() > 128 {
-        return Err(Error::Custom("Invalid VRChat registry key.".into()));
-    }
-
-    let allowed = key.bytes().all(|byte| {
-        (byte == b' ' || byte.is_ascii_graphic()) && !matches!(byte, b'\\' | b'/' | b'"' | b'\'')
-    });
-    if !allowed {
-        return Err(Error::Custom(format!(
-            "VRChat registry key '{key}' contains unsupported characters."
-        )));
-    }
-
-    if !is_allowed_registry_key(key) {
-        return Err(Error::Custom(format!(
-            "VRChat registry key '{key}' is not in the allowed PlayerPrefs set."
-        )));
-    }
-
-    Ok(())
+    vrcx_0_core::vrchat_registry_policy::validate_registry_key(key).map_err(Error::from)
 }
 
 #[cfg(target_os = "windows")]

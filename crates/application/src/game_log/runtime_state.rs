@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use chrono::DateTime;
 use serde::Serialize;
 
+pub use vrcx_0_core::location::world_id_from_location;
+
 #[derive(Clone, Debug, Default)]
 pub struct GameLogRuntimeState {
     pub current_location: String,
@@ -119,8 +121,4 @@ pub fn player_key(user_id: &str, display_name: &str) -> String {
     } else {
         format!("id:{user_id}")
     }
-}
-
-pub fn world_id_from_location(location: &str) -> String {
-    location.split(':').next().unwrap_or_default().to_string()
 }

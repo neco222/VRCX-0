@@ -6,7 +6,9 @@ use crate::realtime::normalize_user_table_prefix;
 use crate::Error;
 
 use super::caveats::best_time_caveats;
-use super::helpers::{append_time_window_filter, bucket_label, table_exists};
+use super::helpers::{
+    append_time_window_filter, bucket_label, table_exists, tz_offset_modifier, with_tz_caveat,
+};
 use super::types::{
     ActivityBucket, BestTimeBucketRow, BestTimeFriend, BestTimeToPlayInput, BestTimeToPlayOutput,
 };
@@ -24,18 +26,52 @@ pub fn get_best_time_to_play(
         });
     }
 
+    let offset_minutes = input.utc_offset_minutes.unwrap_or(0);
+    let tz_modifier = tz_offset_modifier(offset_minutes);
     let bucket_expr = match input.bucket {
-        ActivityBucket::HourOfDay => "strftime('%H', created_at)",
-        ActivityBucket::DayOfWeek => "strftime('%w', created_at)",
+        ActivityBucket::HourOfDay => "strftime('%H', created_at, @tz)",
+        ActivityBucket::DayOfWeek => "strftime('%w', created_at, @tz)",
     };
     let mut sql = format!(
-        "SELECT {bucket_expr} AS bucket, user_id, display_name, COUNT(*)
-         FROM {table_name}
-         WHERE type = 'Online'"
+        "WITH filtered AS (
+            SELECT {bucket_expr} AS bucket, user_id, display_name, created_at
+            FROM {table_name}
+            WHERE type = 'Online'"
     );
-    let mut params = ParamsBuilder::new();
+    let mut params = ParamsBuilder::new().set("tz", tz_modifier);
     append_time_window_filter(&mut sql, &mut params, &input.time_window, "created_at");
-    sql.push_str(" GROUP BY bucket, user_id, display_name ORDER BY bucket ASC");
+    sql.push_str(
+        ")
+        , grouped AS (
+            SELECT bucket, user_id, COUNT(*) AS online_count
+            FROM filtered
+            WHERE bucket IS NOT NULL AND bucket <> '' AND trim(user_id) <> ''
+            GROUP BY bucket, user_id
+        )
+        , latest_names AS (
+            SELECT user_id, display_name
+            FROM (
+                SELECT
+                    user_id,
+                    display_name,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY user_id
+                        ORDER BY created_at DESC
+                    ) AS rn
+                FROM filtered
+                WHERE trim(user_id) <> ''
+            )
+            WHERE rn = 1
+        )
+        SELECT
+            grouped.bucket,
+            grouped.user_id,
+            latest_names.display_name,
+            grouped.online_count
+        FROM grouped
+        JOIN latest_names ON latest_names.user_id = grouped.user_id
+        ORDER BY grouped.bucket ASC",
+    );
 
     let mut grouped: BTreeMap<String, BucketAccumulator> = BTreeMap::new();
     for row in db.execute(&sql, &params.build())? {
@@ -94,7 +130,7 @@ pub fn get_best_time_to_play(
 
     Ok(BestTimeToPlayOutput {
         rows,
-        caveats: best_time_caveats(),
+        caveats: with_tz_caveat(best_time_caveats(), offset_minutes),
     })
 }
 

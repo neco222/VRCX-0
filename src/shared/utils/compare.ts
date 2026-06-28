@@ -209,11 +209,16 @@ function compareByStatus(a: ComparableRecord, b: ComparableRecord): number {
     if (typeof a.ref === 'undefined' || typeof b.ref === 'undefined') {
         return 0;
     }
+    const aOffline = a.ref.state === 'offline';
+    const bOffline = b.ref.state === 'offline';
+    if (aOffline && !bOffline) {
+        return 1;
+    }
+    if (!aOffline && bOffline) {
+        return -1;
+    }
     if (a.ref.status === b.ref.status) {
         return 0;
-    }
-    if (a.ref.state === 'offline') {
-        return 1;
     }
     return sortStatus(a.ref.status ?? '', b.ref.status ?? '');
 }

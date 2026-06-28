@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 
 import { QuickSearchDialog } from '@/components/sidebar/QuickSearchDialog';
 import { cn } from '@/lib/utils';
-import { setSidebarCollapsedPreference } from '@/services/preferencesService';
+import { setNavbarCollapsedPreference } from '@/services/preferencesService';
 import { openOrInstallLatestAvailableUpdate } from '@/services/updateInstallService';
 import { getBuildBadgeLabel } from '@/shared/buildLabel';
 import { usePreferencesStore } from '@/state/preferencesStore';
@@ -111,7 +111,7 @@ export function MacOverlayTitleBar() {
     const hasAvailableUpdate = useRuntimeStore((state: any) =>
         Boolean(state.updateLoop.hasAvailableUpdate)
     );
-    const sidebarOpen = useShellStore((state: any) => state.sidebarOpen);
+    const navbarOpen = useShellStore((state: any) => state.sidebarOpen);
     const {
         sidePanelOpen: rightSidebarOpen,
         toggleSidePanelOpen: toggleRightSidebar
@@ -119,12 +119,12 @@ export function MacOverlayTitleBar() {
     const buildBadgeLabel = getBuildBadgeLabel(t);
     const notificationActionVisible =
         isSessionReady && notificationLayout !== 'table';
-    const leftSidebarLabel = sidebarOpen
-        ? t('nav_tooltip.collapse_menu')
-        : t('nav_tooltip.expand_menu');
+    const leftSidebarLabel = navbarOpen
+        ? t('nav_tooltip.collapse_nav')
+        : t('nav_tooltip.expand_nav');
     const rightSidebarLabel = rightSidebarOpen
-        ? t('app_menu.hide_side_panel')
-        : t('app_menu.show_side_panel');
+        ? t('app_menu.hide_friends_sidebar')
+        : t('app_menu.show_friends_sidebar');
     const quickSearchLabel = t('app_menu.quick_search');
     const directAccessLabel = t('prompt.direct_access_omni.header');
 
@@ -298,10 +298,10 @@ export function MacOverlayTitleBar() {
                             label={leftSidebarLabel}
                             className="size-7 min-w-7 rounded-md px-0"
                             onClick={() => {
-                                setSidebarCollapsedPreference(sidebarOpen);
+                                setNavbarCollapsedPreference(navbarOpen);
                             }}
                         >
-                            {sidebarOpen ? (
+                            {navbarOpen ? (
                                 <PanelLeftIcon data-icon="icon" />
                             ) : (
                                 <PanelLeftOpenIcon data-icon="icon" />

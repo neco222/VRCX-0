@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import {
-    setSidebarCollapsedPreference,
+    setNavbarCollapsedPreference,
     setThemeModePreference
 } from '@/services/preferencesService';
 import { triggerToolByKey } from '@/services/toolActionService';
@@ -526,7 +526,7 @@ export function AppNavMenu({ isCollapsed }: any) {
                 showThemeToggle={!customThemeAppearanceControlled}
                 onNavigateSettings={() => navigate(routePathByName.settings)}
                 onToggleSidebar={() =>
-                    setSidebarCollapsedPreference(sidebarOpen)
+                    setNavbarCollapsedPreference(sidebarOpen)
                 }
                 onToggleTheme={() => {
                     if (customThemeAppearanceControlled) {

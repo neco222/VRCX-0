@@ -22,8 +22,8 @@ const SHORTCUT_GROUPS = [
     {
         titleKey: 'shortcuts.group.layout',
         items: [
-            { labelKey: 'nav_tooltip.collapse_menu', keys: ['B'] },
-            { labelKey: 'app_menu.hide_side_panel', keys: ['Shift', 'B'] }
+            { labelKey: 'nav_tooltip.collapse_nav', keys: ['B'] },
+            { labelKey: 'app_menu.hide_friends_sidebar', keys: ['Shift', 'B'] }
         ]
     }
 ];

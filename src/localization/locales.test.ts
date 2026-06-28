@@ -1,6 +1,38 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeLanguageCode } from './locales';
+import cs from './cs.json';
+import en from './en.json';
+import es from './es.json';
+import fr from './fr.json';
+import hu from './hu.json';
+import ja from './ja.json';
+import ko from './ko.json';
+import localeCases from './locale-cases.json';
+import { languageCodes, normalizeLanguageCode } from './locales';
+import pl from './pl.json';
+import pt from './pt.json';
+import ru from './ru.json';
+import th from './th.json';
+import vi from './vi.json';
+import zhCn from './zh-CN.json';
+import zhTw from './zh-TW.json';
+
+const localeSources: Record<string, unknown> = {
+    cs,
+    en,
+    es,
+    fr,
+    hu,
+    ja,
+    ko,
+    pl,
+    pt,
+    ru,
+    th,
+    vi,
+    'zh-CN': zhCn,
+    'zh-TW': zhTw
+};
 
 describe('normalizeLanguageCode', () => {
     it('keeps exact supported language codes', () => {
@@ -37,4 +69,79 @@ describe('normalizeLanguageCode', () => {
         expect(normalizeLanguageCode('')).toBe('en');
         expect(normalizeLanguageCode(null)).toBe('en');
     });
+
+    it('matches the shared Rust normalization cases', () => {
+        for (const localeCase of localeCases) {
+            expect(normalizeLanguageCode(localeCase.input)).toBe(
+                localeCase.expected
+            );
+        }
+    });
 });
+
+describe('native shell locale coverage', () => {
+    const requiredMenuKeys = [
+        'nativeShell.menu.app.title',
+        'nativeShell.menu.app.about',
+        'nativeShell.menu.app.settings',
+        'nativeShell.menu.app.checkUpdates',
+        'nativeShell.menu.app.restart',
+        'nativeShell.menu.app.startBackgroundMode',
+        'nativeShell.menu.app.logout',
+        'nativeShell.menu.app.quit',
+        'nativeShell.menu.view.title',
+        'nativeShell.menu.view.notificationCenter',
+        'nativeShell.menu.view.quickSearch',
+        'nativeShell.menu.view.directAccess',
+        'nativeShell.menu.view.toggleNav',
+        'nativeShell.menu.view.toggleFriendsSidebar',
+        'nativeShell.menu.view.customNav',
+        'nativeShell.menu.view.themes',
+        'nativeShell.menu.view.zoomIn',
+        'nativeShell.menu.view.zoomOut',
+        'nativeShell.menu.view.resetZoom',
+        'nativeShell.menu.tools.title',
+        'nativeShell.menu.tools.allTools',
+        'nativeShell.menu.help.title',
+        'nativeShell.menu.help.changelog',
+        'nativeShell.menu.help.keyboardShortcuts',
+        'nativeShell.menu.help.reportIssue',
+        'nativeShell.menu.help.github',
+        'nativeShell.menu.help.discord',
+        'nativeShell.menu.help.qqGroup',
+        'nativeShell.menu.help.openDevtools',
+        'nativeShell.menu.help.supportVrcx'
+    ];
+
+    it('keeps native shell menu labels in every locale source file', () => {
+        for (const locale of languageCodes) {
+            const source = readLocaleSource(locale);
+            for (const key of requiredMenuKeys) {
+                const value = readPath(source, key);
+                expect(value, `${locale} ${key}`).toEqual(expect.any(String));
+                if (typeof value !== 'string') {
+                    continue;
+                }
+                expect(value.trim()).not.toBe('');
+                expect(value).not.toBe(key);
+            }
+        }
+    });
+});
+
+function readLocaleSource(locale: string): unknown {
+    return localeSources[locale];
+}
+
+function readPath(source: unknown, keyPath: string): unknown {
+    return keyPath.split('.').reduce<unknown>((value, key) => {
+        if (isRecord(value) && key in value) {
+            return value[key];
+        }
+        return undefined;
+    }, source);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+}

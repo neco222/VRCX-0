@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "src-tauri",
+    "crates/i18n",
     "crates/core",
     "crates/persistence",
     "crates/integrations",
@@ -16,6 +17,7 @@ members = [
 ]
 default-members = [
     "src-tauri",
+    "crates/i18n",
     "crates/core",
     "crates/persistence",
     "crates/integrations",

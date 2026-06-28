@@ -191,6 +191,20 @@ jobs:
                   workspaces: . -> target
             - run: npm run rust:test
 
+    native-locales:
+        name: Native Locales Up-to-date
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: 24.x
+                  cache: npm
+            - run: npm ci
+            - run: npm run generate:native-locales
+            - name: Verify native locale catalogs are regenerated
+              run: git diff --exit-code crates/runtime-host/src/vr_overlay/localization/overlay_notifications.json src-tauri/src/localization/shell_strings.json
+
     tauri-bindings:
         name: Tauri Bindings Up-to-date
         runs-on: ubuntu-24.04
@@ -217,8 +231,8 @@ jobs:
               with:
                   workspaces: . -> target
             - run: npm ci
-            # Backend crate needs the generated overlay locales to compile.
-            - run: npm run generate:overlay-locales
+            # Backend crates need the generated native locale catalogs to compile.
+            - run: npm run generate:native-locales
             - run: npm run generate:tauri-bindings
             - name: Verify bindings.ts is regenerated
               run: git diff --exit-code src/platform/tauri/bindings.ts

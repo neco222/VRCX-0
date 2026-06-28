@@ -5,19 +5,26 @@ use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::CallToolResult;
 use rmcp::{schemars, tool, tool_router};
 use serde::{Deserialize, Serialize};
+use vrcx_0_core::activity_buckets::{
+    self, ActivityBucket as CoreActivityBucket, ActivityStreaks, ActivityTimeBucket,
+};
 use vrcx_0_persistence::{activity, social_aggregates};
 
 use crate::server::VrcxMcpServer;
 
 use super::common::{
-    map_persistence_error, ms_to_rfc3339_z, require_current_user_id, rfc3339_z,
-    social_aggregates_result, structured_result, time_window_bounds_ms, TimeWindowParams,
+    map_persistence_error, ms_to_rfc3339_z, require_current_user_id,
+    resolve_optional_target_or_result, rfc3339_z, social_aggregates_result, structured_result,
+    time_window_bounds_ms, TargetResolutionOutcome, TimeWindowParams, WithResolution,
 };
+
+const ACTIVITY_CACHE_CAVEAT: &str =
+    "Activity sessions come from this profile's local VRCX-0 activity cache.";
 
 #[tool_router(router = activity_tool_router, vis = "pub(crate)")]
 impl VrcxMcpServer {
     #[tool(
-        description = "Return ranked observed co-presence summary facts for friends in a time window. Results are already ranked and limited; pass a small `limit` to widen or narrow the ranking. Output includes totalRows/returnedRows/truncated."
+        description = "Return ranked observed co-presence (time-spent-together) facts, defaulting to current friends. Use this for \"who do I play/spend the most time with\". group_by=friend (default) ranks total minutes per person; only use friend_world to break one person's time down by world. For all-time/\"ever\"/\"so far\" questions OMIT time_window entirely — never pass a narrow window for an all-time question. Results are already ranked and limited; output includes totalRows/returnedRows/truncated and per-row isFriend."
     )]
     async fn get_copresence_summary(
         &self,
@@ -32,26 +39,42 @@ impl VrcxMcpServer {
                 min_minutes: input.min_minutes,
                 limit: input.limit,
                 owner_user_id: Some(owner_user_id),
-                friends_only: input.friends_only,
+                friends_only: input.friends_only.unwrap_or(true),
             },
         ))
     }
 
-    #[tool(description = "Return observed friend online activity buckets by hour or weekday.")]
+    #[tool(
+        description = "Return observed friend online activity buckets by hour or weekday. Hour/weekday buckets are computed in UTC unless you pass utcOffsetMinutes (the user's offset, e.g. 540 for UTC+9) — pass it so the buckets are already in the user's local time and need no conversion."
+    )]
     async fn get_friend_activity_pattern(
         &self,
         Parameters(input): Parameters<FriendActivityPatternParams>,
     ) -> Result<CallToolResult, String> {
         let owner_user_id = require_current_user_id(&self.runtime)?;
-        social_aggregates_result(social_aggregates::get_friend_activity_pattern(
+        let (user_id, resolved_user) =
+            match resolve_optional_target_or_result(&self.runtime, input.user.as_deref())? {
+                Some(TargetResolutionOutcome::Resolved(target)) => {
+                    (Some(target.user_id), target.echo)
+                }
+                Some(TargetResolutionOutcome::ToolResult(result)) => return Ok(result),
+                None => (None, None),
+            };
+        let output = social_aggregates::get_friend_activity_pattern(
             self.runtime.db.as_ref(),
             social_aggregates::FriendActivityPatternInput {
                 owner_user_id,
-                user_id: input.user_id,
+                user_id,
                 time_window: input.time_window.into(),
                 bucket: input.bucket.into(),
+                utc_offset_minutes: input.utc_offset_minutes,
             },
-        ))
+        )
+        .map_err(map_persistence_error)?;
+        structured_result(WithResolution {
+            inner: output,
+            resolved_user,
+        })
     }
 
     #[tool(description = "Search recently visited worlds from the local game log.")]
@@ -75,6 +98,45 @@ impl VrcxMcpServer {
         let owner_user_id = require_current_user_id(&self.runtime)?;
         structured_result(self.get_my_activity_output(owner_user_id, input)?)
     }
+
+    #[tool(
+        description = "Return the signed-in user's own playtime bucketed over time: year, month, week, dayOfWeek, or hourOfDay. Use this for \"which months did I play most\", activity trends, and personal schedule / when I log on. Pass utcOffsetMinutes (e.g. 540 for UTC+9) so month/day/hour buckets are local. Omit timeWindow for all history. Rows carry minutes and sessionCount; output includes a ready-to-read summary."
+    )]
+    async fn get_activity_timeline(
+        &self,
+        Parameters(input): Parameters<ActivityTimelineParams>,
+    ) -> Result<CallToolResult, String> {
+        let owner_user_id = require_current_user_id(&self.runtime)?;
+        let now_ms = Utc::now().timestamp_millis();
+        let pairs = self.activity_session_pairs_for_user(owner_user_id, now_ms)?;
+        let time_window: social_aggregates::TimeWindow = input.time_window.into();
+        let bounds = time_window_bounds_ms(&time_window)?;
+        let offset_minutes = input.utc_offset_minutes.unwrap_or(0);
+        let bucket = input.bucket.into();
+        let rows = activity_buckets::activity_timeline(
+            &pairs,
+            bucket,
+            offset_minutes,
+            bounds.from,
+            bounds.to,
+        );
+        structured_result(activity_timeline_output(input.bucket, offset_minutes, rows))
+    }
+
+    #[tool(
+        description = "Return the signed-in user's play-streak facts: longest break without playing, current break, longest daily play streak, total active days, first/last session, total minutes, and session count. Pass utcOffsetMinutes so day boundaries are local. Use this for \"longest I went without playing\" or \"how many days have I played\". Output includes a ready-to-read summary."
+    )]
+    async fn get_activity_streaks(
+        &self,
+        Parameters(input): Parameters<ActivityStreaksParams>,
+    ) -> Result<CallToolResult, String> {
+        let owner_user_id = require_current_user_id(&self.runtime)?;
+        let now_ms = Utc::now().timestamp_millis();
+        let pairs = self.activity_session_pairs_for_user(owner_user_id, now_ms)?;
+        let offset_minutes = input.utc_offset_minutes.unwrap_or(0);
+        let streaks = activity_buckets::activity_streaks(&pairs, now_ms, offset_minutes);
+        structured_result(activity_streaks_output(offset_minutes, streaks))
+    }
     #[tool(
         description = "Surface friends whose observed co-presence dropped sharply versus the prior equal-length window (fading relationships); defaults to the last 30 days versus the prior 30 days."
     )]
@@ -90,7 +152,7 @@ impl VrcxMcpServer {
     }
 
     #[tool(
-        description = "Return the hour-of-day or weekday buckets where the most friends are observed coming online (best time to catch people)."
+        description = "Return the hour-of-day or weekday buckets where the most friends are observed coming online (best time to catch people). Buckets are computed in UTC unless you pass utcOffsetMinutes (the user's offset, e.g. 540 for UTC+9) — pass it so the buckets are already in the user's local time and need no conversion."
     )]
     async fn get_best_time_to_play(
         &self,
@@ -104,6 +166,7 @@ impl VrcxMcpServer {
                 time_window: input.time_window.into(),
                 bucket: input.bucket.into(),
                 limit: input.limit,
+                utc_offset_minutes: input.utc_offset_minutes,
             },
         ))
     }
@@ -116,17 +179,30 @@ impl VrcxMcpServer {
         Parameters(input): Parameters<RecallEncounterParams>,
     ) -> Result<CallToolResult, String> {
         let owner_user_id = require_current_user_id(&self.runtime)?;
-        social_aggregates_result(social_aggregates::recall_encounter(
+        let (co_present_with_user_id, resolved_user) = match resolve_optional_target_or_result(
+            &self.runtime,
+            input.co_present_with.as_deref(),
+        )? {
+            Some(TargetResolutionOutcome::Resolved(target)) => (Some(target.user_id), target.echo),
+            Some(TargetResolutionOutcome::ToolResult(result)) => return Ok(result),
+            None => (None, None),
+        };
+        let output = social_aggregates::recall_encounter(
             self.runtime.db.as_ref(),
             social_aggregates::RecallEncounterInput {
                 owner_user_id,
                 name_query: input.name_query,
                 world_id: input.world_id,
-                co_present_with_user_id: input.co_present_with_user_id,
+                co_present_with_user_id,
                 time_window: input.time_window.unwrap_or_default().into(),
                 limit: input.limit,
             },
-        ))
+        )
+        .map_err(map_persistence_error)?;
+        structured_result(WithResolution {
+            inner: output,
+            resolved_user,
+        })
     }
 
     #[tool(
@@ -282,6 +358,7 @@ impl VrcxMcpServer {
                 time_window: time_window.clone(),
                 bucket: social_aggregates::ActivityBucket::HourOfDay,
                 limit: Some(3),
+                utc_offset_minutes: None,
             },
         )
         .map_err(map_persistence_error)?
@@ -336,7 +413,120 @@ impl VrcxMcpServer {
             limit: Some(10),
         })
     }
+
+    fn activity_session_pairs_for_user(
+        &self,
+        owner_user_id: String,
+        now_ms: i64,
+    ) -> Result<Vec<(i64, i64)>, String> {
+        activity::activity_sessions_get(self.runtime.db.as_ref(), owner_user_id)
+            .map(|sessions| activity_session_pairs(sessions, now_ms))
+            .map_err(map_persistence_error)
+    }
 }
+
+fn activity_session_pairs(
+    sessions: Vec<activity::ActivitySessionOutput>,
+    now_ms: i64,
+) -> Vec<(i64, i64)> {
+    sessions
+        .into_iter()
+        .filter_map(|session| {
+            let end = if session.is_open_tail {
+                now_ms
+            } else {
+                session.end
+            };
+            (end > session.start).then_some((session.start, end))
+        })
+        .collect()
+}
+
+fn activity_timeline_output(
+    bucket: ActivityTimelineBucketParam,
+    offset_minutes: i64,
+    rows: Vec<CoreActivityBucket>,
+) -> ActivityTimelineOutput {
+    let total_minutes = rows.iter().map(|row| row.minutes).sum::<i64>();
+    let summary = rows
+        .iter()
+        .filter(|row| row.minutes > 0)
+        .max_by_key(|row| row.minutes)
+        .map(|top| {
+            format!(
+                "Across {} {} buckets you logged {}h; most active: {} ({}h).",
+                rows.len(),
+                bucket.summary_label(),
+                total_minutes / 60,
+                top.label,
+                top.minutes / 60
+            )
+        })
+        .unwrap_or_else(|| "No activity sessions found in this window.".into());
+    ActivityTimelineOutput {
+        bucket: bucket.as_str().into(),
+        rows: rows.into_iter().map(ActivityTimelineRow::from).collect(),
+        summary,
+        caveats: vec![
+            format!(
+                "Buckets are in {}.",
+                activity_buckets::utc_offset_label(offset_minutes)
+            ),
+            ACTIVITY_CACHE_CAVEAT.into(),
+        ],
+    }
+}
+
+fn activity_streaks_output(offset_minutes: i64, streaks: ActivityStreaks) -> ActivityStreaksOutput {
+    let summary = if streaks.session_count == 0 {
+        "No activity sessions recorded yet.".into()
+    } else {
+        let current_break = if streaks.current_break_days == 0 {
+            "You've played today.".into()
+        } else {
+            format!(
+                "It's been {}d since you last played.",
+                streaks.current_break_days
+            )
+        };
+        format!(
+            "You've played on {} day(s); longest streak {}d, longest break {}d. {}",
+            streaks.total_active_days,
+            streaks.longest_play_streak_days,
+            streaks.longest_break_days,
+            current_break
+        )
+    };
+    ActivityStreaksOutput {
+        longest_break_days: streaks.longest_break_days,
+        current_break_days: streaks.current_break_days,
+        longest_play_streak_days: streaks.longest_play_streak_days,
+        total_active_days: streaks.total_active_days,
+        first_session_at: streaks.first_session_ms.map(ms_to_rfc3339_z),
+        last_session_at: streaks.last_session_ms.map(ms_to_rfc3339_z),
+        total_minutes: streaks.total_minutes,
+        session_count: streaks.session_count,
+        summary,
+        caveats: vec![
+            format!(
+                "Day boundaries and breaks are counted in {}.",
+                activity_buckets::utc_offset_label(offset_minutes)
+            ),
+            ACTIVITY_CACHE_CAVEAT.into(),
+        ],
+    }
+}
+
+impl From<CoreActivityBucket> for ActivityTimelineRow {
+    fn from(value: CoreActivityBucket) -> Self {
+        Self {
+            label: value.label,
+            minutes: value.minutes,
+            session_count: value.session_count,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 enum CopresenceGroupByParam {
@@ -350,6 +540,53 @@ impl From<CopresenceGroupByParam> for social_aggregates::CopresenceGroupBy {
         match value {
             CopresenceGroupByParam::Friend => Self::Friend,
             CopresenceGroupByParam::FriendWorld => Self::FriendWorld,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+enum ActivityTimelineBucketParam {
+    Year,
+    #[default]
+    Month,
+    Week,
+    #[serde(alias = "day_of_week")]
+    DayOfWeek,
+    #[serde(alias = "hour_of_day")]
+    HourOfDay,
+}
+
+impl ActivityTimelineBucketParam {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Year => "year",
+            Self::Month => "month",
+            Self::Week => "week",
+            Self::DayOfWeek => "dayOfWeek",
+            Self::HourOfDay => "hourOfDay",
+        }
+    }
+
+    fn summary_label(self) -> &'static str {
+        match self {
+            Self::Year => "year",
+            Self::Month => "month",
+            Self::Week => "week",
+            Self::DayOfWeek => "weekday",
+            Self::HourOfDay => "hour-of-day",
+        }
+    }
+}
+
+impl From<ActivityTimelineBucketParam> for ActivityTimeBucket {
+    fn from(value: ActivityTimelineBucketParam) -> Self {
+        match value {
+            ActivityTimelineBucketParam::Year => Self::Year,
+            ActivityTimelineBucketParam::Month => Self::Month,
+            ActivityTimelineBucketParam::Week => Self::Week,
+            ActivityTimelineBucketParam::DayOfWeek => Self::DayOfWeek,
+            ActivityTimelineBucketParam::HourOfDay => Self::HourOfDay,
         }
     }
 }
@@ -373,28 +610,37 @@ impl From<ActivityBucketParam> for social_aggregates::ActivityBucket {
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct CopresenceSummaryParams {
-    /// Time window to search. Omit for all history when the user explicitly asks "ever" or "so far".
+    /// Time window to search. Accepts {from, to} RFC3339, or a relative string
+    /// ("today", "yesterday", "this week", "last week", "this month",
+    /// "last month", or a rolling window like "7d", "2w", "3mo"). Resolved in
+    /// UTC; weeks start Monday. Omit only for all history ("ever", "so far").
     #[serde(default)]
     time_window: TimeWindowParams,
+    /// friend (default) ranks total time per person; friend_world breaks one
+    /// person's time down per world (use only for a per-world breakdown).
     #[serde(default)]
     group_by: CopresenceGroupByParam,
     /// Minimum co-presence minutes to include after aggregation.
     min_minutes: Option<i64>,
     /// Maximum ranked rows to return for a top/most ranking.
     limit: Option<i64>,
-    /// Restrict results to current friends.
-    #[serde(default)]
-    friends_only: bool,
+    /// Restrict to current friends. Defaults to true; set false only to include
+    /// strangers/acquaintances you are not friends with.
+    friends_only: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct FriendActivityPatternParams {
-    user_id: Option<String>,
+    #[serde(alias = "userId", alias = "user_id")]
+    user: Option<String>,
     #[serde(default)]
     time_window: TimeWindowParams,
     #[serde(default)]
     bucket: ActivityBucketParam,
+    /// The user's UTC offset in minutes (e.g. 540 for UTC+9, -300 for UTC-5).
+    /// Pass it so hour/weekday buckets come back in the user's local time.
+    utc_offset_minutes: Option<i64>,
 }
 
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
@@ -408,6 +654,26 @@ struct SearchWorldsVisitedParams {
 #[serde(rename_all = "camelCase")]
 struct MyActivityParams {
     time_window: Option<TimeWindowParams>,
+}
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct ActivityTimelineParams {
+    /// year | month | week | dayOfWeek | hourOfDay (default month).
+    #[serde(default)]
+    bucket: ActivityTimelineBucketParam,
+    /// Omit for all history.
+    #[serde(default)]
+    time_window: TimeWindowParams,
+    /// The user's UTC offset in minutes (e.g. 540 for UTC+9, -300 for UTC-5).
+    /// Pass it so month/day/hour buckets come back in the user's local time.
+    utc_offset_minutes: Option<i64>,
+}
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct ActivityStreaksParams {
+    /// The user's UTC offset in minutes (e.g. 540 for UTC+9, -300 for UTC-5).
+    /// Pass it so day boundaries and breaks are counted in the user's local time.
+    utc_offset_minutes: Option<i64>,
 }
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -425,6 +691,9 @@ struct BestTimeToPlayParams {
     #[serde(default)]
     bucket: ActivityBucketParam,
     limit: Option<i64>,
+    /// The user's UTC offset in minutes (e.g. 540 for UTC+9, -300 for UTC-5).
+    /// Pass it so hour/weekday buckets come back in the user's local time.
+    utc_offset_minutes: Option<i64>,
 }
 
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
@@ -432,7 +701,8 @@ struct BestTimeToPlayParams {
 struct RecallEncounterParams {
     name_query: Option<String>,
     world_id: Option<String>,
-    co_present_with_user_id: Option<String>,
+    #[serde(alias = "coPresentWithUserId", alias = "co_present_with_user_id")]
+    co_present_with: Option<String>,
     time_window: Option<TimeWindowParams>,
     limit: Option<i64>,
 }
@@ -450,6 +720,40 @@ struct MyActivityOutput {
     avg_session_minutes: i64,
     longest_session_minutes: i64,
     by_weekday: BTreeMap<String, i64>,
+    caveats: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ActivityTimelineOutput {
+    bucket: String,
+    rows: Vec<ActivityTimelineRow>,
+    summary: String,
+    caveats: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ActivityTimelineRow {
+    label: String,
+    minutes: i64,
+    session_count: usize,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ActivityStreaksOutput {
+    longest_break_days: i64,
+    current_break_days: i64,
+    longest_play_streak_days: i64,
+    total_active_days: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_session_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_session_at: Option<String>,
+    total_minutes: i64,
+    session_count: usize,
+    summary: String,
     caveats: Vec<String>,
 }
 
@@ -519,4 +823,67 @@ fn summarize_world_visits(rows: Vec<social_aggregates::VisitedWorldRow>) -> Vec<
     });
     worlds.truncate(5);
     worlds
+}
+
+#[cfg(test)]
+mod activity_output_tests {
+    use super::*;
+
+    fn ms(value: &str) -> i64 {
+        DateTime::parse_from_rfc3339(value)
+            .unwrap()
+            .timestamp_millis()
+    }
+
+    #[test]
+    fn timeline_output_echoes_bucket_and_keeps_histogram_rows() {
+        let rows = activity_buckets::activity_timeline(
+            &[(ms("2025-01-01T18:00:00Z"), ms("2025-01-01T20:00:00Z"))],
+            ActivityTimeBucket::HourOfDay,
+            540,
+            None,
+            None,
+        );
+
+        let output = activity_timeline_output(ActivityTimelineBucketParam::HourOfDay, 540, rows);
+
+        assert_eq!(output.bucket, "hourOfDay");
+        assert_eq!(output.rows.len(), 24);
+        assert!(output.rows.iter().any(|row| row.minutes == 60));
+        assert!(!output.summary.is_empty());
+        assert!(output
+            .caveats
+            .iter()
+            .any(|caveat| caveat.contains("UTC+09:00")));
+    }
+
+    #[test]
+    fn streaks_output_includes_summary_and_dates() {
+        let streaks = activity_buckets::activity_streaks(
+            &[(ms("2025-01-01T01:00:00Z"), ms("2025-01-01T02:00:00Z"))],
+            ms("2025-01-04T01:00:00Z"),
+            0,
+        );
+
+        let output = activity_streaks_output(0, streaks);
+
+        assert_eq!(output.current_break_days, 3);
+        assert_eq!(
+            output.first_session_at.as_deref(),
+            Some("2025-01-01T01:00:00Z")
+        );
+        assert!(!output.summary.is_empty());
+        assert!(output.caveats.iter().any(|caveat| caveat.contains("UTC")));
+    }
+
+    #[test]
+    fn timeline_bucket_accepts_camel_and_snake_case() {
+        let camel: ActivityTimelineParams =
+            serde_json::from_value(serde_json::json!({ "bucket": "dayOfWeek" })).unwrap();
+        let snake: ActivityTimelineParams =
+            serde_json::from_value(serde_json::json!({ "bucket": "hour_of_day" })).unwrap();
+
+        assert_eq!(camel.bucket, ActivityTimelineBucketParam::DayOfWeek);
+        assert_eq!(snake.bucket, ActivityTimelineBucketParam::HourOfDay);
+    }
 }

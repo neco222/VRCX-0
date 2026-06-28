@@ -2,11 +2,12 @@ use std::collections::{BTreeMap, HashSet};
 
 use crate::common::{row_string, ParamsBuilder};
 use crate::database::DatabaseService;
-use crate::realtime::normalize_user_table_prefix;
 use crate::Error;
 
 use super::caveats::recall_encounter_caveats;
-use super::helpers::{append_time_window_filter, clamped_optional_limit, date_part, table_exists};
+use super::helpers::{
+    append_time_window_filter, clamped_optional_limit, current_friend_id_set, date_part,
+};
 use super::types::{RecallEncounterInput, RecallEncounterOutput, RecallEncounterRow};
 
 const SCAN_LIMIT: i64 = 5000;
@@ -15,7 +16,7 @@ pub fn recall_encounter(
     db: &DatabaseService,
     input: RecallEncounterInput,
 ) -> Result<RecallEncounterOutput, Error> {
-    let friend_ids = current_friend_ids(db, &input.owner_user_id)?;
+    let friend_ids = current_friend_id_set(db, &input.owner_user_id)?;
 
     let mut sql = String::from(
         "SELECT user_id, display_name, location, created_at
@@ -23,6 +24,12 @@ pub fn recall_encounter(
          WHERE type = 'OnPlayerJoined' AND display_name <> ''",
     );
     let mut params = ParamsBuilder::new().set("scan_limit", SCAN_LIMIT);
+
+    let owner_user_id = input.owner_user_id.trim();
+    if !owner_user_id.is_empty() {
+        sql.push_str(" AND COALESCE(g.user_id, '') <> @owner_user_id");
+        params = params.set("owner_user_id", owner_user_id.to_string());
+    }
 
     if let Some(name_query) = trimmed(&input.name_query) {
         sql.push_str(" AND display_name LIKE @name_pattern");
@@ -106,23 +113,6 @@ pub fn recall_encounter(
         rows,
         caveats: recall_encounter_caveats(),
     })
-}
-
-fn current_friend_ids(db: &DatabaseService, owner_user_id: &str) -> Result<HashSet<String>, Error> {
-    let user_prefix = normalize_user_table_prefix(owner_user_id)?;
-    let table_name = format!("{user_prefix}_friend_log_current");
-    if !table_exists(db, &table_name)? {
-        return Ok(HashSet::new());
-    }
-    let rows = db.execute(
-        &format!("SELECT user_id FROM {table_name}"),
-        &ParamsBuilder::new().build(),
-    )?;
-    Ok(rows
-        .into_iter()
-        .map(|row| row_string(&row, 0))
-        .filter(|value| !value.is_empty())
-        .collect())
 }
 
 fn trimmed(value: &Option<String>) -> Option<String> {

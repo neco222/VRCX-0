@@ -2,13 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
     appVrOverlayConfigReload: vi.fn(),
+    appLanguageChanged: vi.fn(),
     appRestartApplication: vi.fn(),
     appOverlayActivityDefinitionsGet: vi.fn(),
     appOverlayActivityFiltersReload: vi.fn(),
     appVrOverlayEnabledSet: vi.fn(),
     appReadConfigFile: vi.fn(),
     appWriteConfigFile: vi.fn(),
-    appCurrentCulture: vi.fn(),
+    appSystemCulture: vi.fn(),
     getRawValue: vi.fn(),
     getBool: vi.fn(),
     getString: vi.fn(),
@@ -39,6 +40,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/platform/tauri/bindings', () => ({
     commands: {
         appVrOverlayConfigReload: mocks.appVrOverlayConfigReload,
+        appLanguageChanged: mocks.appLanguageChanged,
         appRestartApplication: mocks.appRestartApplication,
         appOverlayActivityDefinitionsGet:
             mocks.appOverlayActivityDefinitionsGet,
@@ -46,7 +48,7 @@ vi.mock('@/platform/tauri/bindings', () => ({
         appVrOverlayEnabledSet: mocks.appVrOverlayEnabledSet,
         appReadConfigFile: mocks.appReadConfigFile,
         appWriteConfigFile: mocks.appWriteConfigFile,
-        appCurrentCulture: mocks.appCurrentCulture
+        appSystemCulture: mocks.appSystemCulture
     }
 }));
 
@@ -269,6 +271,7 @@ describe('preferencesService characterization', () => {
         );
         mocks.storageSetString.mockResolvedValue(undefined);
         mocks.appVrOverlayConfigReload.mockResolvedValue(undefined);
+        mocks.appLanguageChanged.mockResolvedValue(undefined);
         mocks.appRestartApplication.mockResolvedValue(undefined);
         mocks.refreshDiscordPresence.mockResolvedValue(undefined);
         mocks.readRecentActionCooldown.mockReturnValue({
@@ -347,7 +350,7 @@ describe('preferencesService characterization', () => {
                 key === 'VRCX-0_notificationTimeout' ? 9000 : Number(fallback)
             )
         );
-        mocks.appCurrentCulture.mockResolvedValue('ja-JP');
+        mocks.appSystemCulture.mockResolvedValue('ja-JP');
 
         const snapshot = await loadPreferenceSnapshot();
 
@@ -452,6 +455,7 @@ describe('preferencesService characterization', () => {
             locale: 'ko'
         });
         expect(mocks.appVrOverlayConfigReload).toHaveBeenCalledTimes(1);
+        expect(mocks.appLanguageChanged).toHaveBeenCalledWith('ko');
     });
 
     it('updates DOM classes for table and accessibility preferences', async () => {

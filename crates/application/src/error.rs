@@ -13,6 +13,16 @@ pub enum Error {
     Custom(String),
 }
 
+impl From<vrcx_0_core::vrchat_registry_policy::RegistryPolicyError> for Error {
+    fn from(value: vrcx_0_core::vrchat_registry_policy::RegistryPolicyError) -> Self {
+        use vrcx_0_core::vrchat_registry_policy::RegistryPolicyError;
+        match value {
+            RegistryPolicyError::Json(error) => Self::Json(error),
+            RegistryPolicyError::Invalid(message) => Self::Custom(message),
+        }
+    }
+}
+
 impl From<vrcx_0_persistence::Error> for Error {
     fn from(value: vrcx_0_persistence::Error) -> Self {
         match value {

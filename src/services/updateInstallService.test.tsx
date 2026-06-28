@@ -8,8 +8,7 @@ const mocks = vi.hoisted(() => ({
     restartApplication: vi.fn(),
     toastError: vi.fn(),
     toastLoading: vi.fn(),
-    toastSuccess: vi.fn(),
-    toastCustom: vi.fn()
+    toastSuccess: vi.fn()
 }));
 
 vi.mock('@/services/updateService', () => ({
@@ -43,8 +42,7 @@ vi.mock('sonner', () => ({
     toast: {
         error: mocks.toastError,
         loading: mocks.toastLoading,
-        success: mocks.toastSuccess,
-        custom: mocks.toastCustom
+        success: mocks.toastSuccess
     }
 }));
 
@@ -157,7 +155,10 @@ describe('openOrInstallLatestAvailableUpdate', () => {
 
         expect(installed).toBe(true);
         expect(mocks.downloadAndInstallUpdate).toHaveBeenCalled();
-        expect(mocks.toastCustom).toHaveBeenCalled();
+        expect(mocks.toastLoading).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.objectContaining({ description: expect.anything() })
+        );
         expect(mocks.toastSuccess).toHaveBeenCalled();
         expect(mocks.restartApplication).toHaveBeenCalled();
     });

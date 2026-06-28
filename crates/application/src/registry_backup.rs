@@ -1,9 +1,6 @@
-use std::collections::HashMap;
-
 use chrono::{Duration, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use vrcx_0_core::vrchat_registry_policy::{is_allowed_registry_key, ALLOWED_REGISTRY_TYPES};
 use vrcx_0_persistence::config;
 use vrcx_0_persistence::DatabaseService;
 
@@ -364,69 +361,7 @@ fn registry_backup_data_to_json(data: &Value) -> Result<String> {
 }
 
 fn validate_registry_json(raw: &str) -> Result<()> {
-    let data: HashMap<String, HashMap<String, Value>> = serde_json::from_str(raw)?;
-    for (key, props) in data {
-        let type_int = props
-            .get("type")
-            .and_then(Value::as_i64)
-            .ok_or_else(|| Error::Custom(format!("Invalid registry type for {key}")))?;
-        let type_int = i32::try_from(type_int)
-            .map_err(|_| Error::Custom(format!("Invalid registry type for {key}")))?;
-        let value = props
-            .get("data")
-            .ok_or_else(|| Error::Custom(format!("Missing registry data for {key}")))?;
-        validate_registry_entry(&key, value, type_int)?;
-    }
-    Ok(())
-}
-
-fn validate_registry_entry(key: &str, value: &Value, type_int: i32) -> Result<()> {
-    validate_registry_key(key)?;
-    if !ALLOWED_REGISTRY_TYPES.contains(&type_int) {
-        return Err(Error::Custom(format!(
-            "Registry type {type_int} is not allowed for {key}."
-        )));
-    }
-
-    match type_int {
-        3 if value.is_string() => Ok(()),
-        4 if value
-            .as_i64()
-            .and_then(|raw| i32::try_from(raw).ok())
-            .is_some() =>
-        {
-            Ok(())
-        }
-        100 if value.as_f64().is_some() => Ok(()),
-        3 | 4 | 100 => Err(Error::Custom(format!(
-            "Invalid registry value shape for {key}."
-        ))),
-        _ => unreachable!("registry type allow-list is checked before value validation"),
-    }
-}
-
-fn validate_registry_key(key: &str) -> Result<()> {
-    let key = key.trim();
-    if key.is_empty() || key.len() > 128 {
-        return Err(Error::Custom("Invalid VRChat registry key.".into()));
-    }
-
-    let allowed = key.bytes().all(|byte| {
-        (byte == b' ' || byte.is_ascii_graphic()) && !matches!(byte, b'\\' | b'/' | b'"' | b'\'')
-    });
-    if !allowed {
-        return Err(Error::Custom(format!(
-            "VRChat registry key '{key}' contains unsupported characters."
-        )));
-    }
-
-    if !is_allowed_registry_key(key) {
-        return Err(Error::Custom(format!(
-            "VRChat registry key '{key}' is not in the allowed PlayerPrefs set."
-        )));
-    }
-
-    Ok(())
+    vrcx_0_core::vrchat_registry_policy::validate_registry_json(raw).map_err(Error::from)
 }
 
 fn normalized_backup_name(name: &str) -> String {

@@ -27,7 +27,6 @@ type DirectUpdateInstallOptions = {
 type DirectUpdateToastId = NonNullable<DirectUpdateInstallOptions['toastId']>;
 
 type DownloadToastContentProps = {
-    title: string;
     detail: string;
     progress: UpdateDownloadProgress;
 };
@@ -58,20 +57,13 @@ function formatProgressDetail(progress: UpdateDownloadProgress) {
     return `${percentText} · ${downloadedText}`;
 }
 
-function DownloadToastContent({
-    title,
-    detail,
-    progress
-}: DownloadToastContentProps) {
+function DownloadToastContent({ detail, progress }: DownloadToastContentProps) {
     const percent = Math.max(0, Math.min(100, progress.percent || 0));
 
     return (
-        <div className="flex w-full flex-col gap-2">
-            <div className="flex min-w-0 flex-col gap-1">
-                <div className="text-sm font-medium">{title}</div>
-                <div className="text-muted-foreground text-xs tabular-nums">
-                    {detail}
-                </div>
+        <div className="mt-1 flex w-full flex-col gap-2">
+            <div className="text-muted-foreground text-xs tabular-nums">
+                {detail}
             </div>
             <div className="bg-muted h-2 overflow-hidden rounded-full">
                 <div
@@ -245,21 +237,18 @@ export function installUpdateRelease(
                 return;
             }
 
-            toast.custom(
-                () => (
+            toast.loading(downloadTitle, {
+                id: toastId,
+                description: (
                     <DownloadToastContent
-                        title={downloadTitle}
                         detail={formatProgressDetail(progress)}
                         progress={progress}
                     />
                 ),
-                {
-                    id: toastId,
-                    duration: Infinity,
-                    position: 'bottom-right',
-                    dismissible: false
-                }
-            );
+                duration: Infinity,
+                position: 'bottom-right',
+                dismissible: false
+            });
         };
 
         try {

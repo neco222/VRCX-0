@@ -1039,11 +1039,11 @@ export const commands = {
     async appListSystemFonts(): Promise<string[]> {
         return await TAURI_INVOKE('app__list_system_fonts');
     },
-    async appCurrentCulture(): Promise<string> {
-        return await TAURI_INVOKE('app__current_culture');
+    async appSystemCulture(): Promise<string> {
+        return await TAURI_INVOKE('app__system_culture');
     },
-    async appCurrentLanguage(): Promise<string> {
-        return await TAURI_INVOKE('app__current_language');
+    async appSystemLanguage(): Promise<string> {
+        return await TAURI_INVOKE('app__system_language');
     },
     async appGetAppDataDirState(): Promise<AppDataDirState> {
         return await TAURI_INVOKE('app__get_app_data_dir_state');
@@ -2249,6 +2249,9 @@ export const commands = {
     },
     async appChangeTheme(value: number): Promise<null> {
         return await TAURI_INVOKE('app__change_theme', { value });
+    },
+    async appLanguageChanged(language: string): Promise<null> {
+        return await TAURI_INVOKE('app__language_changed', { language });
     },
     async appDoFunny(): Promise<void> {
         await TAURI_INVOKE('app__do_funny');

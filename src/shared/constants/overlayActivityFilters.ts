@@ -84,7 +84,10 @@ const INSTANCE_ACTOR_SCOPES: OverlayActivityScope[] = [
     'allFavorites',
     'everyoneInInstance'
 ];
-const REMOVED_OVERLAY_ACTIVITY_TYPE_KEYS = new Set(['PortalSpawn']);
+const REMOVED_OVERLAY_ACTIVITY_TYPE_KEYS = new Set([
+    'PortalSpawn',
+    'ChatBoxMessage'
+]);
 
 function createEmptyOverlayActivityCategoryMap(): Record<
     OverlayActivityCategory,
@@ -165,13 +168,6 @@ export const OVERLAY_ACTIVITY_TYPE_DEFINITIONS: OverlayActivityTypeDefinition[] 
             INSTANCE_ACTOR_SCOPES,
             'everyoneInInstance'
         ),
-        defineType(
-            'currentInstance',
-            'ChatBoxMessage',
-            INSTANCE_ACTOR_SCOPES,
-            'off'
-        ),
-
         defineType(
             'favoriteMovement',
             'Online',

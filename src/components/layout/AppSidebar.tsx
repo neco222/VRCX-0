@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import {
     setNavWidthPreference,
-    setSidebarCollapsedPreference
+    setNavbarCollapsedPreference
 } from '@/services/preferencesService';
 import { normalizeNavWidth, useShellStore } from '@/state/shellStore';
 import { Sidebar, SidebarInset, SidebarProvider } from '@/ui/shadcn/sidebar';
@@ -112,7 +112,7 @@ export function AppSidebar({ children }: any) {
             className="vrcx-0-sidebar-layout relative h-full min-h-0 w-full overflow-hidden"
             style={{ '--sidebar-width': `${navWidth}px` }}
             onOpenChange={(open: any) => {
-                setSidebarCollapsedPreference(!open);
+                setNavbarCollapsedPreference(!open);
             }}
         >
             <Sidebar

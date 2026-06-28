@@ -10,13 +10,13 @@ use vrcx_0_host::host_capabilities::{require_host_capability, HostCapability};
 
 #[tauri::command]
 #[specta::specta]
-pub fn app__current_culture() -> String {
+pub fn app__system_culture() -> String {
     normalize_locale(sys_locale::get_locale().unwrap_or_else(|| "en-US".into()))
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn app__current_language() -> String {
+pub fn app__system_language() -> String {
     normalize_locale(sys_locale::get_locale().unwrap_or_else(|| "en".into()))
 }
 

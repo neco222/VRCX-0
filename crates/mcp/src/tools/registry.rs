@@ -39,6 +39,9 @@ mod router_tests {
             vec![
                 "favorite_local",
                 "favorite_vrchat",
+                "find_user",
+                "get_activity_streaks",
+                "get_activity_timeline",
                 "get_best_time_to_play",
                 "get_companions_of",
                 "get_copresence_summary",
@@ -46,6 +49,7 @@ mod router_tests {
                 "get_favorites",
                 "get_friend_activity_pattern",
                 "get_friend_changes",
+                "get_friend_circles",
                 "get_friend_log",
                 "get_friend_note",
                 "get_friend_profile",
