@@ -1,11 +1,11 @@
-use std::{borrow::Cow, collections::BTreeMap, sync::OnceLock};
+use std::{borrow::Cow, sync::OnceLock};
 
-use serde::Deserialize;
 use serde_json::Value;
 use vrcx_0_application::OverlayActivityText;
 use vrcx_0_core::location::{
     format_display_location_with_labels, parse_location, DisplayLocationLabels,
 };
+use vrcx_0_i18n::{collapse_whitespace, interpolate, parse_catalog, Catalog};
 
 const OVERLAY_NOTIFICATIONS_JSON: &str = include_str!("localization/overlay_notifications.json");
 const EN_LOCALE: &str = "en";
@@ -22,7 +22,7 @@ pub(crate) enum OverlayLocale {
 
 impl OverlayLocale {
     pub(crate) fn from_config(value: &str) -> Self {
-        match value.trim() {
+        match catalog().resolve_locale(value).as_str() {
             "zh-CN" => Self::ZhCn,
             "zh-TW" => Self::ZhTw,
             "ja" => Self::Ja,
@@ -58,13 +58,9 @@ impl OverlayLocalizer {
             return collapse_whitespace(fallback);
         }
 
-        let catalog = catalog();
-        let template = localized_template(catalog, self.locale.as_str(), key)
-            .or_else(|| localized_template(catalog, &catalog.fallback_locale, key))
-            .unwrap_or(fallback);
-
+        let template = catalog().text(self.locale.as_str(), key, fallback);
         let params = self.localized_status_params(&text.params);
-        collapse_whitespace(&interpolate(template, params.as_ref()))
+        collapse_whitespace(&interpolate(&template, params.as_ref()))
     }
 
     pub(crate) fn activity_text(
@@ -121,14 +117,8 @@ impl OverlayLocalizer {
         format_display_location_with_labels(&parsed, world_name, group_name, &labels)
     }
 
-    pub(super) fn generic_instance_location(&self) -> &'static str {
-        match self.locale {
-            OverlayLocale::En => "an instance",
-            OverlayLocale::ZhCn => "某个房间",
-            OverlayLocale::ZhTw => "某個房間",
-            OverlayLocale::Ja => "インスタンス",
-            OverlayLocale::Ko => "인스턴스",
-        }
+    pub(super) fn generic_instance_location(&self) -> String {
+        self.label("overlay.generic_instance_location", "an instance")
     }
 
     fn group_access_label(&self, group: &str, key: &str, fallback: &str) -> String {
@@ -141,11 +131,7 @@ impl OverlayLocalizer {
     }
 
     fn label(&self, key: &str, fallback: &str) -> String {
-        let catalog = catalog();
-        let template = localized_template(catalog, self.locale.as_str(), key)
-            .or_else(|| localized_template(catalog, &catalog.fallback_locale, key))
-            .unwrap_or(fallback);
-        collapse_whitespace(template)
+        collapse_whitespace(&catalog().text(self.locale.as_str(), key, fallback))
     }
 
     fn localized_status_params<'a>(&self, params: &'a Value) -> Cow<'a, Value> {
@@ -175,78 +161,14 @@ fn status_label_key(status: &str) -> Option<&'static str> {
     }
 }
 
-#[derive(Debug, Deserialize, specta::Type)]
-#[serde(rename_all = "camelCase")]
-struct OverlayLocaleCatalog {
-    fallback_locale: String,
-    locales: BTreeMap<String, BTreeMap<String, String>>,
-}
-
-fn catalog() -> &'static OverlayLocaleCatalog {
-    static CATALOG: OnceLock<OverlayLocaleCatalog> = OnceLock::new();
+fn catalog() -> &'static Catalog {
+    static CATALOG: OnceLock<Catalog> = OnceLock::new();
     CATALOG.get_or_init(|| {
-        serde_json::from_str(OVERLAY_NOTIFICATIONS_JSON)
-            .expect("overlay notification locale catalog must be valid JSON")
+        parse_catalog(
+            OVERLAY_NOTIFICATIONS_JSON,
+            "overlay notification locale catalog",
+        )
     })
-}
-
-fn localized_template<'a>(
-    catalog: &'a OverlayLocaleCatalog,
-    locale: &str,
-    key: &str,
-) -> Option<&'a str> {
-    catalog
-        .locales
-        .get(locale)
-        .and_then(|values| values.get(key))
-        .map(String::as_str)
-}
-
-fn interpolate(template: &str, params: &Value) -> String {
-    let Some(params) = params.as_object() else {
-        return template.to_string();
-    };
-    let chars = template.chars().collect::<Vec<_>>();
-    let mut output = String::with_capacity(template.len());
-    let mut index = 0;
-
-    while index < chars.len() {
-        if chars[index] != '{' {
-            output.push(chars[index]);
-            index += 1;
-            continue;
-        }
-
-        let mut end = index + 1;
-        while end < chars.len() && chars[end] != '}' {
-            end += 1;
-        }
-
-        if end >= chars.len() {
-            output.push(chars[index]);
-            index += 1;
-            continue;
-        }
-
-        let key = chars[index + 1..end].iter().collect::<String>();
-        output.push_str(&param_value(params.get(key.trim())));
-        index = end + 1;
-    }
-
-    output
-}
-
-fn param_value(value: Option<&Value>) -> String {
-    match value {
-        Some(Value::String(value)) => value.trim().to_string(),
-        Some(Value::Bool(value)) => value.to_string(),
-        Some(Value::Number(value)) => value.to_string(),
-        _ => String::new(),
-    }
-}
-
-fn collapse_whitespace(value: &str) -> String {
-    value.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn should_localize_location_param(value: &str, location: &str) -> bool {
@@ -308,6 +230,17 @@ mod tests {
             localizer.text(&activity_text("notifications.has_left", json!({}), "left")),
             "has left"
         );
+    }
+
+    #[test]
+    fn config_locale_uses_shared_language_normalization() {
+        assert_eq!(OverlayLocale::from_config("zh-Hant"), OverlayLocale::ZhTw);
+        assert_eq!(OverlayLocale::from_config("zh_HK"), OverlayLocale::ZhTw);
+        assert_eq!(OverlayLocale::from_config("zh-MO"), OverlayLocale::ZhTw);
+        assert_eq!(OverlayLocale::from_config("zh-Hans"), OverlayLocale::ZhCn);
+        assert_eq!(OverlayLocale::from_config("ja-JP"), OverlayLocale::Ja);
+        assert_eq!(OverlayLocale::from_config("ko-KR"), OverlayLocale::Ko);
+        assert_eq!(OverlayLocale::from_config("de-DE"), OverlayLocale::En);
     }
 
     #[test]

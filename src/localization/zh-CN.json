@@ -129,7 +129,8 @@
         "footer": {
             "players": "{count} 名玩家",
             "instance_duration": "停留 {duration}"
-        }
+        },
+        "generic_instance_location": "某个房间"
     },
     "nativeShell": {
         "tray": {
@@ -147,6 +148,46 @@
             "authFailure": {
                 "title": "VRChat 登录已失效",
                 "body": "需要重新登录"
+            }
+        },
+        "menu": {
+            "app": {
+                "title": "VRCX-0",
+                "about": "关于 VRCX-0",
+                "settings": "设置...",
+                "checkUpdates": "检查更新",
+                "restart": "重启 VRCX-0",
+                "startBackgroundMode": "切换到后台模式",
+                "logout": "退出登录",
+                "quit": "退出 VRCX-0"
+            },
+            "view": {
+                "title": "视图",
+                "notificationCenter": "通知中心",
+                "quickSearch": "快速搜索",
+                "directAccess": "直接打开",
+                "toggleNav": "切换导航栏",
+                "toggleFriendsSidebar": "切换好友侧栏",
+                "customNav": "自定义导航栏",
+                "themes": "主题",
+                "zoomIn": "放大",
+                "zoomOut": "缩小",
+                "resetZoom": "重置缩放"
+            },
+            "tools": {
+                "title": "工具",
+                "allTools": "所有工具..."
+            },
+            "help": {
+                "title": "帮助",
+                "changelog": "更新日志",
+                "keyboardShortcuts": "键盘快捷键",
+                "reportIssue": "反馈问题",
+                "github": "在 GitHub 上查看",
+                "discord": "加入 Discord",
+                "qqGroup": "QQ群",
+                "openDevtools": "打开 DevTools",
+                "supportVrcx": "支持 VRCX-0"
             }
         }
     },

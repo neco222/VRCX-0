@@ -129,7 +129,8 @@
         "footer": {
             "players": "{count} 位玩家",
             "instance_duration": "停留 {duration}"
-        }
+        },
+        "generic_instance_location": "某個房間"
     },
     "nativeShell": {
         "tray": {
@@ -147,6 +148,46 @@
             "authFailure": {
                 "title": "VRChat 登入已失效",
                 "body": "需要重新登入"
+            }
+        },
+        "menu": {
+            "app": {
+                "title": "VRCX-0",
+                "about": "關於 VRCX-0",
+                "settings": "設定...",
+                "checkUpdates": "檢查更新",
+                "restart": "重新啟動 VRCX-0",
+                "startBackgroundMode": "切換到背景模式",
+                "logout": "登出",
+                "quit": "退出 VRCX-0"
+            },
+            "view": {
+                "title": "檢視",
+                "notificationCenter": "通知中心",
+                "quickSearch": "快速搜尋",
+                "directAccess": "直接存取",
+                "toggleNav": "切換導覽列",
+                "toggleFriendsSidebar": "切換好友側欄",
+                "customNav": "自訂導覽",
+                "themes": "主題",
+                "zoomIn": "放大",
+                "zoomOut": "縮小",
+                "resetZoom": "重設縮放"
+            },
+            "tools": {
+                "title": "工具",
+                "allTools": "所有工具..."
+            },
+            "help": {
+                "title": "說明",
+                "changelog": "最新更新",
+                "keyboardShortcuts": "鍵盤快捷鍵",
+                "reportIssue": "回報問題",
+                "github": "在 GitHub 上查看",
+                "discord": "加入我們的 Discord",
+                "qqGroup": "QQ 群",
+                "openDevtools": "開啟 DevTools",
+                "supportVrcx": "支持 VRCX-0"
             }
         }
     },

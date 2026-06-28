@@ -1,22 +1,9 @@
 // Separate file, to be importable in `vite.config.ts`.
+import languageCodes from './languageCodes.json';
+
 export const DEFAULT_LANGUAGE_CODE = 'en';
 
-export const languageCodes = [
-    'cs',
-    'en',
-    'es',
-    'fr',
-    'hu',
-    'ja',
-    'ko',
-    'pl',
-    'pt',
-    'ru',
-    'th',
-    'vi',
-    'zh-CN',
-    'zh-TW'
-];
+export { languageCodes };
 
 export function normalizeLanguageCode(language: unknown) {
     const candidate =

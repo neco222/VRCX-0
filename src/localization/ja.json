@@ -129,7 +129,8 @@
         "footer": {
             "players": "{count}人",
             "instance_duration": "滞在 {duration}"
-        }
+        },
+        "generic_instance_location": "インスタンス"
     },
     "nativeShell": {
         "tray": {
@@ -147,6 +148,46 @@
             "authFailure": {
                 "title": "VRChat ログインの有効期限が切れました",
                 "body": "再ログインが必要です"
+            }
+        },
+        "menu": {
+            "app": {
+                "title": "VRCX-0",
+                "about": "VRCX-0 について",
+                "settings": "設定...",
+                "checkUpdates": "アップデートを確認",
+                "restart": "VRCX-0 を再起動",
+                "startBackgroundMode": "バックグラウンドモードへ切り替える",
+                "logout": "ログアウト",
+                "quit": "VRCX-0 を終了"
+            },
+            "view": {
+                "title": "表示",
+                "notificationCenter": "通知センター",
+                "quickSearch": "クイック検索",
+                "directAccess": "ダイレクトアクセス",
+                "toggleNav": "ナビを切り替え",
+                "toggleFriendsSidebar": "フレンドサイドバーを切り替え",
+                "customNav": "ナビゲーションの編集",
+                "themes": "テーマ",
+                "zoomIn": "拡大",
+                "zoomOut": "縮小",
+                "resetZoom": "ズームをリセット"
+            },
+            "tools": {
+                "title": "ツール",
+                "allTools": "すべてのツール..."
+            },
+            "help": {
+                "title": "ヘルプ",
+                "changelog": "新機能 (更新履歴)",
+                "keyboardShortcuts": "キーボードショートカット",
+                "reportIssue": "問題を報告",
+                "github": "GitHub",
+                "discord": "みんなと話そう (Discord)",
+                "qqGroup": "QQグループ（中国語コミュニティ）",
+                "openDevtools": "DevTools を開く",
+                "supportVrcx": "VRCX-0 をサポート"
             }
         }
     },

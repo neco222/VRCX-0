@@ -1,6 +1,6 @@
-use std::{collections::BTreeMap, sync::OnceLock};
+use std::sync::OnceLock;
 
-use serde::Deserialize;
+use vrcx_0_i18n::{parse_catalog, Catalog};
 
 const SHELL_STRINGS_JSON: &str = include_str!("shell_strings.json");
 
@@ -23,13 +23,6 @@ pub(crate) struct BackgroundModeNotificationLabels {
 pub(crate) struct AuthFailureNotificationLabels {
     pub(crate) title: String,
     pub(crate) body: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ShellLocaleCatalog {
-    fallback_locale: String,
-    locales: BTreeMap<String, BTreeMap<String, String>>,
 }
 
 #[cfg(target_os = "macos")]
@@ -170,54 +163,12 @@ pub(crate) fn auth_failure_notification_labels_for_language(
 }
 
 fn text(language: &str, key: &str) -> String {
-    let catalog = catalog();
-    let locale = locale_key(catalog, language);
-    localized_text(catalog, &locale, key)
-        .or_else(|| localized_text(catalog, &catalog.fallback_locale, key))
-        .unwrap_or_default()
-        .to_string()
+    catalog().text(language, key, "")
 }
 
-fn catalog() -> &'static ShellLocaleCatalog {
-    static CATALOG: OnceLock<ShellLocaleCatalog> = OnceLock::new();
-    CATALOG.get_or_init(|| {
-        serde_json::from_str(SHELL_STRINGS_JSON).expect("shell locale catalog must be valid JSON")
-    })
-}
-
-fn localized_text<'a>(catalog: &'a ShellLocaleCatalog, locale: &str, key: &str) -> Option<&'a str> {
-    catalog
-        .locales
-        .get(locale)
-        .and_then(|values| values.get(key))
-        .map(String::as_str)
-}
-
-fn locale_key(catalog: &ShellLocaleCatalog, language: &str) -> String {
-    let normalized = language.trim().replace('_', "-").to_ascii_lowercase();
-    if normalized.is_empty() {
-        return catalog.fallback_locale.clone();
-    }
-
-    let parts = normalized
-        .split('-')
-        .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>();
-    let base = parts.first().copied().unwrap_or_default();
-    if base == "zh" {
-        let traditional = parts
-            .iter()
-            .skip(1)
-            .any(|part| matches!(*part, "hant" | "tw" | "hk" | "mo"));
-        return if traditional { "zh-TW" } else { "zh-CN" }.to_string();
-    }
-
-    catalog
-        .locales
-        .keys()
-        .find(|locale| locale.to_ascii_lowercase() == base)
-        .cloned()
-        .unwrap_or_else(|| catalog.fallback_locale.clone())
+fn catalog() -> &'static Catalog {
+    static CATALOG: OnceLock<Catalog> = OnceLock::new();
+    CATALOG.get_or_init(|| parse_catalog(SHELL_STRINGS_JSON, "shell locale catalog"))
 }
 
 #[cfg(test)]
@@ -256,8 +207,6 @@ mod tests {
         "nativeShell.menu.help.openDevtools",
         "nativeShell.menu.help.supportVrcx",
     ];
-    const MACOS_MENU_LOCALES: &[&str] = &["en", "ja", "ko", "zh-CN", "zh-TW"];
-
     #[test]
     fn routes_chinese_script_and_region_variants() {
         assert_eq!(
@@ -280,12 +229,12 @@ mod tests {
     }
 
     #[test]
-    fn includes_macos_menu_labels_for_core_shell_locales() {
+    fn includes_macos_menu_labels_for_all_shell_locales() {
         let catalog = catalog();
-        for locale in MACOS_MENU_LOCALES {
+        for locale in catalog.locales().keys() {
             let values = catalog
-                .locales
-                .get(*locale)
+                .locales()
+                .get(locale)
                 .unwrap_or_else(|| panic!("{locale} locale is missing"));
             for key in MACOS_MENU_KEYS {
                 let value = values
@@ -304,23 +253,17 @@ mod tests {
         }
 
         assert_eq!(
-            localized_text(catalog, "ko", "nativeShell.menu.view.toggleFriendsSidebar"),
+            catalog.localized_text("ko", "nativeShell.menu.view.toggleFriendsSidebar"),
             Some("친구 사이드바 전환")
         );
         assert_eq!(
-            localized_text(catalog, "ko", "nativeShell.menu.help.supportVrcx"),
+            catalog.localized_text("ko", "nativeShell.menu.help.supportVrcx"),
             Some("VRCX-0 후원")
         );
-    }
-
-    #[test]
-    fn non_core_macos_menu_locale_falls_back_to_english() {
-        let catalog = catalog();
-        assert!(
-            localized_text(catalog, "cs", "nativeShell.menu.app.about").is_none(),
-            "non-core shell menu locales should rely on the fallback locale"
+        assert_eq!(
+            catalog.localized_text("cs", "nativeShell.menu.app.about"),
+            Some("About VRCX-0")
         );
-        assert_eq!(text("cs", "nativeShell.menu.app.about"), "About VRCX-0");
     }
 
     #[cfg(target_os = "macos")]

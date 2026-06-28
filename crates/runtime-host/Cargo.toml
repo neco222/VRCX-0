@@ -20,6 +20,7 @@ tracing = { workspace = true }
 vrcx-0-application = { path = "../application" }
 vrcx-0-core = { path = "../core" }
 vrcx-0-host = { path = "../host" }
+vrcx-0-i18n = { path = "../i18n" }
 vrcx-0-media = { path = "../media" }
 vrcx-0-persistence = { path = "../persistence" }
 vrcx-0-vr-overlay = { path = "../vr-overlay" }

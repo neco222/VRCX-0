@@ -1,0 +1,22 @@
+[
+    { "input": "en", "expected": "en" },
+    { "input": "ja", "expected": "ja" },
+    { "input": "zh-CN", "expected": "zh-CN" },
+    { "input": "zh-TW", "expected": "zh-TW" },
+    { "input": "en-US", "expected": "en" },
+    { "input": "ja-JP", "expected": "ja" },
+    { "input": "ko-KR", "expected": "ko" },
+    { "input": "pt-BR", "expected": "pt" },
+    { "input": "en_US", "expected": "en" },
+    { "input": "zh_Hant_TW", "expected": "zh-TW" },
+    { "input": "zh", "expected": "zh-CN" },
+    { "input": "zh-Hans", "expected": "zh-CN" },
+    { "input": "zh-Hans-CN", "expected": "zh-CN" },
+    { "input": "zh-SG", "expected": "zh-CN" },
+    { "input": "zh-Hant", "expected": "zh-TW" },
+    { "input": "zh-Hant-HK", "expected": "zh-TW" },
+    { "input": "zh-HK", "expected": "zh-TW" },
+    { "input": "zh-MO", "expected": "zh-TW" },
+    { "input": "de-DE", "expected": "en" },
+    { "input": "", "expected": "en" }
+]
