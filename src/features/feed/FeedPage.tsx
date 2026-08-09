@@ -1,0 +1,235 @@
+import { Columns3Icon, TableIcon } from 'lucide-react';
+import { useMemo, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import { TableColumnVisibilityMenu } from '@/components/data-table/TableColumnVisibilityMenu';
+import { PreviousInstancesTableDialog } from '@/components/dialogs/PreviousInstancesTableDialog';
+import { PageBody, PageScaffold } from '@/components/layout/PageScaffold';
+import {
+    ToolbarSegmented,
+    type ToolbarSegmentOption
+} from '@/components/layout/ToolbarControls';
+import { usePreferencesStore } from '@/state/preferencesStore';
+import { Spinner } from '@/ui/shadcn/spinner';
+
+import { FeedColumnsMode } from './columns/FeedColumnsMode';
+import { FeedTableShell } from './components/FeedTableShell';
+import { FeedToolbar } from './components/FeedToolbar';
+import type { FeedViewMode } from './feedColumnsState';
+import { useFeedPageController } from './useFeedPageController';
+import { useFeedRowArrivals } from './useFeedRowArrivals';
+import { useFeedViewModeState } from './useFeedViewModeState';
+
+type FeedPageProps = {
+    embedded?: boolean;
+};
+
+function FeedViewModeToggle({
+    onValueChange,
+    value
+}: {
+    onValueChange(value: FeedViewMode): void;
+    value: FeedViewMode;
+}) {
+    const { t } = useTranslation();
+    const options: ToolbarSegmentOption<FeedViewMode>[] = [
+        {
+            value: 'table',
+            label: t('view.feed.modes.table'),
+            icon: TableIcon
+        },
+        {
+            value: 'columns',
+            label: t('view.feed.modes.columns'),
+            icon: Columns3Icon
+        }
+    ];
+
+    return (
+        <ToolbarSegmented
+            iconOnly
+            value={value}
+            onValueChange={onValueChange}
+            options={options}
+        />
+    );
+}
+
+export function FeedPage({ embedded = false }: FeedPageProps = {}) {
+    const {
+        columns,
+        density,
+        ready,
+        setColumns,
+        setDensity,
+        setViewMode,
+        viewMode
+    } = useFeedViewModeState();
+    const modeToggle = (
+        <FeedViewModeToggle value={viewMode} onValueChange={setViewMode} />
+    );
+    const feedPersistenceDisabled = usePreferencesStore(
+        (state) => state.feedPersistenceDisabled
+    );
+
+    if (!ready) {
+        return (
+            <PageScaffold
+                embedded={embedded}
+                className={embedded ? '' : 'feed'}
+            >
+                <PageBody className="items-center justify-center">
+                    <Spinner />
+                </PageBody>
+            </PageScaffold>
+        );
+    }
+
+    return (
+        <PageScaffold embedded={embedded} className={embedded ? '' : 'feed'}>
+            {viewMode === 'columns' ? (
+                <PageBody className="gap-2">
+                    <FeedColumnsMode
+                        columns={columns}
+                        density={density}
+                        modeToggle={modeToggle}
+                        onColumnsChange={setColumns}
+                        onDensityChange={setDensity}
+                        feedPersistenceDisabled={feedPersistenceDisabled}
+                    />
+                </PageBody>
+            ) : (
+                <FeedTableMode
+                    modeToggle={modeToggle}
+                    feedPersistenceDisabled={feedPersistenceDisabled}
+                />
+            )}
+        </PageScaffold>
+    );
+}
+
+function FeedTableMode({
+    modeToggle,
+    feedPersistenceDisabled
+}: {
+    modeToggle: ReactNode;
+    feedPersistenceDisabled: boolean;
+}) {
+    const {
+        columns,
+        filters,
+        friendActions,
+        isFavoritesLoaded,
+        loadStatus,
+        previousInstancesDialog,
+        resolvePageSize,
+        rows,
+        table,
+        tableModel
+    } = useFeedPageController();
+    const arrivals = useFeedRowArrivals(rows, loadStatus);
+    const columnsMenu = useMemo(
+        () => <TableColumnVisibilityMenu table={table} />,
+        [table, tableModel.columnOrderLocked, tableModel.columnVisibility]
+    );
+    const filterModel = useMemo(
+        () => ({
+            activeFilters: filters.activeFilters,
+            dateDraftFrom: filters.dateDraftFrom,
+            dateDraftRange: filters.dateDraftRange,
+            dateDraftTo: filters.dateDraftTo,
+            dateFilterOpen: filters.dateFilterOpen,
+            dateFrom: filters.dateFrom,
+            dateTo: filters.dateTo,
+            favoritesOnly: filters.favoritesOnly,
+            feedFilterTypes: filters.feedFilterTypes,
+            scopedUserIds: filters.scopedUserIds,
+            searchDraft: filters.searchDraft,
+            todayDate: filters.todayDate
+        }),
+        [
+            filters.activeFilters,
+            filters.dateDraftFrom,
+            filters.dateDraftRange,
+            filters.dateDraftTo,
+            filters.dateFilterOpen,
+            filters.dateFrom,
+            filters.dateTo,
+            filters.favoritesOnly,
+            filters.feedFilterTypes,
+            filters.scopedUserIds,
+            filters.searchDraft,
+            filters.todayDate
+        ]
+    );
+    const filterCommands = useMemo(
+        () => ({
+            onApplyDateFilter: filters.applyDateFilter,
+            onClearDateFilter: filters.clearDateFilter,
+            onClearFeedFilters: () => filters.setFeedFilters([]),
+            onClearSearch: filters.clearSearch,
+            onCommitSearch: () => filters.commitSearch(),
+            onDateFilterOpenChange: filters.setDateFilterOpen,
+            onDateRangeSelect: filters.onDateRangeSelect,
+            onScopeChange: filters.setUserScope,
+            onSearchDraftChange: filters.setSearchDraft,
+            onToggleFavoritesOnly: () =>
+                filters.setFavoritesOnly((current) => !current),
+            onToggleFeedFilter: filters.toggleFeedFilter
+        }),
+        [
+            filters.applyDateFilter,
+            filters.clearDateFilter,
+            filters.clearSearch,
+            filters.commitSearch,
+            filters.onDateRangeSelect,
+            filters.setDateFilterOpen,
+            filters.setFavoritesOnly,
+            filters.setFeedFilters,
+            filters.setSearchDraft,
+            filters.setUserScope,
+            filters.toggleFeedFilter
+        ]
+    );
+
+    return (
+        <>
+            <FeedToolbar
+                columnsMenu={columnsMenu}
+                filterModel={filterModel}
+                filterCommands={filterCommands}
+                modeToggle={modeToggle}
+                feedPersistenceDisabled={feedPersistenceDisabled}
+            />
+            <PageBody>
+                <FeedTableShell
+                    arrivals={arrivals}
+                    columns={columns}
+                    favoritesOnly={filters.favoritesOnly}
+                    isFavoritesLoaded={isFavoritesLoaded}
+                    loadStatus={loadStatus}
+                    loadingPreviousInstancesKey={
+                        previousInstancesDialog.loadingKey
+                    }
+                    onNewInstance={friendActions.openFeedNewInstance}
+                    onOpenPreviousInstances={
+                        previousInstancesDialog.openPreviousInstancesForLocation
+                    }
+                    onPaginationChange={tableModel.setPagination}
+                    pageSizes={tableModel.pageSizes}
+                    pagination={tableModel.pagination}
+                    resolvePageSize={resolvePageSize}
+                    rows={rows}
+                    table={table}
+                />
+            </PageBody>
+            <PreviousInstancesTableDialog
+                open={previousInstancesDialog.open}
+                onOpenChange={previousInstancesDialog.setOpen}
+                title={previousInstancesDialog.title}
+                instances={previousInstancesDialog.rows}
+                onRowsChange={previousInstancesDialog.setRows}
+            />
+        </>
+    );
+}

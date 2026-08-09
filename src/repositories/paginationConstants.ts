@@ -1,0 +1,2 @@
+export const VRCHAT_API_DEFAULT_PAGE_SIZE = 100;
+export const VRCHAT_PROFILE_MAX_PAGES = 50;

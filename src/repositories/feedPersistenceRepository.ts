@@ -1,0 +1,295 @@
+import type { FeedLiveEntry } from '@/domain/feed/feedLiveTypes';
+import {
+    commands,
+    type FeedFilter,
+    type FeedLiveRowsMergeInput,
+    type FeedQueryMode,
+    type FeedReadModelQueryInput,
+    type FeedRowOutput,
+    type FeedRowsQueryInput
+} from '@/platform/tauri/bindings';
+import {
+    DEFAULT_MAX_TABLE_SIZE,
+    DEFAULT_SEARCH_LIMIT
+} from '@/shared/constants/settings';
+import { normalizeString } from '@/shared/utils/string';
+
+import { normalizeUserTablePrefix } from './userSessionRepository';
+
+type FeedRowValue = Record<string, unknown>;
+
+export type FeedCursor = {
+    createdAt: string;
+    sourceRank: number;
+    rowId: number;
+};
+
+interface FeedRowsQueryOptions {
+    userId: unknown;
+    mode: FeedQueryMode;
+    search?: string;
+    filters?: FeedFilter[];
+    vipList?: string[];
+    scopedUserIds?: string[];
+    excludedUserIds?: string[];
+    maxEntries?: number;
+    dateFrom?: string;
+    dateTo?: string;
+    cursor?: FeedCursor | null;
+}
+
+interface FeedReadModelQueryOptions extends FeedRowsQueryOptions {
+    liveEntries?: FeedLiveEntry[];
+    minLiveSequence?: number;
+    favoritesOnly?: boolean;
+    favoriteUserIds?: string[];
+    excludedUserIds?: string[];
+    maxRows?: number;
+}
+
+interface FeedLiveRowsMergeOptions {
+    rows?: FeedRowValue[];
+    currentUserId?: string;
+    filters?: FeedFilter[];
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    favoritesOnly?: boolean;
+    favoriteUserIds?: string[];
+    scopedUserIds?: string[];
+    excludedUserIds?: string[];
+    liveEntries?: FeedLiveEntry[];
+    minLiveSequence?: number;
+    maxRows?: number;
+}
+
+function normalizeStringList(value: unknown): string[] {
+    return Array.isArray(value)
+        ? value.map(normalizeString).filter(Boolean)
+        : [];
+}
+
+const FEED_FILTER_SET: ReadonlySet<string> = new Set<FeedFilter>([
+    'GPS',
+    'Status',
+    'Bio',
+    'Avatar',
+    'Online',
+    'Offline'
+]);
+
+function normalizeFeedFilters(value: unknown): FeedFilter[] {
+    return normalizeStringList(value).filter((filter): filter is FeedFilter =>
+        FEED_FILTER_SET.has(filter)
+    );
+}
+
+function getUserPrefix(userId: unknown) {
+    return normalizeUserTablePrefix(userId);
+}
+
+const ensuredFeedTablePrefixes = new Map<string, Promise<void>>();
+
+function ensureFeedTablesForUser(userId: unknown): Promise<void> {
+    const userPrefix = getUserPrefix(userId);
+    const existing = ensuredFeedTablePrefixes.get(userPrefix);
+    if (existing) {
+        return existing;
+    }
+
+    const promise = commands
+        .appUserTablesEnsure(normalizeString(userId))
+        .then((): void => undefined)
+        .catch((error: unknown) => {
+            if (ensuredFeedTablePrefixes.get(userPrefix) === promise) {
+                ensuredFeedTablePrefixes.delete(userPrefix);
+            }
+            throw error;
+        });
+    ensuredFeedTablePrefixes.set(userPrefix, promise);
+    return promise;
+}
+
+function markFeedTablesEnsured(userPrefix: unknown) {
+    if (!userPrefix) {
+        return;
+    }
+    ensuredFeedTablePrefixes.set(String(userPrefix), Promise.resolve());
+}
+
+async function queryFeedRows({
+    userId,
+    mode,
+    search = '',
+    filters = [],
+    vipList = [],
+    scopedUserIds = [],
+    excludedUserIds = [],
+    maxEntries = DEFAULT_MAX_TABLE_SIZE,
+    dateFrom = '',
+    dateTo = '',
+    cursor = null
+}: FeedRowsQueryOptions): Promise<FeedRowOutput[]> {
+    await ensureFeedTablesForUser(userId);
+    const query = {
+        userId: normalizeString(userId),
+        mode,
+        search,
+        filters: normalizeFeedFilters(filters),
+        vipList: normalizeStringList(vipList),
+        scopedUserIds: normalizeStringList(scopedUserIds),
+        excludedUserIds: normalizeStringList(excludedUserIds),
+        maxEntries,
+        dateFrom,
+        dateTo,
+        cursor
+    } satisfies FeedRowsQueryInput;
+    return commands.appFeedRowsQuery(query);
+}
+
+const feed = {
+    markFeedTablesEnsured,
+
+    async searchFeedDatabase(
+        search: string,
+        filters: FeedFilter[],
+        vipList: string[],
+        maxEntries: number = DEFAULT_SEARCH_LIMIT,
+        dateFrom: string = '',
+        dateTo: string = '',
+        userId: unknown = '',
+        excludedUserIds: string[] = [],
+        scopedUserIds: string[] = []
+    ) {
+        return queryFeedRows({
+            userId,
+            mode: 'search',
+            search,
+            filters,
+            vipList,
+            scopedUserIds,
+            excludedUserIds,
+            maxEntries,
+            dateFrom,
+            dateTo
+        });
+    },
+
+    async queryFeedReadModel({
+        userId,
+        mode,
+        search = '',
+        filters = [],
+        vipList = [],
+        scopedUserIds = [],
+        maxEntries = DEFAULT_MAX_TABLE_SIZE,
+        dateFrom = '',
+        dateTo = '',
+        liveEntries = [],
+        minLiveSequence = 0,
+        favoritesOnly = false,
+        favoriteUserIds = [],
+        excludedUserIds = [],
+        maxRows = maxEntries,
+        cursor = null
+    }: FeedReadModelQueryOptions) {
+        await ensureFeedTablesForUser(userId);
+        const query = {
+            userId: normalizeString(userId),
+            mode,
+            search,
+            filters: normalizeFeedFilters(filters),
+            vipList: normalizeStringList(vipList),
+            scopedUserIds: normalizeStringList(scopedUserIds),
+            maxEntries,
+            dateFrom,
+            dateTo,
+            cursor,
+            liveEntries: Array.isArray(liveEntries) ? liveEntries : [],
+            minLiveSequence,
+            favoritesOnly,
+            favoriteUserIds: Array.isArray(favoriteUserIds)
+                ? favoriteUserIds
+                : [],
+            excludedUserIds: normalizeStringList(excludedUserIds),
+            maxRows
+        } satisfies FeedReadModelQueryInput;
+        return commands.appFeedReadModelQuery(query);
+    },
+
+    async mergeFeedLiveRows({
+        rows = [],
+        currentUserId = '',
+        filters = [],
+        search = '',
+        dateFrom = '',
+        dateTo = '',
+        favoritesOnly = false,
+        favoriteUserIds = [],
+        scopedUserIds = [],
+        excludedUserIds = [],
+        liveEntries = [],
+        minLiveSequence = 0,
+        maxRows = DEFAULT_MAX_TABLE_SIZE
+    }: FeedLiveRowsMergeOptions) {
+        const query = {
+            rows: Array.isArray(rows) ? rows : [],
+            currentUserId: normalizeString(currentUserId),
+            filters: normalizeFeedFilters(filters),
+            search,
+            dateFrom,
+            dateTo,
+            favoritesOnly,
+            favoriteUserIds: Array.isArray(favoriteUserIds)
+                ? favoriteUserIds
+                : [],
+            scopedUserIds: normalizeStringList(scopedUserIds),
+            excludedUserIds: normalizeStringList(excludedUserIds),
+            liveEntries: Array.isArray(liveEntries) ? liveEntries : [],
+            minLiveSequence,
+            maxRows
+        } satisfies FeedLiveRowsMergeInput;
+        return commands.appFeedLiveRowsMerge(query);
+    },
+
+    async lookupFeedDatabase(
+        userId: unknown,
+        filters: FeedFilter[],
+        vipList: string[],
+        maxEntries: number = DEFAULT_MAX_TABLE_SIZE,
+        cursor: FeedCursor | null = null,
+        excludedUserIds: string[] = [],
+        scopedUserIds: string[] = []
+    ) {
+        return queryFeedRows({
+            userId,
+            mode: 'lookup',
+            filters,
+            vipList,
+            scopedUserIds,
+            excludedUserIds,
+            maxEntries,
+            cursor
+        });
+    },
+
+    async getFeedByInstanceId(
+        userId: unknown,
+        instanceId: string,
+        filters: FeedFilter[],
+        vipList: string[],
+        maxEntries: number = DEFAULT_SEARCH_LIMIT
+    ) {
+        return queryFeedRows({
+            userId,
+            mode: 'instance',
+            search: instanceId,
+            filters,
+            vipList,
+            maxEntries
+        });
+    }
+};
+
+export { feed };
+export default feed;

@@ -1,0 +1,42 @@
+[package]
+name = "vrcx-0-mcp"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+description = "Local MCP server"
+
+[dependencies]
+axum = "0.8"
+base64 = { workspace = true }
+chrono = { workspace = true }
+constant_time_eq = "0.5"
+getrandom = "0.4"
+http = "1"
+http-body = "1"
+rmcp = { version = "3.1.0", features = [
+    "client",
+    "server",
+    "macros",
+    "schemars",
+    "transport-streamable-http-server"
+] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+socket2 = "0.6"
+specta = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = [
+    "io-util",
+    "macros",
+    "net",
+    "sync",
+    "time"
+] }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+vrcx-0-application = { path = "../application" }
+vrcx-0-application-core = { path = "../application-core" }
+vrcx-0-application-realtime = { path = "../application-realtime" }
+vrcx-0-core = { path = "../core" }
+vrcx-0-persistence = { path = "../persistence" }
+vrcx-0-runtime-host = { path = "../runtime-host" }

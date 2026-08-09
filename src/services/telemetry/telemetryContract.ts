@@ -1,0 +1,25 @@
+export const TELEMETRY_ROUTE_KEYS = [
+    'friends_locations',
+    'game_log',
+    'instance_history',
+    'player_list',
+    'search',
+    'dashboard',
+    'favorites_friends',
+    'favorites_worlds',
+    'favorites_avatars',
+    'friend_log',
+    'moderation',
+    'my_avatars',
+    'notification',
+    'friend_list',
+    'charts_mutual',
+    'tools',
+    'gallery',
+    'inventory',
+    'screenshot_metadata',
+    'vrchat_log',
+    'settings'
+] as const;
+
+export type TelemetryPageRouteKey = (typeof TELEMETRY_ROUTE_KEYS)[number];

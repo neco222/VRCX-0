@@ -1,0 +1,120 @@
+import mediaFileRepository, {
+    addScreenshotMetadata,
+    copyImageToClipboard,
+    cropAllPrints,
+    cropPrintImage,
+    deleteScreenshotMetadata,
+    ensureScreenshotThumbnail,
+    findScreenshotsBySearch,
+    getExtraScreenshotData,
+    getScreenshotFolderImages,
+    getScreenshotFolderTree,
+    getScreenshotLibraryStatus,
+    getFileBase64,
+    getLastScreenshot,
+    getScreenshotMetadata,
+    getUgcPhotoLocation,
+    getVrchatPhotosLocation,
+    getWorldScreenshots,
+    openFileSelectorDialog,
+    openFolderAndSelectItem,
+    resizeImageToFitLimits,
+    saveEmojiToFile,
+    saveImageFile,
+    savePrintToFile,
+    saveStickerToFile,
+    startScreenshotLibraryScan
+} from './mediaFileRepository';
+import vrchatMediaRepository, {
+    consumeInventoryBundle,
+    deleteFile,
+    deletePrint,
+    equipProfileDecoration,
+    getFileList,
+    getFiles,
+    getInventoryItems,
+    getPrint,
+    getPrints,
+    getUserInventoryItem,
+    redeemReward,
+    unequipProfileDecoration,
+    updateInventoryItem,
+    uploadAssetImage,
+    uploadAvatarGalleryImage,
+    uploadAvatarImageLegacy,
+    uploadEmoji,
+    uploadGalleryImage,
+    uploadPrint,
+    uploadSticker,
+    uploadVrcPlusIcon,
+    uploadWorldImageLegacy
+} from './vrchatMediaRepository';
+
+export type {
+    InventoryAsset,
+    InventoryItemMetadata,
+    InventoryItemRecord,
+    InventoryItemsResponse,
+    MediaFileRecord,
+    MediaPrintRecord
+} from './vrchatMediaRepository';
+
+type MediaRepository = typeof vrchatMediaRepository &
+    typeof mediaFileRepository;
+
+const mediaRepository = Object.freeze({
+    ...vrchatMediaRepository,
+    ...mediaFileRepository
+}) as MediaRepository;
+
+export {
+    getFiles,
+    getFileList,
+    deleteFile,
+    uploadGalleryImage,
+    uploadAvatarGalleryImage,
+    uploadVrcPlusIcon,
+    uploadEmoji,
+    uploadSticker,
+    uploadPrint,
+    uploadAssetImage,
+    getPrints,
+    getPrint,
+    deletePrint,
+    getInventoryItems,
+    getUserInventoryItem,
+    equipProfileDecoration,
+    unequipProfileDecoration,
+    updateInventoryItem,
+    consumeInventoryBundle,
+    redeemReward,
+    resizeImageToFitLimits,
+    uploadAvatarImageLegacy,
+    uploadWorldImageLegacy,
+    getFileBase64,
+    getScreenshotMetadata,
+    deleteScreenshotMetadata,
+    addScreenshotMetadata,
+    getExtraScreenshotData,
+    findScreenshotsBySearch,
+    startScreenshotLibraryScan,
+    getScreenshotLibraryStatus,
+    getScreenshotFolderTree,
+    getScreenshotFolderImages,
+    getWorldScreenshots,
+    ensureScreenshotThumbnail,
+    getLastScreenshot,
+    getVrchatPhotosLocation,
+    getUgcPhotoLocation,
+    openFileSelectorDialog,
+    openFolderAndSelectItem,
+    copyImageToClipboard,
+    saveImageFile,
+    savePrintToFile,
+    saveStickerToFile,
+    saveEmojiToFile,
+    cropPrintImage,
+    cropAllPrints
+};
+
+export default mediaRepository;

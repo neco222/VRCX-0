@@ -1,0 +1,161 @@
+import { commands } from '@/platform/tauri/bindings';
+import notificationPersistenceRepository from '@/repositories/notificationPersistenceRepository';
+import type { QueryParams } from '@/repositories/vrchatRequest';
+import vrchatSearchRepository from '@/repositories/vrchatSearchRepository';
+
+interface SendInviteToLocationInput {
+    receiverUserId?: unknown;
+    instanceId?: unknown;
+    worldId?: unknown;
+    worldName?: unknown;
+    messageSlot?: unknown;
+    imageData?: unknown;
+    rsvp?: unknown;
+}
+
+interface SendInvitesToLocationInput {
+    receiverUserIds?: unknown[];
+    location?: unknown;
+    shortName?: unknown;
+    worldName?: unknown;
+}
+
+interface SendRequestInviteToUserInput {
+    receiverUserId?: unknown;
+    platform?: string;
+    requestSlot?: unknown;
+    imageData?: unknown;
+}
+
+interface SendBoopToUserInput {
+    userId?: unknown;
+    emojiId?: unknown;
+}
+
+function normalizeText(value: unknown): string {
+    return typeof value === 'string'
+        ? value.trim()
+        : String(value ?? '').trim();
+}
+
+export async function sendInvitesToLocation({
+    receiverUserIds = [],
+    location,
+    shortName,
+    worldName
+}: SendInvitesToLocationInput = {}) {
+    return commands.appInstanceInviteBatch({
+        receiverUserIds: receiverUserIds.map(normalizeText).filter(Boolean),
+        location: normalizeText(location),
+        shortName: normalizeText(shortName),
+        worldName: normalizeText(worldName)
+    });
+}
+
+export async function sendInviteToLocation({
+    receiverUserId,
+    instanceId,
+    worldId,
+    worldName,
+    messageSlot = null,
+    imageData = '',
+    rsvp
+}: SendInviteToLocationInput = {}) {
+    const normalizedReceiverUserId = normalizeText(receiverUserId);
+    const normalizedInstanceId = normalizeText(instanceId);
+    const normalizedWorldId = normalizeText(worldId);
+    if (
+        !normalizedReceiverUserId ||
+        !normalizedInstanceId ||
+        !normalizedWorldId
+    ) {
+        return null;
+    }
+
+    const normalizedWorldName = normalizeText(worldName);
+    const worldResponse = normalizedWorldName
+        ? null
+        : await vrchatSearchRepository.getWorldById(normalizedWorldId);
+    const params: QueryParams = {
+        instanceId: normalizedInstanceId,
+        worldId: normalizedWorldId,
+        worldName:
+            normalizedWorldName ||
+            normalizeText(worldResponse?.json?.name) ||
+            normalizedWorldId
+    };
+    if (typeof rsvp === 'boolean') {
+        params.rsvp = rsvp;
+    }
+    const normalizedMessageSlot = Number.parseInt(
+        String(messageSlot ?? ''),
+        10
+    );
+    if (Number.isFinite(normalizedMessageSlot)) {
+        params.messageSlot = normalizedMessageSlot;
+    }
+
+    const normalizedImageData = normalizeText(imageData);
+    if (normalizedImageData) {
+        return notificationPersistenceRepository.sendInvitePhoto({
+            receiverUserId: normalizedReceiverUserId,
+            params,
+            imageData: normalizedImageData
+        });
+    }
+
+    return notificationPersistenceRepository.sendInvite({
+        receiverUserId: normalizedReceiverUserId,
+        params
+    });
+}
+
+export async function sendRequestInviteToUser({
+    receiverUserId,
+    platform = 'standalonewindows',
+    requestSlot = null,
+    imageData = ''
+}: SendRequestInviteToUserInput = {}) {
+    const normalizedReceiverUserId = normalizeText(receiverUserId);
+    if (!normalizedReceiverUserId) {
+        return null;
+    }
+
+    const params: QueryParams = { platform };
+    const normalizedRequestSlot = Number.parseInt(
+        String(requestSlot ?? ''),
+        10
+    );
+    if (Number.isFinite(normalizedRequestSlot)) {
+        params.requestSlot = normalizedRequestSlot;
+    }
+
+    const normalizedImageData = normalizeText(imageData);
+    if (normalizedImageData) {
+        return notificationPersistenceRepository.sendRequestInvitePhoto({
+            receiverUserId: normalizedReceiverUserId,
+            params,
+            imageData: normalizedImageData
+        });
+    }
+
+    return notificationPersistenceRepository.sendRequestInvite({
+        receiverUserId: normalizedReceiverUserId,
+        params
+    });
+}
+
+export async function sendBoopToUser({
+    userId,
+    emojiId = ''
+}: SendBoopToUserInput = {}) {
+    const normalizedUserId = normalizeText(userId);
+    if (!normalizedUserId) {
+        return null;
+    }
+
+    return notificationPersistenceRepository.sendBoop({
+        userId: normalizedUserId,
+        emojiId
+    });
+}

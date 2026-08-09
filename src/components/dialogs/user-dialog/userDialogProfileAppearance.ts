@@ -1,0 +1,188 @@
+import type { InventoryItemRecord } from '@/repositories/vrchatMediaRepository';
+import {
+    profileBackgroundAssetUrl,
+    profileBackgroundFileList
+} from '@/shared/constants/profileBackgrounds';
+
+import type {
+    UserDialogProfileRecord,
+    UserDialogProfileSnapshot
+} from './userDialogProfileTypes';
+
+const PROFILE_APPEARANCE_FIELDS = [
+    'backgroundGradientBottom',
+    'backgroundGradientTop',
+    'backgroundTemplateId',
+    'backgroundTextureId',
+    'backgroundType',
+    'bannerColor',
+    'bannerCustomUrl',
+    'bannerType',
+    'bannerUrl',
+    'hasVrcPlus',
+    'iconFrame',
+    'iconType',
+    'iconUrl',
+    'isEconomyCreator',
+    'nameplateEffect',
+    'profileEffect',
+    'themeId',
+    'themes',
+    'userIcon'
+] as const;
+
+export const PROFILE_DECORATION_SLOTS = [
+    'iconFrame',
+    'profileEffect',
+    'nameplateEffect'
+] as const;
+
+export type ProfileDecorationSlot = (typeof PROFILE_DECORATION_SLOTS)[number];
+
+export type UserDialogProfileAppearance = Partial<
+    Record<ProfileDecorationSlot, InventoryItemRecord>
+>;
+
+type ProfileDecorationAssetUrls = {
+    animatedUrl: string;
+    staticUrl: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return Boolean(value && typeof value === 'object');
+}
+
+function normalizeText(value: unknown): string {
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+export function mergeUserDialogProfileAppearance(
+    user: UserDialogProfileSnapshot,
+    appearance: unknown,
+    targetUserId: string
+): UserDialogProfileSnapshot {
+    if (!user || !isRecord(appearance)) {
+        return user;
+    }
+
+    const responseUserId = normalizeText(appearance.id);
+    if (responseUserId && responseUserId !== normalizeText(targetUserId)) {
+        return user;
+    }
+
+    let nextUser = user;
+    for (const field of PROFILE_APPEARANCE_FIELDS) {
+        if (!Object.prototype.hasOwnProperty.call(appearance, field)) {
+            continue;
+        }
+        if (nextUser === user) {
+            nextUser = { ...user };
+        }
+        nextUser[field] = appearance[field];
+    }
+    return nextUser;
+}
+
+export function preserveUserDialogProfileAppearance(
+    user: UserDialogProfileSnapshot,
+    previousUser: UserDialogProfileSnapshot
+): UserDialogProfileSnapshot {
+    if (!user || !previousUser) {
+        return user;
+    }
+
+    let nextUser = user;
+    for (const field of PROFILE_APPEARANCE_FIELDS) {
+        if (
+            Object.prototype.hasOwnProperty.call(user, field) ||
+            !Object.prototype.hasOwnProperty.call(previousUser, field)
+        ) {
+            continue;
+        }
+        if (nextUser === user) {
+            nextUser = { ...user };
+        }
+        nextUser[field] = previousUser[field];
+    }
+    return nextUser;
+}
+
+export function normalizeProfileAppearanceColor(value: unknown): string {
+    const color = normalizeText(value).replace(/^#/, '');
+    return /^[\da-f]{6}$/i.test(color) ? `#${color.toLowerCase()}` : '';
+}
+
+const PROFILE_GRADIENT_MAX_SCRIM = 0.55;
+const PROFILE_GRADIENT_DARK_THEME_RANGE = { safe: 0.3, unsafe: 0.75 };
+const PROFILE_GRADIENT_LIGHT_THEME_RANGE = { safe: 0.55, unsafe: 0.12 };
+
+function linearizeChannel(value: number): number {
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+}
+
+function relativeLuminance(color: string): number {
+    const [red, green, blue] = [1, 3, 5].map((offset) =>
+        linearizeChannel(
+            Number.parseInt(color.slice(offset, offset + 2), 16) / 255
+        )
+    );
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+function scrimForColor(value: string, isDarkTheme: boolean): number {
+    const color = normalizeProfileAppearanceColor(value);
+    if (!color) {
+        return 0;
+    }
+    const { safe, unsafe } = isDarkTheme
+        ? PROFILE_GRADIENT_DARK_THEME_RANGE
+        : PROFILE_GRADIENT_LIGHT_THEME_RANGE;
+    const progress = (relativeLuminance(color) - safe) / (unsafe - safe);
+    return Math.min(Math.max(progress, 0), 1) * PROFILE_GRADIENT_MAX_SCRIM;
+}
+
+export function resolveProfileGradientScrimAlpha(
+    topColor: string,
+    bottomColor: string,
+    isDarkTheme: boolean
+): number {
+    return Math.max(
+        scrimForColor(topColor, isDarkTheme),
+        scrimForColor(bottomColor, isDarkTheme)
+    );
+}
+
+export function resolveUserDialogBackgroundTextureUrl(
+    profile: UserDialogProfileRecord
+): string {
+    const fileName =
+        profileBackgroundFileList[normalizeText(profile.backgroundTextureId)];
+    return fileName ? `${profileBackgroundAssetUrl}${fileName}` : '';
+}
+
+export function resolveUserDialogBannerUrl(
+    profile: UserDialogProfileRecord
+): string {
+    if (normalizeText(profile.bannerType) === 'color') {
+        return '';
+    }
+    return (
+        normalizeText(profile.bannerUrl) ||
+        normalizeText(profile.bannerCustomUrl)
+    );
+}
+
+export function resolveProfileDecorationAssetUrls(
+    item: InventoryItemRecord | null | undefined
+): ProfileDecorationAssetUrls {
+    const assets = Array.isArray(item?.metadata?.assets)
+        ? item.metadata.assets
+        : [];
+    const assetUrl = (type: string) =>
+        normalizeText(assets.find((asset) => asset.type === type)?.url);
+
+    return {
+        animatedUrl: assetUrl('mainAnimation'),
+        staticUrl: assetUrl('base')
+    };
+}

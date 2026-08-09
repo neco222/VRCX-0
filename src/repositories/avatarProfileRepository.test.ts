@@ -1,0 +1,212 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const mocks = vi.hoisted(() => ({
+    appVrchatAvatarFileGet: vi.fn(),
+    appVrchatAvatarSelect: vi.fn(),
+    appVrchatAvatarSelectFallback: vi.fn()
+}));
+
+vi.mock('@/platform/tauri/bindings', () => ({
+    commands: {
+        appVrchatAvatarFileGet: mocks.appVrchatAvatarFileGet,
+        appVrchatAvatarSelect: mocks.appVrchatAvatarSelect,
+        appVrchatAvatarSelectFallback: mocks.appVrchatAvatarSelectFallback
+    }
+}));
+
+import { queryKeys } from '@/lib/entityQueryCache';
+import { queryClient } from '@/lib/queryClient';
+import { DEFAULT_VRCHAT_API_ENDPOINT } from '@/shared/vrchatEndpoint';
+
+import avatarProfileRepository, {
+    clearAvatarNameCache,
+    getAvatarNameCacheSize,
+    getAvatarNameFromImageUrl
+} from './avatarProfileRepository';
+import * as avatarProfileExports from './avatarProfileRepository';
+
+beforeEach(() => {
+    vi.resetAllMocks();
+    queryClient.clear();
+    clearAvatarNameCache();
+});
+
+describe('AvatarProfileRepository', () => {
+    it('normalizes the stable avatar fields while preserving nullable metadata', () => {
+        const avatar = avatarProfileRepository.normalize({
+            id: 'avtr_redacted',
+            name: 'Avatar',
+            acknowledgements: null,
+            attribution: null,
+            authorId: 'usr_redacted',
+            authorName: 'Author',
+            created_at: '2026-01-01T00:00:00.000Z',
+            listingDate: null,
+            styles: { primary: 'classic', secondary: 'expressive' },
+            unityPackages: [
+                {
+                    id: 'unp_redacted',
+                    platform: 'standalonewindows',
+                    variant: 'security'
+                }
+            ],
+            updated_at: '2026-01-02T00:00:00.000Z'
+        });
+
+        expect(avatar).toMatchObject({
+            id: 'avtr_redacted',
+            acknowledgements: null,
+            attribution: null,
+            listingDate: null,
+            styles: { primary: 'classic', secondary: 'expressive' },
+            unityPackages: [
+                { platform: 'standalonewindows', variant: 'security' }
+            ],
+            $tags: [],
+            $timeSpent: 0,
+            $memo: '',
+            $isCached: false
+        });
+    });
+
+    it('applies local snapshot metadata through the named normalization export', () => {
+        const avatar = avatarProfileExports.normalize(
+            {
+                id: ' avtr_local ',
+                authorId: ' usr_author '
+            },
+            {
+                cachedAvatar: { id: 'avtr_local' },
+                localTags: [
+                    { tag: ' favorite ', color: ' #123456 ' },
+                    { tag: '', color: 'ignored' }
+                ],
+                timeSpent: '42',
+                memo: ' local memo '
+            }
+        );
+
+        expect(avatar).toMatchObject({
+            id: 'avtr_local',
+            authorId: 'usr_author',
+            authorName: 'usr_author',
+            $tags: [{ tag: 'favorite', color: '#123456' }],
+            $timeSpent: 42,
+            $memo: ' local memo ',
+            $isCached: true
+        });
+    });
+
+    it('keeps the frozen facade wired to every named function export', () => {
+        const repositoryFunctionNames: Array<
+            keyof typeof avatarProfileRepository
+        > = [
+            'normalize',
+            'clearAvatarNameCache',
+            'getAvatarNameCacheSize',
+            'getLocalSnapshot',
+            'getAvatarProfile',
+            'getAvatarGallery',
+            'getAvatarsByUser',
+            'getAllAvatarsByUser',
+            'selectAvatar',
+            'selectFallbackAvatar',
+            'saveAvatar',
+            'getAvatarStyles',
+            'deleteAvatar',
+            'createImposter',
+            'deleteImposter',
+            'getAvatarModerations',
+            'sendAvatarModeration',
+            'deleteAvatarModeration',
+            'getAvatarNameFromImageUrl'
+        ];
+
+        expect(Object.isFrozen(avatarProfileRepository)).toBe(true);
+        expect(Object.keys(avatarProfileRepository)).toEqual(
+            repositoryFunctionNames
+        );
+        for (const name of repositoryFunctionNames) {
+            expect(avatarProfileRepository[name]).toBe(
+                avatarProfileExports[name]
+            );
+        }
+    });
+
+    it('returns current-user selection responses without replacing avatar cache entries', async () => {
+        const cachedAvatar = {
+            id: 'avtr_selected',
+            name: 'Selected Avatar'
+        };
+        const currentUser = {
+            id: 'usr_self',
+            currentAvatar: 'avtr_selected'
+        };
+        const avatarQueryKey = queryKeys.avatar(
+            cachedAvatar.id,
+            DEFAULT_VRCHAT_API_ENDPOINT
+        );
+        queryClient.setQueryData(avatarQueryKey, cachedAvatar);
+        mocks.appVrchatAvatarSelect.mockResolvedValue({
+            applied: true,
+            response: {
+                status: 200,
+                data: JSON.stringify(currentUser)
+            }
+        });
+        mocks.appVrchatAvatarSelectFallback.mockResolvedValue({
+            applied: true,
+            response: {
+                status: 200,
+                data: JSON.stringify(currentUser)
+            }
+        });
+
+        await expect(
+            avatarProfileRepository.selectAvatar({
+                avatarId: ` ${cachedAvatar.id} `
+            })
+        ).resolves.toMatchObject({ applied: true, json: currentUser });
+        await expect(
+            avatarProfileRepository.selectFallbackAvatar({
+                avatarId: ` ${cachedAvatar.id} `
+            })
+        ).resolves.toMatchObject({ applied: true, json: currentUser });
+
+        expect(mocks.appVrchatAvatarSelect).toHaveBeenCalledWith({
+            avatarId: cachedAvatar.id
+        });
+        expect(mocks.appVrchatAvatarSelectFallback).toHaveBeenCalledWith({
+            avatarId: cachedAvatar.id
+        });
+        expect(queryClient.getQueryData(avatarQueryKey)).toEqual(cachedAvatar);
+    });
+
+    it('shares one avatar name cache across facade and named exports', async () => {
+        mocks.appVrchatAvatarFileGet.mockResolvedValue({
+            status: 200,
+            data: JSON.stringify({
+                name: 'Avatar - Shared cache - Image - 1',
+                ownerId: 'usr_owner',
+                versions: [{ created_at: '2026-01-03T00:00:00.000Z' }]
+            })
+        });
+
+        const imageUrl =
+            'https://api.vrchat.cloud/api/1/file/file_avatar_profile/1/file';
+        const first = await getAvatarNameFromImageUrl(imageUrl);
+        const second =
+            await avatarProfileRepository.getAvatarNameFromImageUrl(imageUrl);
+
+        expect(first).toEqual({
+            ownerId: 'usr_owner',
+            avatarName: 'Shared cache',
+            fileCreatedAt: '2026-01-03T00:00:00.000Z'
+        });
+        expect(second).toBe(first);
+        expect(mocks.appVrchatAvatarFileGet).toHaveBeenCalledTimes(1);
+        expect(avatarProfileRepository.getAvatarNameCacheSize()).toBe(1);
+        expect(clearAvatarNameCache()).toBe(1);
+        expect(getAvatarNameCacheSize()).toBe(0);
+    });
+});

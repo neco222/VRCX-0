@@ -1,0 +1,257 @@
+import type { FeedLiveEntry } from '@/domain/feed/feedLiveTypes';
+import type { FeedReadModelResult } from '@/domain/feed/feedReadModelTypes';
+import type { FeedFilter, FeedRowOutput } from '@/platform/tauri/bindings';
+
+import configRepository from './configRepository';
+import feedPersistenceRepository from './feedPersistenceRepository';
+import type { FeedCursor } from './feedPersistenceRepository';
+import userSessionRepository from './userSessionRepository';
+
+export const FEED_FILTER_TYPES: readonly FeedFilter[] = Object.freeze([
+    'GPS',
+    'Online',
+    'Offline',
+    'Status',
+    'Avatar',
+    'Bio'
+]);
+
+export type FeedFilterType = FeedFilter;
+export type FeedEntry = Record<string, unknown>;
+const FEED_FILTER_TYPE_SET: ReadonlySet<string> = new Set(FEED_FILTER_TYPES);
+
+export interface FeedQueryOptions {
+    userId: unknown;
+    search?: unknown;
+    filters?: unknown[];
+    favoriteUserIds?: unknown[];
+    scopedUserIds?: readonly unknown[];
+    excludedFavoriteUserIds?: unknown[];
+    dateFrom?: string;
+    dateTo?: string;
+    maxEntries?: number;
+    cursor?: FeedCursor | null;
+}
+
+export interface FeedReadModelQueryOptions extends FeedQueryOptions {
+    liveEntries?: FeedLiveEntry[];
+    minLiveSequence?: number;
+    favoritesOnly?: boolean;
+    maxRows?: number;
+}
+
+export interface FeedLiveRowsMergeOptions extends FeedReadModelQueryOptions {
+    rows?: FeedEntry[];
+}
+
+interface FeedReadyState {
+    normalizedUserId: string;
+    maxTableSize: number;
+    searchLimit: number;
+}
+
+function normalizeUserId(value: unknown): string {
+    return typeof value === 'string'
+        ? value.trim()
+        : String(value ?? '').trim();
+}
+
+function normalizeUserIdList(value: readonly unknown[] = []): string[] {
+    return Array.from(
+        new Set(
+            (Array.isArray(value) ? value : [])
+                .map((entry) => normalizeUserId(entry))
+                .filter(Boolean)
+        )
+    );
+}
+
+function normalizeFilterList(filters: unknown[] = []): FeedFilterType[] {
+    if (!Array.isArray(filters)) {
+        return [];
+    }
+
+    return filters.filter((filter, index, source): filter is FeedFilterType => {
+        if (typeof filter !== 'string') {
+            return false;
+        }
+
+        if (!FEED_FILTER_TYPE_SET.has(filter)) {
+            return false;
+        }
+
+        return source.indexOf(filter) === index;
+    });
+}
+
+class FeedRepository {
+    #currentUserId: string = '';
+
+    async #ensureReady(userId: unknown): Promise<FeedReadyState> {
+        const normalizedUserId = normalizeUserId(userId);
+        if (!normalizedUserId) {
+            throw new Error('FeedRepository requires a current user id.');
+        }
+
+        const [maxTableSize, searchLimit] = await Promise.all([
+            configRepository.getInt('maxTableSize_v2', 500),
+            configRepository.getInt('searchLimit', 50000)
+        ]);
+
+        if (this.#currentUserId !== normalizedUserId) {
+            await userSessionRepository.ensureUserTables(normalizedUserId);
+            this.#currentUserId = normalizedUserId;
+        }
+
+        return {
+            normalizedUserId,
+            maxTableSize: Number(maxTableSize),
+            searchLimit: Number(searchLimit)
+        };
+    }
+
+    async queryFeed({
+        userId,
+        search = '',
+        filters = [],
+        favoriteUserIds = [],
+        scopedUserIds = [],
+        excludedFavoriteUserIds = [],
+        dateFrom = '',
+        dateTo = '',
+        maxEntries,
+        cursor = null
+    }: FeedQueryOptions): Promise<FeedRowOutput[]> {
+        const { normalizedUserId, maxTableSize, searchLimit } =
+            await this.#ensureReady(userId);
+        const normalizedFilters = normalizeFilterList(filters);
+        const normalizedFavorites = normalizeUserIdList(favoriteUserIds);
+        const normalizedScoped = normalizeUserIdList(scopedUserIds);
+        const normalizedExcludedFavorites = normalizeUserIdList(
+            excludedFavoriteUserIds
+        );
+        const normalizedSearch = String(search || '').trim();
+
+        if (normalizedSearch || dateFrom || dateTo) {
+            return feedPersistenceRepository.searchFeedDatabase(
+                normalizedSearch,
+                normalizedFilters,
+                normalizedFavorites,
+                maxEntries ?? searchLimit,
+                dateFrom,
+                dateTo,
+                normalizedUserId,
+                normalizedExcludedFavorites,
+                normalizedScoped
+            );
+        }
+
+        return feedPersistenceRepository.lookupFeedDatabase(
+            normalizedUserId,
+            normalizedFilters,
+            normalizedFavorites,
+            maxEntries ?? maxTableSize,
+            cursor,
+            normalizedExcludedFavorites,
+            normalizedScoped
+        );
+    }
+
+    async queryFeedPage(options: FeedQueryOptions): Promise<FeedRowOutput[]> {
+        return this.queryFeed(options);
+    }
+
+    async queryFeedReadModel({
+        userId,
+        search = '',
+        filters = [],
+        favoriteUserIds = [],
+        scopedUserIds = [],
+        excludedFavoriteUserIds = [],
+        dateFrom = '',
+        dateTo = '',
+        liveEntries = [],
+        minLiveSequence = 0,
+        favoritesOnly = false,
+        cursor = null,
+        maxEntries: requestedMaxEntries,
+        maxRows
+    }: FeedReadModelQueryOptions): Promise<FeedReadModelResult<FeedRowOutput>> {
+        const { normalizedUserId, maxTableSize, searchLimit } =
+            await this.#ensureReady(userId);
+        const normalizedFilters = normalizeFilterList(filters);
+        const normalizedFavorites = normalizeUserIdList(favoriteUserIds);
+        const normalizedScoped = normalizeUserIdList(scopedUserIds);
+        const normalizedExcludedFavorites = normalizeUserIdList(
+            excludedFavoriteUserIds
+        );
+        const normalizedSearch = String(search || '').trim();
+        const isSearchMode = Boolean(normalizedSearch || dateFrom || dateTo);
+        const maxEntries =
+            requestedMaxEntries ?? (isSearchMode ? searchLimit : maxTableSize);
+
+        return feedPersistenceRepository.queryFeedReadModel({
+            userId: normalizedUserId,
+            mode: isSearchMode ? 'search' : 'lookup',
+            search: normalizedSearch,
+            filters: normalizedFilters,
+            vipList: favoritesOnly ? normalizedFavorites : [],
+            scopedUserIds: normalizedScoped,
+            excludedUserIds: normalizedExcludedFavorites,
+            maxEntries,
+            dateFrom,
+            dateTo,
+            cursor,
+            liveEntries: Array.isArray(liveEntries) ? liveEntries : [],
+            minLiveSequence,
+            favoritesOnly,
+            favoriteUserIds: normalizedFavorites,
+            maxRows: maxRows ?? maxEntries
+        });
+    }
+
+    async mergeLiveRows({
+        userId,
+        rows = [],
+        search = '',
+        filters = [],
+        favoriteUserIds = [],
+        scopedUserIds = [],
+        excludedFavoriteUserIds = [],
+        dateFrom = '',
+        dateTo = '',
+        liveEntries = [],
+        minLiveSequence = 0,
+        favoritesOnly = false,
+        maxRows
+    }: FeedLiveRowsMergeOptions): Promise<FeedReadModelResult<FeedRowOutput>> {
+        const normalizedUserId = normalizeUserId(userId);
+        const normalizedFilters = normalizeFilterList(filters);
+        const normalizedFavorites = normalizeUserIdList(favoriteUserIds);
+        const normalizedScoped = normalizeUserIdList(scopedUserIds);
+        const normalizedExcludedFavorites = normalizeUserIdList(
+            excludedFavoriteUserIds
+        );
+
+        return feedPersistenceRepository.mergeFeedLiveRows({
+            rows,
+            currentUserId: normalizedUserId,
+            filters: normalizedFilters,
+            scopedUserIds: normalizedScoped,
+            excludedUserIds: normalizedExcludedFavorites,
+            search: String(search || '').trim(),
+            dateFrom,
+            dateTo,
+            liveEntries: Array.isArray(liveEntries) ? liveEntries : [],
+            minLiveSequence,
+            favoritesOnly,
+            favoriteUserIds: normalizedFavorites,
+            maxRows
+        });
+    }
+}
+
+const feedRepository = new FeedRepository();
+
+export { FeedRepository };
+export default feedRepository;

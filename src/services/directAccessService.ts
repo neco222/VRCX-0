@@ -1,0 +1,334 @@
+import vrchatInstanceRepository from '@/repositories/vrchatInstanceRepository';
+import vrchatSearchRepository from '@/repositories/vrchatSearchRepository';
+import {
+    openAvatarDialog,
+    openGroupDialog,
+    openUserDialog,
+    openWorldDialog
+} from '@/services/dialogService';
+import { openInstanceInGame } from '@/services/instanceActionService';
+import {
+    hasAvatarIdPrefix,
+    hasGroupIdPrefix,
+    hasUserIdPrefix,
+    hasWorldIdPrefix
+} from '@/shared/constants/vrchatIds';
+import { VRCHAT_WEB_BASE } from '@/shared/constants/vrchatWebUrls';
+import { parseLocation } from '@/shared/utils/location';
+import { normalizeString } from '@/shared/utils/string';
+
+type LooseRecord = Record<string, unknown>;
+type ParsedLocation = ReturnType<typeof parseLocation>;
+
+function isRecord(value: unknown): value is LooseRecord {
+    return Boolean(value && typeof value === 'object');
+}
+
+function emptyRecordArray(value: unknown): LooseRecord[] {
+    return Array.isArray(value) ? value : [];
+}
+
+function openWorldLocation(location: unknown, title: unknown = '') {
+    const parsedLocation = parseLocation(location);
+    const worldDialogTarget =
+        parsedLocation.isRealInstance && parsedLocation.tag
+            ? parsedLocation.tag
+            : parsedLocation.worldId || location;
+    openWorldDialog({
+        worldId: worldDialogTarget,
+        title: title || undefined
+    });
+}
+
+export function buildVrcLaunchUrl(location: unknown, shortName: unknown = '') {
+    const normalizedLocation = normalizeString(location);
+    const normalizedShortName = normalizeString(shortName);
+    let launchUrl = `vrchat://launch?id=${normalizedLocation}`;
+    if (normalizedShortName) {
+        launchUrl += `&shortName=${normalizedShortName}`;
+    }
+    return launchUrl;
+}
+
+function normalizeLaunchLocation(location: unknown) {
+    const normalizedLocation = normalizeString(location);
+    const parsed = parseLocation(normalizedLocation);
+    if (parsed.worldId && parsed.instanceId) {
+        return {
+            location: `${parsed.worldId}:${parsed.instanceId}`,
+            parsed
+        };
+    }
+    return {
+        location: normalizedLocation,
+        parsed
+    };
+}
+
+function shouldUseProvidedLaunchToken(
+    parsed: ParsedLocation,
+    shortName: string
+) {
+    return Boolean(
+        shortName &&
+        parsed.accessType !== 'public' &&
+        parsed.groupAccessType !== 'public'
+    );
+}
+
+export async function resolveInstanceLaunchToken(
+    location: unknown,
+    shortName: unknown = ''
+) {
+    const { parsed } = normalizeLaunchLocation(location);
+    let launchToken = normalizeString(shortName || parsed.shortName);
+
+    if (shouldUseProvidedLaunchToken(parsed, launchToken)) {
+        return launchToken;
+    }
+
+    if (parsed.worldId && parsed.instanceId) {
+        try {
+            const response =
+                await vrchatInstanceRepository.getInstanceShortName({
+                    worldId: parsed.worldId,
+                    instanceId: parsed.instanceId
+                });
+            launchToken = normalizeString(
+                response.json?.shortName || response.json?.secureName
+            );
+        } catch (error) {
+            console.warn(
+                'Failed to resolve VRChat launch shortName, falling back to worldId and instanceId:',
+                error
+            );
+        }
+    }
+
+    return launchToken;
+}
+
+export async function resolveVrcLaunchUrl(
+    location: unknown,
+    shortName: unknown = ''
+) {
+    const { location: normalizedLocation, parsed } =
+        normalizeLaunchLocation(location);
+    const launchToken = await resolveInstanceLaunchToken(
+        normalizedLocation,
+        shortName || parsed.shortName
+    );
+    return buildVrcLaunchUrl(normalizedLocation, launchToken);
+}
+
+export async function tryOpenLaunchLocation(
+    location: unknown,
+    shortName: unknown = ''
+) {
+    const { location: normalizedLocation, parsed } =
+        normalizeLaunchLocation(location);
+    if (!normalizedLocation || !normalizedLocation.includes(':')) {
+        return false;
+    }
+
+    return openInstanceInGame(
+        normalizedLocation,
+        normalizeString(shortName || parsed.shortName)
+    );
+}
+
+async function verifyShortName(location: unknown, shortName: string) {
+    const response =
+        await vrchatSearchRepository.getInstanceFromShortName(shortName);
+    const json = response.json;
+    const nextLocation = json?.location || location;
+    if (!nextLocation) {
+        return false;
+    }
+
+    if (
+        await tryOpenLaunchLocation(nextLocation, json?.shortName || shortName)
+    ) {
+        return true;
+    }
+
+    const world = isRecord(json.world) ? json.world : {};
+    openWorldLocation(
+        nextLocation,
+        world.name || json?.worldName || nextLocation
+    );
+    return true;
+}
+
+async function openGroupByShortCode(shortCode: string) {
+    const response = await vrchatSearchRepository.getGroupsStrictSearch({
+        query: shortCode
+    });
+    const group = emptyRecordArray(response.json).find(
+        (entry) =>
+            `${normalizeString(entry.shortCode)}.${normalizeString(entry.discriminator)}` ===
+            shortCode
+    );
+    if (!group?.id) {
+        return false;
+    }
+
+    openGroupDialog({
+        groupId: group.id,
+        title: group.name || undefined,
+        seedData: group
+    });
+    return true;
+}
+
+async function directAccessWorld(rawInput: unknown) {
+    let input = normalizeString(rawInput);
+    if (!input) {
+        return false;
+    }
+
+    if (input.startsWith('/home/')) {
+        input = `${VRCHAT_WEB_BASE}${input}`;
+    }
+
+    if (input.startsWith('vrchat://launch')) {
+        const parsed = parseLocation(input);
+        if (!parsed.worldId || !parsed.instanceId) {
+            return false;
+        }
+        const location = `${parsed.worldId}:${parsed.instanceId}`;
+        if (await tryOpenLaunchLocation(location, parsed.shortName)) {
+            return true;
+        }
+        openWorldLocation(location);
+        return true;
+    }
+
+    if (/^[A-Za-z0-9]{8}$/.test(input)) {
+        return verifyShortName('', input);
+    }
+
+    if (input.startsWith('https://vrch.at/')) {
+        const shortName = new URL(input).pathname
+            .replace(/^\//, '')
+            .slice(0, 8);
+        return shortName ? verifyShortName('', shortName) : false;
+    }
+
+    if (input.startsWith('https://vrchat.')) {
+        const url = new URL(input);
+        const pathParts = url.pathname.split('/');
+        if (pathParts.length >= 4 && pathParts[2] === 'world') {
+            openWorldLocation(decodeURIComponent(pathParts[3]));
+            return true;
+        }
+
+        if (url.pathname === '/home/launch') {
+            const worldId = url.searchParams.get('worldId');
+            const instanceId = url.searchParams.get('instanceId');
+            const shortName = url.searchParams.get('shortName');
+            if (worldId && instanceId) {
+                const location = `${worldId}:${instanceId}`;
+                if (await tryOpenLaunchLocation(location, shortName || '')) {
+                    return true;
+                }
+                if (shortName) {
+                    try {
+                        if (await verifyShortName(location, shortName)) {
+                            return true;
+                        }
+                    } catch (error) {
+                        console.warn(
+                            'Failed to resolve VRChat launch shortName, falling back to worldId and instanceId:',
+                            error
+                        );
+                    }
+                }
+                openWorldLocation(location);
+                return true;
+            }
+            if (worldId) {
+                openWorldLocation(worldId);
+                return true;
+            }
+        }
+    }
+
+    if (
+        hasWorldIdPrefix(input) ||
+        input.startsWith('wld_') ||
+        input.startsWith('o_')
+    ) {
+        if (input.includes('&instanceId=')) {
+            return directAccessWorld(
+                `${VRCHAT_WEB_BASE}/home/launch?worldId=${input}`
+            );
+        }
+
+        openWorldLocation(input.trim());
+        return true;
+    }
+
+    return false;
+}
+
+export async function directAccessParse(input: unknown) {
+    const value = normalizeString(input).trim();
+    if (!value) {
+        return false;
+    }
+
+    if (await directAccessWorld(value)) {
+        return true;
+    }
+
+    if (value.startsWith('https://vrchat.')) {
+        const url = new URL(value);
+        const pathParts = url.pathname.split('/');
+        if (pathParts.length < 4) {
+            return false;
+        }
+
+        const type = pathParts[2];
+        const id = decodeURIComponent(pathParts[3]);
+        if (type === 'user') {
+            openUserDialog({ userId: id });
+            return true;
+        }
+        if (type === 'avatar') {
+            openAvatarDialog({ avatarId: id });
+            return true;
+        }
+        if (type === 'group') {
+            openGroupDialog({ groupId: id });
+            return true;
+        }
+    }
+
+    if (value.startsWith('https://vrc.group/')) {
+        return openGroupByShortCode(
+            value.substring('https://vrc.group/'.length)
+        );
+    }
+
+    if (/^[A-Za-z0-9]{3,6}\.[0-9]{4}$/.test(value)) {
+        return openGroupByShortCode(value);
+    }
+
+    if (hasUserIdPrefix(value) || /^[A-Za-z0-9]{10}$/.test(value)) {
+        openUserDialog({ userId: value });
+        return true;
+    }
+
+    if (hasAvatarIdPrefix(value) || value.startsWith('b_')) {
+        openAvatarDialog({ avatarId: value });
+        return true;
+    }
+
+    if (hasGroupIdPrefix(value)) {
+        openGroupDialog({ groupId: value });
+        return true;
+    }
+
+    return false;
+}

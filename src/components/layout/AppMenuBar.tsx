@@ -1,0 +1,554 @@
+import {
+    type ComponentProps,
+    type ReactNode,
+    useEffect,
+    useMemo,
+    useState
+} from 'react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
+
+import { AboutVrcxDialog } from '@/components/about/AboutDialog';
+import { OpenSourceNoticeDialog } from '@/features/settings/components/OpenSourceNoticeDialog';
+import { cn } from '@/lib/utils';
+import { commands } from '@/platform/tauri/bindings';
+import configRepository from '@/repositories/configRepository';
+import { logoutFromReactShell } from '@/services/authExecutionService';
+import { startBackgroundModeForCurrentSession } from '@/services/backgroundModeService';
+import { openExternalLink } from '@/services/entityMediaService';
+import {
+    setNavbarCollapsedPreference,
+    setZoomLevelPreference
+} from '@/services/preferencesService';
+import {
+    exitApplication,
+    restartApplication
+} from '@/services/shellIntegrationService';
+import {
+    formatZoomPercentage,
+    normalizeZoomLevel
+} from '@/services/themeService';
+import {
+    isToolCapabilityAvailable,
+    triggerToolByKey
+} from '@/services/toolActionService';
+import { getBuildBadgeLabel, isDeveloperToolsBuild } from '@/shared/buildLabel';
+import { links } from '@/shared/constants/link';
+import {
+    TOOLS_QUICK_ACCESS_UPDATED_EVENT,
+    getToolsByCategory,
+    parseQuickAccessToolKeys,
+    quickAccessConfigKey,
+    toolCategories,
+    type ToolDefinition
+} from '@/shared/constants/tools';
+import { publishNavCustomizeRequested } from '@/shared/events/navLayoutEvents';
+import { formatReleaseDisplayVersion } from '@/shared/utils/releaseVersion';
+import { usePreferencesStore } from '@/state/preferencesStore';
+import { useRuntimeStore } from '@/state/runtimeStore';
+import { useShellStore } from '@/state/shellStore';
+import { Badge } from '@/ui/shadcn/badge';
+import {
+    Menubar,
+    MenubarContent,
+    MenubarGroup,
+    MenubarItem,
+    MenubarLabel,
+    MenubarMenu,
+    MenubarSeparator,
+    MenubarShortcut,
+    MenubarSub,
+    MenubarSubContent,
+    MenubarSubTrigger,
+    MenubarTrigger
+} from '@/ui/shadcn/menubar';
+
+const ZOOM_STEP = 10;
+
+function MenuItem({
+    children,
+    onClick,
+    className,
+    ...props
+}: ComponentProps<typeof MenubarItem>) {
+    return (
+        <MenubarItem
+            className={cn('min-h-7 min-w-48 text-xs', className)}
+            onClick={onClick}
+            {...props}
+        >
+            {children}
+        </MenubarItem>
+    );
+}
+
+function MenuGroupLabel({ children }: { children: ReactNode }) {
+    return (
+        <MenubarLabel className="text-muted-foreground px-2 py-1.5 text-[11px] font-medium uppercase">
+            {children}
+        </MenubarLabel>
+    );
+}
+
+function ToolMenuItem({ tool }: { tool: ToolDefinition }) {
+    const { t } = useTranslation();
+    const navigate = useNavigate();
+
+    return (
+        <MenuItem
+            onClick={() => {
+                triggerToolByKey(tool.key, { navigate, t });
+            }}
+        >
+            {t(tool.titleKey)}
+        </MenuItem>
+    );
+}
+
+interface AppMenuBarProps {
+    rightSidebarOpen: boolean;
+    onOpenQuickSearch?: () => void;
+    onOpenDirectAccess?: () => void;
+    onOpenNotificationCenter?: () => void;
+    onToggleRightSidebar: () => void;
+}
+
+export function AppMenuBar({
+    rightSidebarOpen,
+    onOpenNotificationCenter,
+    onToggleRightSidebar
+}: AppMenuBarProps) {
+    const { t } = useTranslation();
+    const navigate = useNavigate();
+    const [aboutOpen, setAboutOpen] = useState(false);
+    const [openSourceNoticeOpen, setOpenSourceNoticeOpen] = useState(false);
+    const [quickAccessKeys, setQuickAccessKeys] = useState<string[]>([]);
+    const zoomLevel = useShellStore((state) => state.zoomLevel);
+    const navbarOpen = useShellStore((state) => state.sidebarOpen);
+    const notificationLayout = usePreferencesStore(
+        (state) => state.notificationLayout
+    );
+    const setSystemHostOpen = useRuntimeStore(
+        (state) => state.setSystemHostOpen
+    );
+    const hostCapabilities = useRuntimeStore((state) => state.hostCapabilities);
+    const currentZoom = normalizeZoomLevel(zoomLevel);
+    // oxlint-disable-next-line no-undef
+    const appVersion = formatReleaseDisplayVersion(VERSION || '') || '-';
+    const buildBadgeLabel = getBuildBadgeLabel(t);
+    const developerToolsAvailable = isDeveloperToolsBuild();
+    const availableToolCategories = useMemo(
+        () =>
+            toolCategories
+                .map((category) => ({
+                    ...category,
+                    tools: getToolsByCategory(category.key).filter((tool) =>
+                        isToolCapabilityAvailable(tool)
+                    )
+                }))
+                .filter((category) => category.tools.length > 0),
+        [hostCapabilities]
+    );
+    const availableToolMap = useMemo(
+        () =>
+            new Map(
+                availableToolCategories
+                    .flatMap((category) => category.tools)
+                    .map((tool) => [tool.key, tool])
+            ),
+        [availableToolCategories]
+    );
+    const quickAccessTools = useMemo(
+        () =>
+            quickAccessKeys
+                .map((key) => availableToolMap.get(key))
+                .filter((tool): tool is ToolDefinition => Boolean(tool)),
+        [availableToolMap, quickAccessKeys]
+    );
+    useEffect(() => {
+        let active = true;
+        const loadQuickAccessTools = () => {
+            configRepository
+                .getString(quickAccessConfigKey, '[]')
+                .then((value) => {
+                    if (active) {
+                        setQuickAccessKeys(parseQuickAccessToolKeys(value));
+                    }
+                })
+                .catch(() => {
+                    if (active) {
+                        setQuickAccessKeys([]);
+                    }
+                });
+        };
+
+        loadQuickAccessTools();
+        window.addEventListener(
+            TOOLS_QUICK_ACCESS_UPDATED_EVENT,
+            loadQuickAccessTools
+        );
+        return () => {
+            active = false;
+            window.removeEventListener(
+                TOOLS_QUICK_ACCESS_UPDATED_EVENT,
+                loadQuickAccessTools
+            );
+        };
+    }, []);
+
+    async function applyZoomLevel(nextZoom: number) {
+        try {
+            await setZoomLevelPreference(nextZoom);
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : t('app_menu.messages.zoom_failed')
+            );
+        }
+    }
+
+    async function runLogout() {
+        try {
+            await logoutFromReactShell();
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : t('app_menu.messages.logout_failed')
+            );
+        }
+    }
+
+    async function runRestartApplication() {
+        try {
+            await restartApplication();
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : t('app_menu.messages.restart_failed')
+            );
+        }
+    }
+
+    async function runStartBackgroundMode() {
+        try {
+            await startBackgroundModeForCurrentSession();
+        } catch {
+            toast.error(
+                t(
+                    'component.app_status_bar.toast.failed_to_start_background_mode'
+                )
+            );
+        }
+    }
+
+    async function runOpenDevtools() {
+        try {
+            await commands.appOpenDevtools();
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : t('app_menu.messages.open_devtools_failed')
+            );
+        }
+    }
+
+    function openLink(url: string) {
+        openExternalLink(url);
+    }
+
+    function openNotificationSurface() {
+        if (notificationLayout === 'table') {
+            navigate('/notification');
+            return;
+        }
+        onOpenNotificationCenter?.();
+    }
+
+    return (
+        <>
+            <Menubar className="h-full border-0 bg-transparent p-0! shadow-none">
+                <MenubarMenu>
+                    <MenubarTrigger className="text-muted-foreground hover:text-foreground aria-expanded:text-foreground h-full rounded-none px-3 py-0! text-xs">
+                        <span className="vrcx-0-brand">VRCX-0</span>
+                    </MenubarTrigger>
+                    <MenubarContent align="start">
+                        <MenubarGroup>
+                            <MenuItem onClick={() => navigate('/settings')}>
+                                {t('app_menu.settings')}
+                            </MenuItem>
+                            <MenuItem
+                                onClick={() =>
+                                    setSystemHostOpen('updaterOpen', true)
+                                }
+                            >
+                                {t('app_menu.check_updates')}
+                            </MenuItem>
+                            <MenuItem
+                                onClick={() => {
+                                    runRestartApplication();
+                                }}
+                            >
+                                {t('app_menu.restart')}
+                            </MenuItem>
+                            <MenuItem
+                                onClick={() => {
+                                    runStartBackgroundMode();
+                                }}
+                            >
+                                {t('app_menu.start_background_mode')}
+                            </MenuItem>
+                        </MenubarGroup>
+                        <MenubarSeparator />
+                        <MenubarGroup>
+                            <MenuItem
+                                variant="destructive"
+                                onClick={() => {
+                                    runLogout();
+                                }}
+                            >
+                                {t('app_menu.logout')}
+                            </MenuItem>
+                            <MenuItem
+                                onClick={() => {
+                                    exitApplication();
+                                }}
+                            >
+                                {t('app_menu.quit')}
+                            </MenuItem>
+                        </MenubarGroup>
+                    </MenubarContent>
+                </MenubarMenu>
+
+                <MenubarMenu>
+                    <MenubarTrigger className="text-muted-foreground hover:text-foreground aria-expanded:text-foreground h-full rounded-none px-2 !py-0 text-xs">
+                        {t('app_menu.view')}
+                    </MenubarTrigger>
+                    <MenubarContent align="start">
+                        <MenubarGroup>
+                            <MenuItem onClick={() => openNotificationSurface()}>
+                                {t('app_menu.notification_center')}
+                            </MenuItem>
+                            <MenuItem
+                                onClick={() => {
+                                    setNavbarCollapsedPreference(navbarOpen);
+                                }}
+                            >
+                                {t(
+                                    navbarOpen
+                                        ? 'nav_tooltip.collapse_nav'
+                                        : 'nav_tooltip.expand_nav'
+                                )}
+                            </MenuItem>
+                            <MenuItem onClick={() => onToggleRightSidebar?.()}>
+                                {t(
+                                    rightSidebarOpen
+                                        ? 'app_menu.hide_friends_sidebar'
+                                        : 'app_menu.show_friends_sidebar'
+                                )}
+                            </MenuItem>
+                            <MenuItem
+                                onClick={() => publishNavCustomizeRequested()}
+                            >
+                                {t('nav_menu.custom_nav.header')}
+                            </MenuItem>
+                        </MenubarGroup>
+                        <MenubarSeparator />
+                        <MenubarGroup>
+                            <MenuItem
+                                onClick={() => {
+                                    navigate('/themes');
+                                }}
+                            >
+                                {t('view.themes.menu.header')}
+                            </MenuItem>
+                        </MenubarGroup>
+                        <MenubarSeparator />
+                        <MenubarGroup>
+                            <MenuItem
+                                onClick={() => {
+                                    applyZoomLevel(currentZoom + ZOOM_STEP);
+                                }}
+                            >
+                                {t('app_menu.zoom_in')}
+                                <MenubarShortcut className="tracking-normal">
+                                    {formatZoomPercentage(
+                                        currentZoom + ZOOM_STEP
+                                    )}
+                                </MenubarShortcut>
+                            </MenuItem>
+                            <MenuItem
+                                onClick={() => {
+                                    applyZoomLevel(currentZoom - ZOOM_STEP);
+                                }}
+                            >
+                                {t('app_menu.zoom_out')}
+                                <MenubarShortcut className="tracking-normal">
+                                    {formatZoomPercentage(
+                                        currentZoom - ZOOM_STEP
+                                    )}
+                                </MenubarShortcut>
+                            </MenuItem>
+                            <MenuItem
+                                onClick={() => {
+                                    applyZoomLevel(100);
+                                }}
+                            >
+                                {t('app_menu.reset_zoom')}
+                                <MenubarShortcut className="tracking-normal">
+                                    {formatZoomPercentage(100)}
+                                </MenubarShortcut>
+                            </MenuItem>
+                        </MenubarGroup>
+                    </MenubarContent>
+                </MenubarMenu>
+
+                <MenubarMenu>
+                    <MenubarTrigger className="text-muted-foreground hover:text-foreground aria-expanded:text-foreground h-full rounded-none px-2 !py-0 text-xs">
+                        {t('app_menu.tools')}
+                    </MenubarTrigger>
+                    <MenubarContent align="start" className="w-56">
+                        <MenubarGroup>
+                            <MenuItem onClick={() => navigate('/tools')}>
+                                {t('app_menu.all_tools')}
+                            </MenuItem>
+                        </MenubarGroup>
+                        {quickAccessTools.length > 0 ? (
+                            <>
+                                <MenubarSeparator />
+                                <MenubarGroup>
+                                    <MenuGroupLabel>
+                                        {t('view.tools.quick_access.header')}
+                                    </MenuGroupLabel>
+                                    {quickAccessTools.map((tool) => (
+                                        <ToolMenuItem
+                                            key={tool.key}
+                                            tool={tool}
+                                        />
+                                    ))}
+                                </MenubarGroup>
+                            </>
+                        ) : null}
+                        {availableToolCategories.length > 0 ? (
+                            <MenubarSeparator />
+                        ) : null}
+                        {availableToolCategories.map((category) => (
+                            <MenubarSub key={category.key}>
+                                <MenubarSubTrigger className="min-h-7 min-w-48 text-xs">
+                                    {t(category.labelKey)}
+                                </MenubarSubTrigger>
+                                <MenubarSubContent className="w-56">
+                                    {category.tools.map((tool) => (
+                                        <ToolMenuItem
+                                            key={tool.key}
+                                            tool={tool}
+                                        />
+                                    ))}
+                                </MenubarSubContent>
+                            </MenubarSub>
+                        ))}
+                    </MenubarContent>
+                </MenubarMenu>
+
+                <MenubarMenu>
+                    <MenubarTrigger className="text-muted-foreground hover:text-foreground aria-expanded:text-foreground h-full rounded-none px-2 !py-0 text-xs">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                            <span>{t('app_menu.help')}</span>
+                            {buildBadgeLabel ? (
+                                <Badge
+                                    variant="secondary"
+                                    className="h-4 rounded-md px-1 text-[10px] leading-none shadow-none"
+                                >
+                                    {buildBadgeLabel}
+                                </Badge>
+                            ) : null}
+                        </span>
+                    </MenubarTrigger>
+                    <MenubarContent align="start">
+                        <MenubarGroup>
+                            <MenuItem
+                                onClick={() =>
+                                    setSystemHostOpen('changelogOpen', true)
+                                }
+                            >
+                                {t('nav_menu.changelog')}
+                            </MenuItem>
+                            <MenuItem
+                                onClick={() =>
+                                    setSystemHostOpen(
+                                        'keyboardShortcutsOpen',
+                                        true
+                                    )
+                                }
+                            >
+                                {t('app_menu.keyboard_shortcuts')}
+                            </MenuItem>
+                        </MenubarGroup>
+                        <MenubarSeparator />
+                        <MenubarGroup>
+                            <MenuItem onClick={() => openLink(links.issues)}>
+                                {t('app_menu.report_issue')}
+                            </MenuItem>
+                        </MenubarGroup>
+                        <MenubarSeparator />
+                        <MenubarGroup>
+                            <MenuGroupLabel>
+                                {t('app_menu.community')}
+                            </MenuGroupLabel>
+                            <MenuItem onClick={() => openLink(links.github)}>
+                                GitHub
+                            </MenuItem>
+                            <MenuItem onClick={() => openLink(links.discord)}>
+                                Discord
+                            </MenuItem>
+                            <MenuItem onClick={() => openLink(links.qqGroup)}>
+                                {t('nav_menu.qq_group')}
+                            </MenuItem>
+                        </MenubarGroup>
+                        <MenubarSeparator />
+                        {developerToolsAvailable ? (
+                            <>
+                                <MenubarGroup>
+                                    <MenuItem onClick={() => runOpenDevtools()}>
+                                        {t('app_menu.open_devtools')}
+                                    </MenuItem>
+                                </MenubarGroup>
+                                <MenubarSeparator />
+                            </>
+                        ) : null}
+                        <MenubarGroup>
+                            <MenuItem
+                                label={t('app_menu.about')}
+                                className="min-w-56"
+                                onClick={() => setAboutOpen(true)}
+                            >
+                                {t('app_menu.about')}
+                                <MenubarShortcut className="font-mono tracking-normal tabular-nums">
+                                    {appVersion}
+                                </MenubarShortcut>
+                            </MenuItem>
+                        </MenubarGroup>
+                    </MenubarContent>
+                </MenubarMenu>
+            </Menubar>
+
+            <OpenSourceNoticeDialog
+                open={openSourceNoticeOpen}
+                onOpenChange={setOpenSourceNoticeOpen}
+            />
+
+            <AboutVrcxDialog
+                open={aboutOpen}
+                onOpenChange={setAboutOpen}
+                onOpenLicenses={() => {
+                    setAboutOpen(false);
+                    setOpenSourceNoticeOpen(true);
+                }}
+            />
+        </>
+    );
+}

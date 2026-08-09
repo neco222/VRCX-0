@@ -1,0 +1,17 @@
+[package]
+name = "vrcx-0-core"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+description = "Shared domain primitives"
+
+[dependencies]
+chrono = { workspace = true }
+quick-xml = "0.41"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+specta.workspace = true
+tracing = { workspace = true }
+
+[dev-dependencies]
+proptest.workspace = true

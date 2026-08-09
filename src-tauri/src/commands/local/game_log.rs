@@ -1,0 +1,165 @@
+#![allow(non_snake_case)]
+
+use tauri::State;
+
+use crate::error::AppError;
+use crate::state::AppState;
+
+use serde_json::Value;
+use vrcx_0_application_game::{
+    GameLogSessionDto, GameLogSessionsQueryInput, InstanceHistoryEntryOutput,
+    InstanceHistoryQueryInput,
+};
+use vrcx_0_host_desktop::host_capabilities::{require_host_capability_supported, HostCapability};
+use vrcx_0_persistence::game_log::{
+    GameLogEntryDeleteKind, GameLogPreviousInstanceGroupOutput, GameLogPreviousInstanceWorldOutput,
+    GameLogQueryInput, GameLogWriteKind,
+};
+
+#[tauri::command]
+#[specta::specta]
+pub fn app__game_log_persistence_set_disabled(
+    state: State<'_, AppState>,
+    disabled: bool,
+) -> Result<(), AppError> {
+    require_host_capability_supported(HostCapability::GameLogWatcher)?;
+    state
+        .game
+        .game_log_runtime
+        .set_persistence_disabled(&state.game.log_watcher, disabled)
+        .map_err(AppError::from)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn app__game_log_entries_add(
+    state: State<'_, AppState>,
+    kind: GameLogWriteKind,
+    entries: Vec<Value>,
+) -> Result<(), AppError> {
+    let owner_user_id = state.runtime_context.auth_scope.snapshot().current_user_id;
+    let affected_count = vrcx_0_persistence::game_log::game_log_entries_add(
+        state.db.as_ref(),
+        &owner_user_id,
+        kind,
+        entries,
+    )
+    .map_err(AppError::from)?;
+    state
+        .runtime_context
+        .event_bus
+        .emit_game_log_persisted(affected_count);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn app__game_log_entry_delete(
+    state: State<'_, AppState>,
+    kind: GameLogEntryDeleteKind,
+    entry: Value,
+) -> Result<i64, AppError> {
+    let owner_user_id = state.runtime_context.auth_scope.snapshot().current_user_id;
+    vrcx_0_persistence::game_log::game_log_entry_delete(
+        state.db.as_ref(),
+        &owner_user_id,
+        kind,
+        entry,
+    )
+    .map_err(AppError::from)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn app__game_log_instance_delete(
+    state: State<'_, AppState>,
+    location: String,
+    event_ids: Vec<i64>,
+) -> Result<i64, AppError> {
+    let owner_user_id = state.runtime_context.auth_scope.snapshot().current_user_id;
+    vrcx_0_persistence::game_log::game_log_instance_delete(
+        state.db.as_ref(),
+        &owner_user_id,
+        location,
+        event_ids,
+    )
+    .map_err(AppError::from)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn app__game_log_instance_delete_by_location(
+    state: State<'_, AppState>,
+    location: String,
+) -> Result<i64, AppError> {
+    let owner_user_id = state.runtime_context.auth_scope.snapshot().current_user_id;
+    vrcx_0_persistence::game_log::game_log_instance_delete_by_location(
+        state.db.as_ref(),
+        &owner_user_id,
+        location,
+    )
+    .map_err(AppError::from)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn app__game_log_query(
+    state: State<'_, AppState>,
+    query: GameLogQueryInput,
+) -> Result<Value, AppError> {
+    let owner_user_id = state.runtime_context.auth_scope.snapshot().current_user_id;
+    vrcx_0_persistence::game_log::game_log_query(state.db.as_ref(), &owner_user_id, query)
+        .map_err(AppError::from)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn app__game_log_previous_instances_by_group_id(
+    state: State<'_, AppState>,
+    group_id: String,
+) -> Result<Vec<GameLogPreviousInstanceGroupOutput>, AppError> {
+    let owner_user_id = state.runtime_context.auth_scope.snapshot().current_user_id;
+    vrcx_0_persistence::game_log::get_previous_instances_by_group_id(
+        state.db.as_ref(),
+        &owner_user_id,
+        &group_id,
+    )
+    .map_err(AppError::from)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn app__game_log_previous_instances_by_world_id(
+    state: State<'_, AppState>,
+    world_id: String,
+) -> Result<Vec<GameLogPreviousInstanceWorldOutput>, AppError> {
+    let owner_user_id = state.runtime_context.auth_scope.snapshot().current_user_id;
+    vrcx_0_persistence::game_log::get_previous_instances_by_world_id(
+        state.db.as_ref(),
+        &owner_user_id,
+        &world_id,
+    )
+    .map_err(AppError::from)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn app__game_log_sessions_query(
+    state: State<'_, AppState>,
+    input: GameLogSessionsQueryInput,
+) -> Result<Vec<GameLogSessionDto>, AppError> {
+    let owner_user_id = state.runtime_context.auth_scope.snapshot().current_user_id;
+    vrcx_0_application_game::game_log_sessions_query(state.db.as_ref(), &owner_user_id, input)
+        .map_err(AppError::from)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn app__instance_history_query(
+    state: State<'_, AppState>,
+    input: InstanceHistoryQueryInput,
+) -> Result<Vec<InstanceHistoryEntryOutput>, AppError> {
+    let owner_user_id = state.runtime_context.auth_scope.snapshot().current_user_id;
+    vrcx_0_application_game::instance_history_query(state.db.as_ref(), &owner_user_id, input)
+        .map_err(AppError::from)
+}
